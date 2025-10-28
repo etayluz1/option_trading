@@ -9,13 +9,15 @@ SMA_PERIOD = 150
 SMA_SLOPE_PERIOD = 10 
 RISE_PERIOD = 5 
 columns = ['Date', 'Adj Close', 'Close', 'High', 'Low', 'Open', 'Volume']
-true_range_dict = {}
+stock_history_dict = {}
 
 # DataFrame Column Names (Internal)
 SMA_COL_NAME = 'SMA_150_ADJ_CLOSE' 
 SMA_SLOPE_COL_NAME = 'AVG_SLOPE' 
 RISE_COL_NAME = '5_DAY_RISE_PCT' 
 ABOVE_AVG_COL_NAME = 'ABOVE_AVG_PCT' 
+BELOW_AVG_COL_NAME = 'BELOW_AVG_PCT' 
+EXIT_COL_NAME = 'SHOULD_EXIT' # New internal column name
 
 # Final JSON Key Names
 ATR_JSON_KEY = 'atr_14' 
@@ -23,7 +25,9 @@ SMA_JSON_KEY = 'sma150_adj_close'
 SLOPE_JSON_KEY = '10_day_avg_slope' 
 RISE_JSON_KEY = '5_day_rise' 
 ABOVE_AVG_JSON_KEY = 'adj_price_above_avg_pct'
-INVESTABLE_JSON_KEY = 'investable' # New JSON key
+BELOW_AVG_JSON_KEY = 'adj_close_below_avg_pct' 
+INVESTABLE_JSON_KEY = 'investable' 
+SHOULD_EXIT_JSON_KEY = 'should_exit' # New JSON key
 
 # --- Rule Cleaning Utility ---
 def clean_rule_value(value_str):
@@ -45,7 +49,7 @@ def clean_rule_value(value_str):
     try:
         return float(value_str)
     except ValueError:
-        return None # Return None if conversion fails
+        return None 
 
 # Load rules.json
 try:
@@ -53,21 +57,24 @@ try:
         rules_json_data = f.read()
         rules = json.loads(rules_json_data)
         underlying_rules = rules["underlying_stock"]
+        exit_put_position = rules["exit_put_position"]
         
-        # Load and clean the five key values into comparable variables
+        # Load and clean rules
         min_5_day_rise_pct_rule = clean_rule_value(underlying_rules["min_5_day_rise_pct"])
         min_above_avg_pct_rule = clean_rule_value(underlying_rules["min_above_avg_pct"])
         max_above_avg_pct_rule = clean_rule_value(underlying_rules["max_above_avg_pct"])
         min_avg_up_slope_pct_rule = clean_rule_value(underlying_rules["min_avg_up_slope_pct"])
         min_stock_price_rule = clean_rule_value(underlying_rules["min_stock_price"])
+        stock_max_below_avg_rule = clean_rule_value(exit_put_position["stock_max_below_avg"])
         
 except Exception as e:
-    print(f"⚠️ Error loading or cleaning 'rules.json': {e}. Setting rules to conservative defaults (0.0).")
+    print(f"⚠️ Error loading or cleaning 'rules.json': {e}. Setting rules to conservative defaults.")
     min_5_day_rise_pct_rule = 0.0
     min_above_avg_pct_rule = 0.0
-    max_above_avg_pct_rule = 100.0 # Effectively no upper limit if rule fails
+    max_above_avg_pct_rule = 100.0 
     min_avg_up_slope_pct_rule = 0.0
     min_stock_price_rule = 0.0
+    stock_max_below_avg_rule = 0.0
 
 # --- Step 1: Calculate True Range and Prepare Data for ATR/SMA ---
 for filename in os.listdir(folder_path):
@@ -105,33 +112,38 @@ for filename in os.listdir(folder_path):
     df['ATR_14'] = df['TR_PCT'].rolling(window=ATR_PERIOD, min_periods=ATR_PERIOD).mean()
     df[SMA_COL_NAME] = df['Adj Close'].rolling(window=SMA_PERIOD, min_periods=SMA_PERIOD).mean()
 
-    # --- Step 3: Calculate Slope, 5-Day Rise, and Above-Average Percentage (Same as before) ---
+    # --- Step 3: Calculate Slope, 5-Day Rise, and Above/Below-Average Percentage ---
+    
+    # A. Average Slope Calculation
     df['SMA_PREV'] = df[SMA_COL_NAME].shift(SMA_SLOPE_PERIOD)
     df[SMA_SLOPE_COL_NAME] = ((df[SMA_COL_NAME] / df['SMA_PREV']) - 1) * 100
+    
+    # B. 5-Day Rise Calculation
     df['ADJ_CLOSE_PREV_5'] = df['Adj Close'].shift(RISE_PERIOD)
     df[RISE_COL_NAME] = ((df['Adj Close'] / df['ADJ_CLOSE_PREV_5']) - 1) * 100
+    
+    # C. Above-Average Percentage Calculation
     df[ABOVE_AVG_COL_NAME] = ((df['Adj Close'] / df[SMA_COL_NAME]) - 1) * 100
+
+    # D. Below-Average Percentage Calculation (Negation)
+    df[BELOW_AVG_COL_NAME] = -1 * df[ABOVE_AVG_COL_NAME]
     
-    # --- Step 4: Add 'investable' boolean to DataFrame ---
-    # Convert rules to Booleans: All four conditions must be True.
-    # We use boolean masks, which will be False wherever NaN prevents a comparison.
+    # --- Step 4: Add 'investable' and 'should_exit' booleans to DataFrame ---
     
-    # 1. 5-day Rise condition
+    # INVESTABLE LOGIC (Entry Screen)
     cond_rise = (df[RISE_COL_NAME] > min_5_day_rise_pct_rule)
-    
-    # 2. Above/Below SMA conditions
     cond_above_avg = (df[ABOVE_AVG_COL_NAME] >= min_above_avg_pct_rule) & \
                      (df[ABOVE_AVG_COL_NAME] <= max_above_avg_pct_rule)
-                     
-    # 3. SMA Slope condition
     cond_slope = (df[SMA_SLOPE_COL_NAME] > min_avg_up_slope_pct_rule)
-    
-    # 4. Minimum Price condition
     cond_price = (df['Adj Close'] > min_stock_price_rule)
-    
-    # Combine all conditions
     df[INVESTABLE_JSON_KEY] = cond_rise & cond_above_avg & cond_slope & cond_price
     
+    # SHOULD_EXIT LOGIC (Exit Screen - NEW)
+    # True if adj_close_below_avg_pct is LARGER than the stock_max_below_avg_rule
+    # Note: Both values are in absolute percentage terms (e.g., 5.0).
+    df[EXIT_COL_NAME] = (df[BELOW_AVG_COL_NAME] > stock_max_below_avg_rule)
+
+# ... (Steps 1 to 4 remain the same) ...
     # --- Step 5: Convert DataFrame back to the required dictionary structure ---
     tr_values = {}
     
@@ -140,9 +152,9 @@ for filename in os.listdir(folder_path):
         prev_close_val = row['Prev Close']
 
         # Base dictionary with all required price and TR data
-        tr_values[date] = {
-            "true_range": round(row['TR'], 4),
-            "true_range_pct": f"{round(row['TR_PCT'], 2)}%",
+        date_metrics = {
+            "stock_history": round(row['TR'], 4),
+            "stock_history_pct": f"{round(row['TR_PCT'], 2)}%",
             "high": round(row['High'], 4),
             "low": round(row['Low'], 4),
             "close": round(row['Close'], 4),
@@ -152,27 +164,38 @@ for filename in os.listdir(folder_path):
         
         # Add technical metrics
         if not pd.isna(row['ATR_14']):
-            tr_values[date][ATR_JSON_KEY] = f"{round(row['ATR_14'], 3):.3f}%"
+            date_metrics[ATR_JSON_KEY] = f"{round(row['ATR_14'], 3):.3f}%"
         if not pd.isna(row[SMA_COL_NAME]):
-            tr_values[date][SMA_JSON_KEY] = round(row[SMA_COL_NAME], 4)
+            date_metrics[SMA_JSON_KEY] = round(row[SMA_COL_NAME], 4)
+        
         if not pd.isna(row[ABOVE_AVG_COL_NAME]):
-            tr_values[date][ABOVE_AVG_JSON_KEY] = f"{round(row[ABOVE_AVG_COL_NAME], 3):.3f}%"
+            date_metrics[ABOVE_AVG_JSON_KEY] = f"{round(row[ABOVE_AVG_COL_NAME], 3):.3f}%"
+        
+        if not pd.isna(row[BELOW_AVG_COL_NAME]):
+            date_metrics[BELOW_AVG_JSON_KEY] = f"{round(row[BELOW_AVG_COL_NAME], 3):.3f}%"
+
         if not pd.isna(row[SMA_SLOPE_COL_NAME]):
-            tr_values[date][SLOPE_JSON_KEY] = f"{round(row[SMA_SLOPE_COL_NAME], 3):.3f}%"
+            date_metrics[SLOPE_JSON_KEY] = f"{round(row[SMA_SLOPE_COL_NAME], 3):.3f}%"
         if not pd.isna(row[RISE_COL_NAME]):
-            tr_values[date][RISE_JSON_KEY] = f"{round(row[RISE_COL_NAME], 3):.3f}%"
+            date_metrics[RISE_JSON_KEY] = f"{round(row[RISE_COL_NAME], 3):.3f}%"
 
-        # Add 'investable' boolean (The result is already a simple True/False)
-        # Note: We use .item() to extract the single boolean value from the Pandas Series/object
-        # The result will be None if any underlying calculation was NaN.
-        tr_values[date][INVESTABLE_JSON_KEY] = bool(row[INVESTABLE_JSON_KEY]) if pd.notna(row[INVESTABLE_JSON_KEY]) else False
+        # Add boolean flags
+        date_metrics[INVESTABLE_JSON_KEY] = bool(row[INVESTABLE_JSON_KEY]) if pd.notna(row[INVESTABLE_JSON_KEY]) else False
+        date_metrics[SHOULD_EXIT_JSON_KEY] = bool(row[EXIT_COL_NAME]) if pd.notna(row[EXIT_COL_NAME]) else False
+        
+        # Sort the keys alphabetically for this date's metrics
+        # This creates an OrderedDict in older Python versions or a regular
+        # dict with sorted keys in newer versions (3.7+)
+        tr_values[date] = dict(sorted(date_metrics.items()))
 
-
-    true_range_dict[ticker] = tr_values
-    print(f"✅ Calculated all metrics and '{INVESTABLE_JSON_KEY}' flag for {ticker} ({len(tr_values)} days)")
+    stock_history_dict[ticker] = tr_values
+    print(f"✅ Calculated all metrics, '{INVESTABLE_JSON_KEY}', and '{SHOULD_EXIT_JSON_KEY}' flag for {ticker} ({len(tr_values)} days)")
 
 # --- Step 6: Save the final dictionary to JSON once ---
-with open("true_range.json", "w") as f:
-    json.dump(true_range_dict, f, indent=4)
+# The 'sort_keys=True' argument in json.dump will sort the top-level keys
+# (the stock tickers) and the keys within the final date objects, ensuring
+# a fully alphabetized output.
+with open("stock_history.json", "w") as f:
+    json.dump(stock_history_dict, f, indent=4, sort_keys=True)
 
-print("✅ Saved true_range.json")
+print("✅ Saved stock_history.json with all keys in alphabetical order.")
