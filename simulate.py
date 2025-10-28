@@ -15,9 +15,8 @@ def safe_percentage_to_float(value):
         try:
             # Strip '%' and convert to float
             numeric_str = value.replace('%', '').strip()
-            # If the value is a delta (usually expressed as a decimal or percentage), 
-            # we convert it to decimal form for comparison.
-            return float(numeric_str) / 100.0 if '%' in value else float(numeric_str)
+            # If the value is a delta or a percentage limit, convert to decimal form
+            return float(numeric_str) / 100.0
         except ValueError:
             pass
     return None
@@ -26,7 +25,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     """
     Loads rules and data, initializes the tracker, and iterates chronologically 
     over ALL daily entries for ALL tickers starting from the specified date.
-    Applies DTE, Min Bid Price, and Put Delta filtering from rules.json.
+    Applies DTE, Min Bid Price, Put Delta, and Max Spread filtering from rules.json.
     """
     
     # 1. Load and parse ALL rules from rules.json
@@ -49,14 +48,24 @@ def load_and_run_simulation(rules_file_path, json_file_path):
             MIN_BID_PRICE = float(min_bid_price_str.replace('$', '').strip())
             print(f"✅ Bid Price Rule loaded: Min Bid Price > ${MIN_BID_PRICE:.2f}")
             
-            # Put Delta Rules - Load as decimals (e.g., -0.25, -0.001)
+            # Put Delta Rules
             MIN_DELTA = safe_percentage_to_float(rules["entry_put_position"]["min_put_delta"])
             MAX_DELTA = safe_percentage_to_float(rules["entry_put_position"]["max_put_delta"])
             
             if MIN_DELTA is None or MAX_DELTA is None:
-                raise ValueError("Could not parse Min/Max Delta rules.")
+                 # This should not happen with current rules, but keeps it safe
+                 raise ValueError("Could not parse Min/Max Delta rules.")
 
             print(f"✅ Delta Rules loaded: {MIN_DELTA:.4f} <= Put Delta <= {MAX_DELTA:.4f}")
+            
+            # Max Bid-Ask Spread Rule (NEW)
+            max_spread_pct_str = rules["entry_put_position"]["max_ask_above_bid_pct"]
+            MAX_SPREAD_DECIMAL = safe_percentage_to_float(max_spread_pct_str)
+            
+            if MAX_SPREAD_DECIMAL is None:
+                 raise ValueError("Could not parse Max Bid-Ask Spread rule.")
+
+            print(f"✅ Spread Rule loaded: Max Ask above Bid = {MAX_SPREAD_DECIMAL * 100:.2f}%")
 
     except Exception as e:
         print(f"❌ Error loading/parsing rules.json values: {e}")
@@ -146,12 +155,12 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                                 
                                 if MIN_DTE <= dte <= MAX_DTE:
                                     
-                                    # --- 2. Bid Price & Put Delta Filter Loop ---
+                                    # --- 2. Bid Price, Delta, and Spread Filter Loop ---
                                     filtered_options = []
                                     
                                     for option in options_array:
                                         
-                                        # Get Bid Price (pBidPx) - Robust String-to-Float Conversion
+                                        # Get Bid Price (pBidPx)
                                         pbidpx_str = option.get('pBidPx')
                                         pbidpx_value = -1.0 
                                         try:
@@ -159,20 +168,33 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                                         except ValueError:
                                             pass
                                             
-                                        # Get Put Delta (putDelta) - NEW: Handle percentage string format
+                                        # Get Ask Price (pAskPx) (NEW)
+                                        paskpx_str = option.get('pAskPx')
+                                        paskpx_value = -1.0
+                                        try:
+                                            paskpx_value = float(str(paskpx_str).strip())
+                                        except ValueError:
+                                            pass
+                                            
+                                        # Get Put Delta (putDelta)
                                         put_delta_raw = option.get('putDelta')
                                         put_delta_value = safe_percentage_to_float(put_delta_raw)
                                         
-                                        # *** Final Combined Filter Check ***
+                                        # *** Combined Filter Check ***
                                         passes_bid = pbidpx_value > MIN_BID_PRICE
                                         
                                         passes_delta = False
                                         if put_delta_value is not None:
-                                            # Check if delta is within the min/max range
                                             passes_delta = MIN_DELTA <= put_delta_value <= MAX_DELTA
+
+                                        # NEW: Bid-Ask Spread Check
+                                        passes_spread = False
+                                        if pbidpx_value > 0 and paskpx_value > pbidpx_value: # Ensure valid prices
+                                            spread_pct = (paskpx_value - pbidpx_value) / pbidpx_value
+                                            passes_spread = spread_pct <= MAX_SPREAD_DECIMAL
                                         
-                                        if passes_bid and passes_delta:
-                                            # Option passes DTE, MIN BID, and DELTA criteria
+                                        # Option must pass ALL FOUR filters
+                                        if passes_bid and passes_delta and passes_spread:
                                             filtered_options.append(option)
                                             
                                     # Only record the chain if it has at least one option that passed all filters
@@ -222,7 +244,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                     if total_filtered_options > 0:
                          print(f"  |   > Details: {interval_list_str}")
                     else:
-                         print(f"  |   > Details: None Found (Filtered out by DTE, Min Bid Price, or Delta)")
+                         print(f"  |   > Details: None Found (Filtered out by DTE, Min Bid Price, Delta, or Max Spread)")
                          
             # --- END DAILY PROCESSING ---
     
