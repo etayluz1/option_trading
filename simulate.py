@@ -8,14 +8,14 @@ JSON_FILE_PATH = "stock_history.json"
 TARGET_TICKER = "SPY" # Retained for context, but the script processes ALL tickers.
 
 def safe_percentage_to_float(value):
-    """Converts a percentage string (e.g., '-25%', '5.0') to a decimal float (e.g., -0.25)."""
+    """Converts a percentage string (e.g., '-25%', '5.0%') to a decimal float (e.g., -0.25)."""
     if isinstance(value, (int, float)):
         return value
     if isinstance(value, str):
         try:
             # Strip '%' and convert to float
             numeric_str = value.replace('%', '').strip()
-            # If the value is a delta or a percentage limit, convert to decimal form
+            # Convert to decimal form (e.g., 5.0% -> 0.05)
             return float(numeric_str) / 100.0
         except ValueError:
             pass
@@ -25,7 +25,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     """
     Loads rules and data, initializes the tracker, and iterates chronologically 
     over ALL daily entries for ALL tickers starting from the specified date.
-    Applies DTE, Min Bid Price, Put Delta, and Max Spread filtering from rules.json.
+    Applies DTE, Min Bid Price, Put Delta, Max Spread, and Strike Safety Margin filters.
     """
     
     # 1. Load and parse ALL rules from rules.json
@@ -51,21 +51,18 @@ def load_and_run_simulation(rules_file_path, json_file_path):
             # Put Delta Rules
             MIN_DELTA = safe_percentage_to_float(rules["entry_put_position"]["min_put_delta"])
             MAX_DELTA = safe_percentage_to_float(rules["entry_put_position"]["max_put_delta"])
-            
-            if MIN_DELTA is None or MAX_DELTA is None:
-                 # This should not happen with current rules, but keeps it safe
-                 raise ValueError("Could not parse Min/Max Delta rules.")
-
             print(f"✅ Delta Rules loaded: {MIN_DELTA:.4f} <= Put Delta <= {MAX_DELTA:.4f}")
             
-            # Max Bid-Ask Spread Rule (NEW)
-            max_spread_pct_str = rules["entry_put_position"]["max_ask_above_bid_pct"]
-            MAX_SPREAD_DECIMAL = safe_percentage_to_float(max_spread_pct_str)
-            
-            if MAX_SPREAD_DECIMAL is None:
-                 raise ValueError("Could not parse Max Bid-Ask Spread rule.")
-
+            # Max Bid-Ask Spread Rule
+            MAX_SPREAD_DECIMAL = safe_percentage_to_float(rules["entry_put_position"]["max_ask_above_bid_pct"])
             print(f"✅ Spread Rule loaded: Max Ask above Bid = {MAX_SPREAD_DECIMAL * 100:.2f}%")
+            
+            # Strike Price Safety Margin Rule (NEW)
+            MIN_AVG_ABOVE_STRIKE_PCT = safe_percentage_to_float(rules["entry_put_position"]["min_avg_above_strike"])
+            # The required ratio for the SMA/Strike comparison
+            REQUIRED_SMA_STRIKE_RATIO = 1.0 + MIN_AVG_ABOVE_STRIKE_PCT
+            print(f"✅ Safety Rule loaded: SMA/Strike Ratio must be > {REQUIRED_SMA_STRIKE_RATIO:.4f}")
+
 
     except Exception as e:
         print(f"❌ Error loading/parsing rules.json values: {e}")
@@ -134,6 +131,10 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                     total_investable_entries_processed += 1
                     daily_data = stock_history_dict[ticker][date_str]
                     
+                    # --- Stock Data Needed for Filtering ---
+                    # We assume sma150_adj_close is calculated and stored in stock_history.json
+                    sma150_adj_close = daily_data.get('sma150_adj_close')
+                    
                     # Trading Logic Placeholder (Sell 1 put on SPY every 3rd day)
                     if ticker == TARGET_TICKER and daily_date_obj.day == 3:
                          open_puts_tracker[ticker] += 1
@@ -155,46 +156,42 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                                 
                                 if MIN_DTE <= dte <= MAX_DTE:
                                     
-                                    # --- 2. Bid Price, Delta, and Spread Filter Loop ---
+                                    # --- 2. Bid Price, Delta, Spread, and Safety Margin Filter Loop ---
                                     filtered_options = []
                                     
                                     for option in options_array:
                                         
-                                        # Get Bid Price (pBidPx)
-                                        pbidpx_str = option.get('pBidPx')
-                                        pbidpx_value = -1.0 
-                                        try:
-                                            pbidpx_value = float(str(pbidpx_str).strip())
-                                        except ValueError:
-                                            pass
-                                            
-                                        # Get Ask Price (pAskPx) (NEW)
-                                        paskpx_str = option.get('pAskPx')
-                                        paskpx_value = -1.0
-                                        try:
-                                            paskpx_value = float(str(paskpx_str).strip())
-                                        except ValueError:
-                                            pass
-                                            
-                                        # Get Put Delta (putDelta)
-                                        put_delta_raw = option.get('putDelta')
-                                        put_delta_value = safe_percentage_to_float(put_delta_raw)
+                                        # Parse necessary option data
+                                        pbidpx_value = float(str(option.get('pBidPx', -1.0)).strip())
+                                        paskpx_value = float(str(option.get('pAskPx', -1.0)).strip())
+                                        put_delta_value = safe_percentage_to_float(option.get('putDelta'))
                                         
-                                        # *** Combined Filter Check ***
+                                        # Strike price is often a float/number in ORATS data
+                                        strike_value = float(option.get('strike', 0))
+                                        
+                                        # *** Filter Check A: Bid-Ask Spread ***
+                                        passes_spread = False
+                                        if pbidpx_value > 0 and paskpx_value > pbidpx_value:
+                                            spread_pct = (paskpx_value - pbidpx_value) / pbidpx_value
+                                            passes_spread = spread_pct <= MAX_SPREAD_DECIMAL
+
+                                        # *** Filter Check B: Min Bid Price ***
                                         passes_bid = pbidpx_value > MIN_BID_PRICE
                                         
+                                        # *** Filter Check C: Put Delta ***
                                         passes_delta = False
                                         if put_delta_value is not None:
                                             passes_delta = MIN_DELTA <= put_delta_value <= MAX_DELTA
 
-                                        # NEW: Bid-Ask Spread Check
-                                        passes_spread = False
-                                        if pbidpx_value > 0 and paskpx_value > pbidpx_value: # Ensure valid prices
-                                            spread_pct = (paskpx_value - pbidpx_value) / pbidpx_value
-                                            passes_spread = spread_pct <= MAX_SPREAD_DECIMAL
+                                        # *** Filter Check D: Strike Safety Margin (NEW) ***
+                                        passes_safety_margin = False
+                                        if sma150_adj_close is not None and strike_value > 0:
+                                            # Check if sma150 is above the strike by the required ratio
+                                            current_ratio = sma150_adj_close / strike_value
+                                            passes_safety_margin = current_ratio > REQUIRED_SMA_STRIKE_RATIO
                                         
-                                        # Option must pass ALL FOUR filters
-                                        if passes_bid and passes_delta and passes_spread:
+                                        # Option must pass ALL FOUR filters (A, B, C, D)
+                                        if passes_bid and passes_delta and passes_spread and passes_safety_margin:
                                             filtered_options.append(option)
                                             
                                     # Only record the chain if it has at least one option that passed all filters
@@ -244,7 +241,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                     if total_filtered_options > 0:
                          print(f"  |   > Details: {interval_list_str}")
                     else:
-                         print(f"  |   > Details: None Found (Filtered out by DTE, Min Bid Price, Delta, or Max Spread)")
+                         print(f"  |   > Details: None Found (Failed DTE, Bid, Delta, Spread, or Safety Margin filter)")
                          
             # --- END DAILY PROCESSING ---
     
