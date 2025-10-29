@@ -154,8 +154,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
             MAX_PUTS_PER_ACCOUNT = int(rules["account_simulation"]["max_puts_per_account"])
             MAX_PUTS_PER_STOCK = int(rules["account_simulation"]["max_puts_per_stock"])
             
-            # --- RISK MANAGEMENT RULE ---
-            # NOTE: We convert the negative rule string to a positive percentage float (e.g., -8.0% -> 0.08)
+            # --- RISK MANAGEMENT RULE (Stock Price Stop Loss) ---
             STOCK_MAX_BELOW_AVG_PCT = abs(safe_percentage_to_float(rules["exit_put_position"]["stock_max_below_avg"]))
             
             # Start Date
@@ -223,6 +222,14 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     sim_end_date = None
     spy_start_price = None
     spy_end_price = None
+    
+    # NEW: Monthly P&L Log (Tuple: (Realized PNL for month, EOD Total Value))
+    monthly_pnl_log = {} 
+    
+    # NEW: Exit Counters
+    stop_loss_count = 0
+    expired_otm_count = 0
+    expired_itm_count = 0
 
     all_tickers = list(open_puts_tracker.keys())
     print(f"✅ Trackers initialized for {len(all_tickers)} tickers.")
@@ -288,7 +295,8 @@ def load_and_run_simulation(rules_file_path, json_file_path):
             total_put_liability = 0.0 
             total_open_premium_collected = 0.0 
             
-            # FIX: Initialize account_full_today at the start of the loop
+            # FIX 1: Initialize total_account_value and account_full_today at the start of the loop
+            total_account_value = cash_balance # Start with last known cash value as a base
             account_full_today = False 
 
             # ----------------------------------------------------
@@ -329,7 +337,8 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                     try:
                         exp_date_obj = datetime.strptime(trade['expiration_date'], '%m/%d/%y').date() 
                     except ValueError:
-                        exp_date_obj = daily_date_obj + timedelta(days=3650) # Set far in future to prevent accidental trigger
+                        from datetime import timedelta
+                        exp_date_obj = daily_date_obj + timedelta(days=3650) 
                 
                 expired_triggered = (exp_date_obj <= daily_date_obj)
 
@@ -340,32 +349,37 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                     
                     # --- Calculate Exit P&L ---
                     exit_commission = qty * COMMISSION_PER_CONTRACT
+                    premium_collected_gross = trade['premium_received'] * qty * 100.0
                     
                     if expired_triggered:
-                        # Max Profit (Premium collected - Exit Commission)
-                        profit_gross = trade['premium_received'] * qty * 100.0
-                        net_profit = profit_gross - exit_commission
-                        exit_type = "Expiration (Max Profit)"
+                        is_itm = current_adj_close < trade['strike']
+                        
+                        if is_itm:
+                            payout_gross = (trade['strike'] - current_adj_close) * qty * 100.0
+                            cost_to_close_gross = payout_gross 
+                            net_profit = premium_collected_gross - cost_to_close_gross - exit_commission
+                            expired_itm_count += qty
+                            exit_type = "Expiration (ITM/Assigned)"
+                        else:
+                            cost_to_close_gross = 0.0
+                            net_profit = premium_collected_gross - exit_commission
+                            expired_otm_count += qty
+                            exit_type = "Expiration (OTM/Max Profit)"
                         
                     elif stop_loss_triggered and current_ask_price is not None:
                         # Close at current conservative Ask Price (Loss or small Gain)
                         cost_to_close_gross = current_ask_price * qty * 100.0
-                        premium_collected_gross = trade['premium_received'] * qty * 100.0
                         net_profit = premium_collected_gross - cost_to_close_gross - exit_commission
-                        exit_type = f"STOP LOSS ({STOCK_MAX_BELOW_AVG_PCT * 100:.2f}% SMA150)"
+                        stop_loss_count += qty
+                        exit_type = f"STOP LOSS (Stock Below SMA150)"
                     else:
-                        # Cannot determine exit price for stop-loss, skip for now (should not happen with good data)
+                        # Cannot determine exit price for stop-loss, skip for now 
                         continue 
 
                     daily_pnl += net_profit
                     
-                    # Update cash balance (Inflow of Premium/Payout - Exit Commission)
-                    # NOTE: Premium collected was already added to cash on entry day.
-                    # We only adjust the cash by the P&L difference (Net Payout = Cost to Close + Exit Commission - Premium Collected)
-                    
-                    # Cash change = -(Cost to Close + Exit Commission - Premium Collected)
-                    cash_change = - (cost_to_close_gross + exit_commission - premium_collected_gross) if stop_loss_triggered else net_profit
-                    
+                    # Cash change = (Premium Collected) - (Cost to Close) - (Exit Commission)
+                    cash_change = net_profit 
                     cash_balance += cash_change
                     
                     # Log the exit
@@ -375,6 +389,16 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                     positions_to_remove.append(i)
                     open_puts_tracker[trade['ticker']] -= qty 
                     active_position_keys.remove(trade['unique_key'])
+            
+            # --- Monthly and Yearly P&L Aggregation (Start of Day P&L aggregation) ---
+            month_key = (daily_date_obj.year, daily_date_obj.month)
+            
+            if month_key not in monthly_pnl_log:
+                # Value is: (Realized PNL, Final Value)
+                monthly_pnl_log[month_key] = (daily_pnl, 0.0) 
+            else:
+                current_pnl, _ = monthly_pnl_log[month_key]
+                monthly_pnl_log[month_key] = (current_pnl + daily_pnl, 0.0) 
             
             # Update cumulative P&L with today's realized profit (Net of exit commissions)
             cumulative_realized_pnl += daily_pnl
@@ -392,7 +416,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
             # ----------------------------------------------
             
             # Check if we should skip the market scan due to global limits
-            if current_account_puts >= MAX_PUTS_PER_ACCOUNT:
+            if current_account_puts >= MAX_PUTS_PER_ACCOUNT and not account_full_today:
                 print(f"\n>>>> Date: {date_str} (Investable Tickers) <<<<")
                 print(f"🛑 **ACCOUNT FULL (Global Limit):** {current_account_puts}/{MAX_PUTS_PER_ACCOUNT} contracts. Skipping scan for new trades.")
                 account_full_today = True
@@ -784,7 +808,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
         
         # Prepare header for liquidation table
         print("| Ticker | Qty | Strike | Premium Sold | Closing Ask | Cost to Close | Exit Commission | Net Gain/Loss |")
-        print("|:---|---:|---:|---:|---:|---:|---:|---:|")
+        print("|:-------|----:|-------:|-------------:|------------:|--------------:|----------------:|--------------:|") 
         
         # We liquidate all remaining trades
         for trade in positions_to_liquidate:
@@ -817,11 +841,11 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                 cash_balance -= cost_to_close_gross
                 cash_balance -= exit_commission
                 
-                # Format for printing
+                # Format for printing (using f-string formatting for alignment)
                 print(
-                    f"| {trade['ticker']} | {qty} | ${trade['strike']:.2f} | ${premium_collected_gross:,.2f} | "
-                    f"${closing_ask:.2f} | ${cost_to_close_gross:,.2f} | -${exit_commission:,.2f} | "
-                    f"${position_net_gain:,.2f} |"
+                    f"| {trade['ticker']:<6} | {qty:3} | ${trade['strike']:7.2f} | ${premium_collected_gross:12,.2f} | "
+                    f"${closing_ask:11.2f} | ${cost_to_close_gross:13,.2f} | -${exit_commission:14,.2f} | "
+                    f"${position_net_gain:13,.2f} |"
                 )
         
         # FINAL REALIZED P&L for Performance Metrics
@@ -837,7 +861,9 @@ def load_and_run_simulation(rules_file_path, json_file_path):
         # If no open positions, the final account value is the last EOD calculated value
         final_account_value_liquidated = total_account_value
         final_realized_profit = cumulative_realized_pnl
-        print(f"\n--- FINAL LIQUIDATION SUMMARY ---")
+        print(f"\n--- Final Open Puts Tally (Tickers with Open Positions) ---")
+        print("  (No open positions remained for liquidation.)")
+        print("\n--- FINAL LIQUIDATION SUMMARY ---")
         print(f"💰 **FINAL ACCOUNT VALUE (CASH):** ${final_account_value_liquidated:,.2f}")
         print(f"✅ **TOTAL LIQUIDATION P&L:** $0.00 (No open positions remained)")
         print(f"💵 **TOTAL NET PROFIT (Start to Finish):** ${final_account_value_liquidated - INITIAL_CASH:,.2f}")
@@ -870,8 +896,90 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     
     print("\n| Metric | Portfolio Gain | SPY Benchmark | Comparison |")
     print("|:---|---:|---:|---:|")
-    print(f"| **Total Net Gain (%)** | {percent_total_gain:.2f}% | {spy_total_return:.2f}% | **{percent_total_gain - spy_total_return:.2f}pp** |")
-    print(f"| **Annualized Gain (%)** | {annualized_gain:.2f}% | {spy_annualized_return:.2f}% | **{annualized_gain - spy_annualized_return:.2f}pp** |")
+    print(f"| **Total Net Gain (%)** | {percent_total_gain:16.2f}% | {spy_total_return:13.2f}% | **{percent_total_gain - spy_total_return:11.2f}pp** |")
+    print(f"| **Annualized Gain (%)** | {annualized_gain:16.2f}% | {spy_annualized_return:13.2f}% | **{annualized_gain - spy_annualized_return:11.2f}pp** |")
+    
+    # 8. Monthly and Yearly Performance Tables
+    
+    # --- P&L Aggregation for Tables ---
+    monthly_performance = {} # Final structure: (Month) -> (% Gain, $ Gain, Base Value)
+    yearly_performance = {}
+    
+    # Pre-calculate the starting value for each month
+    sorted_months = sorted(monthly_pnl_log.keys())
+    
+    for i, (year, month) in enumerate(sorted_months):
+        pnl, _ = monthly_pnl_log[(year, month)]
+        
+        # Determine Base Value
+        if i == 0:
+            # First month uses Initial Cash as base
+            month_start_value = INITIAL_CASH
+        else:
+            # Subsequent months use the END value of the previous month
+            prev_year, prev_month = sorted_months[i-1]
+            # Since the EOD value is stored in the log, retrieve the previous month's final value
+            prev_eod_value = monthly_pnl_log[(prev_year, prev_month)][1]
+            month_start_value = prev_eod_value
+            
+        month_end_value = monthly_pnl_log[(year, month)][1]
+        
+        # Calculate Monthly Metrics
+        monthly_gain_pct = ((month_end_value / month_start_value) - 1) * 100.0 if month_start_value > 0 else 0.0
+        monthly_gain_abs = month_end_value - month_start_value
+        
+        monthly_performance[(year, month)] = (monthly_gain_pct, monthly_gain_abs)
+        
+        # Aggregate to Year (Yearly PNL and Base Value are based on the start of the year)
+        if year not in yearly_performance:
+            yearly_performance[year] = {
+                'start_value': month_start_value, # Start of the simulation or start of the year
+                'end_value': month_end_value,
+                'realized_pnl': pnl
+            }
+        else:
+            # Update realized PNL and end value
+            yearly_performance[year]['end_value'] = month_end_value
+            yearly_performance[year]['realized_pnl'] += pnl
 
+    # --- Print Monthly Table ---
+    print("\n--- MONTHLY PORTFOLIO GAIN ---")
+    print("| Month | Total Value End | $ Gain | % Gain |")
+    print("|:---|---:|---:|---:|")
+    
+    for (year, month), (pct_gain, abs_gain) in monthly_performance.items():
+        month_label = datetime(year, month, 1).strftime('%Y-%m')
+        
+        # Retrieve the End Value for printing
+        end_value = monthly_pnl_log[(year, month)][1]
+        
+        print(f"| {month_label:^5} | ${end_value:13,.2f} | ${abs_gain:11,.2f} | {pct_gain:7.2f}% |")
+
+    # --- Print Yearly Table ---
+    print("\n--- YEARLY PORTFOLIO GAIN ---")
+    print("| Year | Total Value End | $ Gain | % Gain |")
+    print("|:---|---:|---:|---:|")
+    
+    for year in sorted(yearly_performance.keys()):
+        data = yearly_performance[year]
+        year_end_value = data['end_value']
+        year_start_value = data['start_value']
+        
+        yearly_gain_abs = year_end_value - year_start_value
+        yearly_gain_pct = ((year_end_value / year_start_value) - 1) * 100.0 if year_start_value > 0 else 0.0
+        
+        print(f"| {year:^5} | ${year_end_value:13,.2f} | ${yearly_gain_abs:11,.2f} | {yearly_gain_pct:7.2f}% |")
+
+    # 9. Exit Statistics
+    total_closed_positions = stop_loss_count + expired_otm_count + expired_itm_count
+    
+    print("\n--- TRADE EXIT STATISTICS (by Contract Count) ---")
+    print("| Exit Reason | Contracts Closed | % of Total Closed |")
+    print("|:----------------------------|------------------|-------------------|")
+    print(f"| **Stop Loss** | {stop_loss_count:16,} | {stop_loss_count / total_closed_positions * 100 if total_closed_positions > 0 else 0:17.2f}% |")
+    print(f"| **Expired OTM (Max Profit)** | {expired_otm_count:16,} | {expired_otm_count / total_closed_positions * 100 if total_closed_positions > 0 else 0:17.2f}% |")
+    print(f"| **Expired ITM (Assignment)** | {expired_itm_count:16,} | {expired_itm_count / total_closed_positions * 100 if total_closed_positions > 0 else 0:17.2f}% |")
+    print(f"| **Total Positions Closed** | {total_closed_positions:16,} | {100.0:17.2f}% |")
+    
 # Execute the main function
 load_and_run_simulation(RULES_FILE_PATH, JSON_FILE_PATH)
