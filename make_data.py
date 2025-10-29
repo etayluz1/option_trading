@@ -253,4 +253,4 @@ def process_csv(stop_after_first=False):
 # --- Execution ---
 # To process all files: process_csv()
 # To stop after the first file (for debugging): process_csv(stop_after_first=True)
-process_csv(stop_after_first=True)
+process_csv(stop_after_first=False)

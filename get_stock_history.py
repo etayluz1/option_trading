@@ -153,8 +153,8 @@ for filename in os.listdir(folder_path):
 
         # Base dictionary with all required price and TR data
         date_metrics = {
-            "stock_history": round(row['TR'], 4),
-            "stock_history_pct": f"{round(row['TR_PCT'], 2)}%",
+            "true_range": round(row['TR'], 4),
+            "true_range_pct": f"{round(row['TR_PCT'], 2)}%",
             "high": round(row['High'], 4),
             "low": round(row['Low'], 4),
             "close": round(row['Close'], 4),
