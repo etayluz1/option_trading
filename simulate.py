@@ -25,7 +25,8 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     """
     Loads rules and data, initializes the tracker, and iterates chronologically 
     over ALL daily entries for ALL tickers starting from the specified date.
-    Applies DTE, Min Bid Price, Put Delta, Max Spread, and Strike Safety Margin filters.
+    Applies DTE, Min Bid Price, Put Delta, Max Spread, Strike Safety Margin, 
+    and Min Risk/Reward Ratio filters.
     """
     
     # 1. Load and parse ALL rules from rules.json
@@ -44,8 +45,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
             print(f"✅ DTE Rules loaded: Min={MIN_DTE} days, Max={MAX_DTE} days.")
 
             # Bid Price Rule
-            min_bid_price_str = rules["entry_put_position"]["min_put_bid_price"]
-            MIN_BID_PRICE = float(min_bid_price_str.replace('$', '').strip())
+            MIN_BID_PRICE = float(rules["entry_put_position"]["min_put_bid_price"].replace('$', '').strip())
             print(f"✅ Bid Price Rule loaded: Min Bid Price > ${MIN_BID_PRICE:.2f}")
             
             # Put Delta Rules
@@ -57,11 +57,14 @@ def load_and_run_simulation(rules_file_path, json_file_path):
             MAX_SPREAD_DECIMAL = safe_percentage_to_float(rules["entry_put_position"]["max_ask_above_bid_pct"])
             print(f"✅ Spread Rule loaded: Max Ask above Bid = {MAX_SPREAD_DECIMAL * 100:.2f}%")
             
-            # Strike Price Safety Margin Rule (NEW)
+            # Strike Price Safety Margin Rule
             MIN_AVG_ABOVE_STRIKE_PCT = safe_percentage_to_float(rules["entry_put_position"]["min_avg_above_strike"])
-            # The required ratio for the SMA/Strike comparison
             REQUIRED_SMA_STRIKE_RATIO = 1.0 + MIN_AVG_ABOVE_STRIKE_PCT
             print(f"✅ Safety Rule loaded: SMA/Strike Ratio must be > {REQUIRED_SMA_STRIKE_RATIO:.4f}")
+            
+            # Risk/Reward Ratio Rule (NEW)
+            MIN_RISK_REWARD_RATIO = float(rules["entry_put_position"]["min_risk_reward_ratio"])
+            print(f"✅ Risk/Reward Rule loaded: Risk/Reward Ratio must be > {MIN_RISK_REWARD_RATIO}")
 
 
     except Exception as e:
@@ -132,7 +135,6 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                     daily_data = stock_history_dict[ticker][date_str]
                     
                     # --- Stock Data Needed for Filtering ---
-                    # We assume sma150_adj_close is calculated and stored in stock_history.json
                     sma150_adj_close = daily_data.get('sma150_adj_close')
                     
                     # Trading Logic Placeholder (Sell 1 put on SPY every 3rd day)
@@ -156,7 +158,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                                 
                                 if MIN_DTE <= dte <= MAX_DTE:
                                     
-                                    # --- 2. Bid Price, Delta, Spread, and Safety Margin Filter Loop ---
+                                    # --- 2. All Contract Filters Loop ---
                                     filtered_options = []
                                     
                                     for option in options_array:
@@ -165,33 +167,44 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                                         pbidpx_value = float(str(option.get('pBidPx', -1.0)).strip())
                                         paskpx_value = float(str(option.get('pAskPx', -1.0)).strip())
                                         put_delta_value = safe_percentage_to_float(option.get('putDelta'))
-                                        
-                                        # Strike price is often a float/number in ORATS data
                                         strike_value = float(option.get('strike', 0))
                                         
-                                        # *** Filter Check A: Bid-Ask Spread ***
+                                        # --- Check 1: Min Bid Price ---
+                                        passes_bid = pbidpx_value > MIN_BID_PRICE
+                                        if not passes_bid: continue # Fail fast
+                                        
+                                        # --- Check 2: Put Delta ---
+                                        passes_delta = False
+                                        if put_delta_value is not None:
+                                            passes_delta = MIN_DELTA <= put_delta_value <= MAX_DELTA
+                                        if not passes_delta: continue # Fail fast
+
+                                        # --- Check 3: Bid-Ask Spread ---
                                         passes_spread = False
                                         if pbidpx_value > 0 and paskpx_value > pbidpx_value:
                                             spread_pct = (paskpx_value - pbidpx_value) / pbidpx_value
                                             passes_spread = spread_pct <= MAX_SPREAD_DECIMAL
+                                        if not passes_spread: continue # Fail fast
 
-                                        # *** Filter Check B: Min Bid Price ***
-                                        passes_bid = pbidpx_value > MIN_BID_PRICE
-                                        
-                                        # *** Filter Check C: Put Delta ***
-                                        passes_delta = False
-                                        if put_delta_value is not None:
-                                            passes_delta = MIN_DELTA <= put_delta_value <= MAX_DELTA
-
-                                        # *** Filter Check D: Strike Safety Margin (NEW) ***
+                                        # --- Check 4: Strike Safety Margin ---
                                         passes_safety_margin = False
                                         if sma150_adj_close is not None and strike_value > 0:
-                                            # Check if sma150 is above the strike by the required ratio
                                             current_ratio = sma150_adj_close / strike_value
                                             passes_safety_margin = current_ratio > REQUIRED_SMA_STRIKE_RATIO
+                                        if not passes_safety_margin: continue # Fail fast
+
+                                        # --- Check 5: Risk/Reward Ratio (NEW) ---
+                                        passes_risk_reward = False
+                                        # Only proceed if we have a valid premium and strike
+                                        if pbidpx_value > 0 and strike_value > pbidpx_value:
+                                            risk = strike_value - pbidpx_value
+                                            reward = pbidpx_value
+                                            risk_reward_ratio = risk / reward
+                                            # We check if the ratio is better (i.e., larger than the min negative value)
+                                            passes_risk_reward = risk_reward_ratio > MIN_RISK_REWARD_RATIO
                                         
-                                        # Option must pass ALL FOUR filters (A, B, C, D)
-                                        if passes_bid and passes_delta and passes_spread and passes_safety_margin:
+                                        if passes_risk_reward:
+                                            # Option passes ALL SIX criteria
                                             filtered_options.append(option)
                                             
                                     # Only record the chain if it has at least one option that passed all filters
@@ -241,7 +254,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                     if total_filtered_options > 0:
                          print(f"  |   > Details: {interval_list_str}")
                     else:
-                         print(f"  |   > Details: None Found (Failed DTE, Bid, Delta, Spread, or Safety Margin filter)")
+                         print(f"  |   > Details: None Found (Failed one or more of the 6 filters)")
                          
             # --- END DAILY PROCESSING ---
     
