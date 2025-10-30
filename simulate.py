@@ -956,9 +956,9 @@ def load_and_run_simulation(rules_file_path, json_file_path):
 
     # --- Print Monthly Table ---
     print("")
-    print("\n|______________ MONTHLY PORTFOLIO GAIN _____________|")
-    print("| Month   | Total Value End | $ Gain      | % Gain  |")
-    print("|---------|-----------------|-------------|---------|") # Fix 9: Aligned separator dashes
+    print("\n|______________ MONTHLY PORTFOLIO GAIN ______________|")
+    print("| Month   | Total Value End | $ Gain       | % Gain  |")
+    print("|---------|-----------------|--------------|---------|") # Fix 9: Aligned separator dashes
     
     for (year, month), (pct_gain, abs_gain, end_value) in monthly_performance.items():
         month_label = datetime(year, month, 1).strftime('%Y-%m')
@@ -966,13 +966,13 @@ def load_and_run_simulation(rules_file_path, json_file_path):
         # FIX 6: Aligned columns using refined explicit width and right alignment (>)
         # Total Value End (15) , $ Gain (12), % Gain (8)
         # Split $ and number to align pipes
-        print(f"| {month_label:^5} | $ {end_value:>11,.2f}   | $ {abs_gain:>9,.2f} | {pct_gain:>6.2f}% |")
+        print(f"| {month_label:^5} | $ {end_value:>11,.2f}   | $ {abs_gain:>10,.2f} | {pct_gain:>6.2f}% |")
 
     # --- Print Yearly Table ---
     print("")
-    print("\n|_____________ YEARLY PORTFOLIO GAIN _______________|")
-    print("| Year    | Total Value End | $ Gain      | % Gain  |")
-    print("|---------|-----------------|-------------|---------|") # Fix 9: Aligned separator dashes
+    print("\n|_____________ YEARLY PORTFOLIO GAIN ________________|")
+    print("| Year    | Total Value End | $ Gain       | % Gain  |")
+    print("|---------|-----------------|--------------|---------|") # Fix 9: Aligned separator dashes
     
     for year in sorted(yearly_performance.keys()):
         data = yearly_performance[year]
@@ -985,7 +985,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
         # FIX 7: Aligned columns using refined explicit width and right alignment (>)
         # Total Value End (15) , $ Gain (12), % Gain (8)
         # Split $ and number to align pipes
-        print(f"| {year:^5}   | $ {year_end_value:>11,.2f}   | $ {yearly_gain_abs:>9,.2f} | {yearly_gain_pct:>6.2f}% |")
+        print(f"| {year:^5}   | $ {year_end_value:>11,.2f}   | $ {yearly_gain_abs:>10,.2f} | {yearly_gain_pct:>6.2f}% |")
 
     # 9. Exit Statistics
     total_closed_positions = stop_loss_count + expired_otm_count + expired_itm_count
