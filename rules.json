@@ -32,7 +32,7 @@
         "select_by_expected_profit": false
     },
     "exit_put_position": {
-        "position_stop_loss_pct": "-0.2",
+        "position_stop_loss_pct": "-20%",
         "stock_max_below_avg":	"0.1%"
     }
 }
