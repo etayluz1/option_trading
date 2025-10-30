@@ -32,10 +32,18 @@ def extract_and_filter_zip():
     
     files_processed = 0
 
-    for filename in os.listdir(folder_path):
-        if filename.endswith(".zip"):
-            zip_path = os.path.join(folder_path, filename)
-            
+    # Walk the input folder recursively so we handle nested directories of zip files
+    for root, _, files in os.walk(folder_path):
+        for filename in files:
+            if not filename.endswith(".zip"):
+                continue
+
+            zip_path = os.path.join(root, filename)
+            # Preserve relative path under the output directory to avoid name collisions
+            rel_dir = os.path.relpath(root, folder_path)
+            out_dir_for_zip = os.path.join(extract_to, rel_dir) if rel_dir != '.' else extract_to
+            os.makedirs(out_dir_for_zip, exist_ok=True)
+
             try:
                 with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                     
@@ -43,9 +51,9 @@ def extract_and_filter_zip():
                     csv_names = [n for n in zip_ref.namelist() if n.endswith('.csv')]
                     
                     if not csv_names:
-                        print(f"⚠️ Warning: Zip file '{filename}' contains no CSV files. Skipping.")
+                        print(f"⚠️ Warning: Zip file '{zip_path}' contains no CSV files. Skipping.")
                         continue
-                        
+
                     # Process the first CSV file found in the zip
                     csv_in_zip_name = csv_names[0]
                     
@@ -57,8 +65,14 @@ def extract_and_filter_zip():
                         reader = csv.DictReader(csv_content)
                         
                         # Determine the output filename (use the name of the CSV within the zip)
-                        output_csv_path = os.path.join(extract_to, csv_in_zip_name)
-                        
+                        # and place it inside the corresponding relative output directory
+                        output_csv_path = os.path.join(out_dir_for_zip, csv_in_zip_name)
+
+                        # If the CSV already exists, skip processing to avoid overwriting
+                        if os.path.exists(output_csv_path):
+                            print(f"⏩ Skipping existing file '{output_csv_path}' — already extracted.")
+                            continue
+
                         # 2. Write the filtered content to the output path
                         with open(output_csv_path, 'w', newline='', encoding='utf-8') as outfile:
                             writer = csv.DictWriter(
