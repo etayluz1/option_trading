@@ -224,6 +224,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     spy_end_price = None
     
     # NEW: Monthly P&L Log (Tuple: (Realized PNL for month, EOD Total Value))
+    # FIX: Initialize with structure to store (Realized PNL for month, EOD Total Value)
     monthly_pnl_log = {} 
     
     # NEW: Exit Counters
@@ -723,6 +724,11 @@ def load_and_run_simulation(rules_file_path, json_file_path):
             # Total Account Value = Cash Balance + Net Unrealized P&L 
             total_account_value = cash_balance + unrealized_pnl
             
+            # FIX 2: Update the monthly log with the EOD Total Account Value
+            month_key = (daily_date_obj.year, daily_date_obj.month)
+            current_pnl, _ = monthly_pnl_log.get(month_key, (0.0, 0.0))
+            monthly_pnl_log[month_key] = (current_pnl, total_account_value)
+            
             # Print Account Value breakdown (Corrected for Accuracy and Transparency)
             print(f"💵 **DAILY ACCOUNT VALUE (EOD):** ${total_account_value:,.2f}")
             
@@ -807,8 +813,12 @@ def load_and_run_simulation(rules_file_path, json_file_path):
         print("\n--- FINAL PORTFOLIO LIQUIDATION ---")
         
         # Prepare header for liquidation table
-        print("| Ticker | Qty | Strike | Premium Sold | Closing Ask | Cost to Close | Exit Commission | Net Gain/Loss |")
-        print("|:-------|----:|-------:|-------------:|------------:|--------------:|----------------:|--------------:|") 
+        print("| Ticker | Qty | Strike   | Premium Sold  | Closing Ask  | Cost to Close  | Exit Commission | Net Gain/Loss |")
+        
+        # CRITICAL FIX 9: Adjust the header separator line based on the visual widths.
+        # Ticker (6), Qty (3), Strike (8), Premium Sold (14), Closing Ask (13), Cost to Close (15), Exit Commission (17), Net Gain/Loss (14)
+        # Note: The widths below reflect the total characters *including spaces and the $ sign* used in the data rows.
+        print("|--------|-----|----------|---------------|--------------|----------------|-----------------|---------------|") 
         
         # We liquidate all remaining trades
         for trade in positions_to_liquidate:
@@ -841,11 +851,12 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                 cash_balance -= cost_to_close_gross
                 cash_balance -= exit_commission
                 
-                # Format for printing (using f-string formatting for alignment)
+                # FIX 3 (Final Data Format): Split the $ sign and the number into separate fields to align the pipes perfectly.
+                # Data widths used: Strike(6.2f), Premium(11,.2f), Ask(10.2f), Cost(12,.2f), Commission(13.2f), Net(11.2f)
                 print(
-                    f"| {trade['ticker']:<6} | {qty:3} | ${trade['strike']:7.2f} | ${premium_collected_gross:12,.2f} | "
-                    f"${closing_ask:11.2f} | ${cost_to_close_gross:13,.2f} | -${exit_commission:14,.2f} | "
-                    f"${position_net_gain:13,.2f} |"
+                    f"| {trade['ticker']:<6} | {qty:3} | $ {trade['strike']:>6.2f} | $ {premium_collected_gross:>11,.2f} | "
+                    f"$ {closing_ask:>10.2f} | $ {cost_to_close_gross:>12,.2f} | $ {exit_commission:>13.2f} | "
+                    f"$ {position_net_gain:>11.2f} |"
                 )
         
         # FINAL REALIZED P&L for Performance Metrics
@@ -894,46 +905,47 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     
     print(f"📈 **Simulation Period:** {sim_start_date} to {sim_end_date}")
     
-    print("\n| Metric | Portfolio Gain | SPY Benchmark | Comparison |")
-    print("|:---|---:|---:|---:|")
-    print(f"| **Total Net Gain (%)** | {percent_total_gain:16.2f}% | {spy_total_return:13.2f}% | **{percent_total_gain - spy_total_return:11.2f}pp** |")
-    print(f"| **Annualized Gain (%)** | {annualized_gain:16.2f}% | {spy_annualized_return:13.2f}% | **{annualized_gain - spy_annualized_return:11.2f}pp** |")
+    print("\n| Metric                  | Portfolio Gain    | SPY Benchmark  | Comparison       |")
+    print("|-------------------------|-------------------|----------------|------------------|")
+    # FIX 4: Aligned columns using refined explicit width and right alignment (>)
+    # Portfolio Gain (16), SPY Benchmark (13), Comparison (10)
+    print(f"| **Total Net Gain (%)**  | {percent_total_gain:>16.2f}% | {spy_total_return:>13.2f}% | **{percent_total_gain - spy_total_return:>10.2f}pp** |")
+    print(f"| **Annualized Gain (%)** | {annualized_gain:>16.2f}% | {spy_annualized_return:>13.2f}% | **{annualized_gain - spy_annualized_return:>10.2f}pp** |")
     
     # 8. Monthly and Yearly Performance Tables
     
     # --- P&L Aggregation for Tables ---
-    monthly_performance = {} # Final structure: (Month) -> (% Gain, $ Gain, Base Value)
+    monthly_performance = {} # Final structure: (Month) -> (% Gain, $ Gain, End Value)
     yearly_performance = {}
     
     # Pre-calculate the starting value for each month
     sorted_months = sorted(monthly_pnl_log.keys())
     
+    # --- Monthly Calculation Pass ---
     for i, (year, month) in enumerate(sorted_months):
-        pnl, _ = monthly_pnl_log[(year, month)]
+        pnl, month_end_value = monthly_pnl_log[(year, month)]
         
         # Determine Base Value
         if i == 0:
-            # First month uses Initial Cash as base
             month_start_value = INITIAL_CASH
         else:
-            # Subsequent months use the END value of the previous month
+            # FIX 5: Calculate the start value based on the previous month's END value
             prev_year, prev_month = sorted_months[i-1]
-            # Since the EOD value is stored in the log, retrieve the previous month's final value
-            prev_eod_value = monthly_pnl_log[(prev_year, prev_month)][1]
+            # Since the EOD value (index 1) is now correctly stored, we retrieve the previous month's final value
+            _, prev_eod_value = monthly_pnl_log[(prev_year, prev_month)] 
             month_start_value = prev_eod_value
             
-        month_end_value = monthly_pnl_log[(year, month)][1]
         
         # Calculate Monthly Metrics
-        monthly_gain_pct = ((month_end_value / month_start_value) - 1) * 100.0 if month_start_value > 0 else 0.0
         monthly_gain_abs = month_end_value - month_start_value
+        monthly_gain_pct = (monthly_gain_abs / month_start_value) * 100.0 if month_start_value > 0 else 0.0
         
-        monthly_performance[(year, month)] = (monthly_gain_pct, monthly_gain_abs)
+        monthly_performance[(year, month)] = (monthly_gain_pct, monthly_gain_abs, month_end_value)
         
         # Aggregate to Year (Yearly PNL and Base Value are based on the start of the year)
         if year not in yearly_performance:
             yearly_performance[year] = {
-                'start_value': month_start_value, # Start of the simulation or start of the year
+                'start_value': month_start_value, # Start of the first month in the year (or start of sim)
                 'end_value': month_end_value,
                 'realized_pnl': pnl
             }
@@ -943,22 +955,24 @@ def load_and_run_simulation(rules_file_path, json_file_path):
             yearly_performance[year]['realized_pnl'] += pnl
 
     # --- Print Monthly Table ---
-    print("\n--- MONTHLY PORTFOLIO GAIN ---")
-    print("| Month | Total Value End | $ Gain | % Gain |")
-    print("|:---|---:|---:|---:|")
+    print("")
+    print("\n|______________ MONTHLY PORTFOLIO GAIN _____________|")
+    print("| Month   | Total Value End | $ Gain      | % Gain  |")
+    print("|---------|-----------------|-------------|---------|") # Fix 9: Aligned separator dashes
     
-    for (year, month), (pct_gain, abs_gain) in monthly_performance.items():
+    for (year, month), (pct_gain, abs_gain, end_value) in monthly_performance.items():
         month_label = datetime(year, month, 1).strftime('%Y-%m')
         
-        # Retrieve the End Value for printing
-        end_value = monthly_pnl_log[(year, month)][1]
-        
-        print(f"| {month_label:^5} | ${end_value:13,.2f} | ${abs_gain:11,.2f} | {pct_gain:7.2f}% |")
+        # FIX 6: Aligned columns using refined explicit width and right alignment (>)
+        # Total Value End (15) , $ Gain (12), % Gain (8)
+        # Split $ and number to align pipes
+        print(f"| {month_label:^5} | $ {end_value:>11,.2f}   | $ {abs_gain:>9,.2f} | {pct_gain:>6.2f}% |")
 
     # --- Print Yearly Table ---
-    print("\n--- YEARLY PORTFOLIO GAIN ---")
-    print("| Year | Total Value End | $ Gain | % Gain |")
-    print("|:---|---:|---:|---:|")
+    print("")
+    print("\n|_____________ YEARLY PORTFOLIO GAIN _______________|")
+    print("| Year    | Total Value End | $ Gain      | % Gain  |")
+    print("|---------|-----------------|-------------|---------|") # Fix 9: Aligned separator dashes
     
     for year in sorted(yearly_performance.keys()):
         data = yearly_performance[year]
@@ -966,20 +980,26 @@ def load_and_run_simulation(rules_file_path, json_file_path):
         year_start_value = data['start_value']
         
         yearly_gain_abs = year_end_value - year_start_value
-        yearly_gain_pct = ((year_end_value / year_start_value) - 1) * 100.0 if year_start_value > 0 else 0.0
+        yearly_gain_pct = (yearly_gain_abs / year_start_value) * 100.0 if year_start_value > 0 else 0.0
         
-        print(f"| {year:^5} | ${year_end_value:13,.2f} | ${yearly_gain_abs:11,.2f} | {yearly_gain_pct:7.2f}% |")
+        # FIX 7: Aligned columns using refined explicit width and right alignment (>)
+        # Total Value End (15) , $ Gain (12), % Gain (8)
+        # Split $ and number to align pipes
+        print(f"| {year:^5}   | $ {year_end_value:>11,.2f}   | $ {yearly_gain_abs:>9,.2f} | {yearly_gain_pct:>6.2f}% |")
 
     # 9. Exit Statistics
     total_closed_positions = stop_loss_count + expired_otm_count + expired_itm_count
     
-    print("\n--- TRADE EXIT STATISTICS (by Contract Count) ---")
-    print("| Exit Reason | Contracts Closed | % of Total Closed |")
-    print("|:----------------------------|------------------|-------------------|")
-    print(f"| **Stop Loss** | {stop_loss_count:16,} | {stop_loss_count / total_closed_positions * 100 if total_closed_positions > 0 else 0:17.2f}% |")
-    print(f"| **Expired OTM (Max Profit)** | {expired_otm_count:16,} | {expired_otm_count / total_closed_positions * 100 if total_closed_positions > 0 else 0:17.2f}% |")
-    print(f"| **Expired ITM (Assignment)** | {expired_itm_count:16,} | {expired_itm_count / total_closed_positions * 100 if total_closed_positions > 0 else 0:17.2f}% |")
-    print(f"| **Total Positions Closed** | {total_closed_positions:16,} | {100.0:17.2f}% |")
+    print("")
+    print("\n|______________ TRADE EXIT STATISTICS (by Contract Count) ______________|")
+    print("| Exit Reason                  | Contracts Closed  | % of Total Closed  |")
+    print("|------------------------------|-------------------|--------------------|")
+    # FIX 8: Aligned columns using refined explicit width and right alignment (>)
+    # Contracts Closed (16), % of Total Closed (17)
+    print(f"| **Stop Loss**.               | {stop_loss_count:>16,}  | {stop_loss_count / total_closed_positions * 100 if total_closed_positions > 0 else 0:>17.2f}% |")
+    print(f"| **Expired OTM (Max Profit)** | {expired_otm_count:>16,}  | {expired_otm_count / total_closed_positions * 100 if total_closed_positions > 0 else 0:>17.2f}% |")
+    print(f"| **Expired ITM (Assignment)** | {expired_itm_count:>16,}  | {expired_itm_count / total_closed_positions * 100 if total_closed_positions > 0 else 0:>17.2f}% |")
+    print(f"| **Total Positions Closed**   | {total_closed_positions:>16,}  | {100.0:>17.2f}% |")
     
 # Execute the main function
 load_and_run_simulation(RULES_FILE_PATH, JSON_FILE_PATH)
