@@ -1,6 +1,6 @@
 {
     "account_simulation": {
-        "start_date": "01/1/24",
+        "start_date": "01/01/24",
         "initial_cash": "100000",
         "avg_trade_amount": "46000.00",
         "max_puts_per_account": "20",

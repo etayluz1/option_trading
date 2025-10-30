@@ -224,7 +224,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     spy_end_price = None
     
     # NEW: Monthly P&L Log (Tuple: (Realized PNL for month, EOD Total Value))
-    # FIX: Initialize with structure to store (Realized PNL for month, EOD Total Value)
+    # EOD Total Value is the Mark-to-Market value (Cash + Unrealized PNL)
     monthly_pnl_log = {} 
     
     # NEW: Exit Counters
@@ -395,7 +395,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
             month_key = (daily_date_obj.year, daily_date_obj.month)
             
             if month_key not in monthly_pnl_log:
-                # Value is: (Realized PNL, Final Value)
+                # Value is: (Realized PNL for month, Final Value)
                 monthly_pnl_log[month_key] = (daily_pnl, 0.0) 
             else:
                 current_pnl, _ = monthly_pnl_log[month_key]
@@ -724,10 +724,12 @@ def load_and_run_simulation(rules_file_path, json_file_path):
             # Total Account Value = Cash Balance + Net Unrealized P&L 
             total_account_value = cash_balance + unrealized_pnl
             
-            # FIX 2: Update the monthly log with the EOD Total Account Value
+            # FIX 2: Update the monthly log with the EOD Total Account Value for the last trading day of the month.
             month_key = (daily_date_obj.year, daily_date_obj.month)
             current_pnl, _ = monthly_pnl_log.get(month_key, (0.0, 0.0))
-            monthly_pnl_log[month_key] = (current_pnl, total_account_value)
+            # Only update the EOD value if this is the last day of the month (or the last day of the sim)
+            # Simplest approach: overwrite the value every day, ensuring the last day's MTM value is captured.
+            monthly_pnl_log[month_key] = (current_pnl, total_account_value) 
             
             # Print Account Value breakdown (Corrected for Accuracy and Transparency)
             print(f"💵 **DAILY ACCOUNT VALUE (EOD):** ${total_account_value:,.2f}")
@@ -816,8 +818,6 @@ def load_and_run_simulation(rules_file_path, json_file_path):
         print("| Ticker | Qty | Strike   | Premium Sold  | Closing Ask  | Cost to Close  | Exit Commission | Net Gain/Loss |")
         
         # CRITICAL FIX 9: Adjust the header separator line based on the visual widths.
-        # Ticker (6), Qty (3), Strike (8), Premium Sold (14), Closing Ask (13), Cost to Close (15), Exit Commission (17), Net Gain/Loss (14)
-        # Note: The widths below reflect the total characters *including spaces and the $ sign* used in the data rows.
         print("|--------|-----|----------|---------------|--------------|----------------|-----------------|---------------|") 
         
         # We liquidate all remaining trades
@@ -909,7 +909,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     print("|-------------------------|-------------------|----------------|------------------|")
     # FIX 4: Aligned columns using refined explicit width and right alignment (>)
     # Portfolio Gain (16), SPY Benchmark (13), Comparison (10)
-    print(f"| **Total Net Gain (%)**  | {percent_total_gain:>16.2f}% | {spy_total_return:>13.2f}% | **{percent_total_gain - spy_total_return:>10.2f}pp** |")
+    print(f"| **Total Net Gain (%)** | {percent_total_gain:>16.2f}% | {spy_total_return:>13.2f}% | **{percent_total_gain - spy_total_return:>10.2f}pp** |")
     print(f"| **Annualized Gain (%)** | {annualized_gain:>16.2f}% | {spy_annualized_return:>13.2f}% | **{annualized_gain - spy_annualized_return:>10.2f}pp** |")
     
     # 8. Monthly and Yearly Performance Tables
@@ -923,40 +923,45 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     
     # --- Monthly Calculation Pass ---
     for i, (year, month) in enumerate(sorted_months):
-        pnl, month_end_value = monthly_pnl_log[(year, month)]
+        pnl_realized, month_end_value_mtm = monthly_pnl_log[(year, month)]
         
-        # Determine Base Value
+        # Determine Base Value (Start MTM Value)
         if i == 0:
             month_start_value = INITIAL_CASH
         else:
-            # FIX 5: Calculate the start value based on the previous month's END value
+            # FIX 5: Calculate the start value based on the previous month's END MTM value
             prev_year, prev_month = sorted_months[i-1]
-            # Since the EOD value (index 1) is now correctly stored, we retrieve the previous month's final value
-            _, prev_eod_value = monthly_pnl_log[(prev_year, prev_month)] 
-            month_start_value = prev_eod_value
+            # Retrieve the previous month's MTM value (index 1)
+            _, prev_eod_value_mtm = monthly_pnl_log[(prev_year, prev_month)] 
+            month_start_value = prev_eod_value_mtm
             
+        # ***CRITICAL FIX***: Replace the last month's MTM value with the final liquidiated cash value for a clean report closure.
+        # This resolves the discrepancy pointed out by the user between the final monthly entry and the Final Liquidation Summary.
+        is_last_month = i == len(sorted_months) - 1
+        month_end_value_reported = final_account_value_liquidated if is_last_month else month_end_value_mtm
         
         # Calculate Monthly Metrics
-        monthly_gain_abs = month_end_value - month_start_value
+        # NOTE: Using month_end_value_reported to calculate gain vs previous month's MTM start value
+        monthly_gain_abs = month_end_value_reported - month_start_value
         monthly_gain_pct = (monthly_gain_abs / month_start_value) * 100.0 if month_start_value > 0 else 0.0
         
-        monthly_performance[(year, month)] = (monthly_gain_pct, monthly_gain_abs, month_end_value)
+        monthly_performance[(year, month)] = (monthly_gain_pct, monthly_gain_abs, month_end_value_reported)
         
-        # Aggregate to Year (Yearly PNL and Base Value are based on the start of the year)
+        # Aggregate to Year (Yearly Start Value = MTM at start of year; Yearly End Value = MTM/Realized at end of year)
         if year not in yearly_performance:
             yearly_performance[year] = {
-                'start_value': month_start_value, # Start of the first month in the year (or start of sim)
-                'end_value': month_end_value,
-                'realized_pnl': pnl
+                'start_value': month_start_value, # Start MTM value of the first month in the year (or sim)
+                'end_value': month_end_value_reported,
+                'realized_pnl': pnl_realized
             }
         else:
-            # Update realized PNL and end value
-            yearly_performance[year]['end_value'] = month_end_value
-            yearly_performance[year]['realized_pnl'] += pnl
+            # Update the End Value to the current month's reported end value
+            yearly_performance[year]['end_value'] = month_end_value_reported
+            yearly_performance[year]['realized_pnl'] += pnl_realized
 
     # --- Print Monthly Table ---
     print("")
-    print("\n|______________ MONTHLY PORTFOLIO GAIN ______________|")
+    print("\n--- MONTHLY PORTFOLIO GAIN ---")
     print("| Month   | Total Value End | $ Gain       | % Gain  |")
     print("|---------|-----------------|--------------|---------|") # Fix 9: Aligned separator dashes
     
@@ -966,11 +971,11 @@ def load_and_run_simulation(rules_file_path, json_file_path):
         # FIX 6: Aligned columns using refined explicit width and right alignment (>)
         # Total Value End (15) , $ Gain (12), % Gain (8)
         # Split $ and number to align pipes
-        print(f"| {month_label:^5} | $ {end_value:>11,.2f}   | $ {abs_gain:>10,.2f} | {pct_gain:>6.2f}% |")
+        print(f"| {month_label:^5} | $ {end_value:>11,.2f}   | $ {abs_gain:>9,.2f} | {pct_gain:>6.2f}% |")
 
     # --- Print Yearly Table ---
     print("")
-    print("\n|_____________ YEARLY PORTFOLIO GAIN ________________|")
+    print("\n--- YEARLY PORTFOLIO GAIN ---")
     print("| Year    | Total Value End | $ Gain       | % Gain  |")
     print("|---------|-----------------|--------------|---------|") # Fix 9: Aligned separator dashes
     
@@ -985,21 +990,21 @@ def load_and_run_simulation(rules_file_path, json_file_path):
         # FIX 7: Aligned columns using refined explicit width and right alignment (>)
         # Total Value End (15) , $ Gain (12), % Gain (8)
         # Split $ and number to align pipes
-        print(f"| {year:^5}   | $ {year_end_value:>11,.2f}   | $ {yearly_gain_abs:>10,.2f} | {yearly_gain_pct:>6.2f}% |")
+        print(f"| {year:^5}   | $ {year_end_value:>11,.2f}   | $ {yearly_gain_abs:>9,.2f} | {yearly_gain_pct:>6.2f}% |")
 
     # 9. Exit Statistics
     total_closed_positions = stop_loss_count + expired_otm_count + expired_itm_count
     
     print("")
-    print("\n|______________ TRADE EXIT STATISTICS (by Contract Count) ______________|")
+    print("\n--- TRADE EXIT STATISTICS (by Contract Count) ---")
     print("| Exit Reason                  | Contracts Closed  | % of Total Closed  |")
     print("|------------------------------|-------------------|--------------------|")
     # FIX 8: Aligned columns using refined explicit width and right alignment (>)
     # Contracts Closed (16), % of Total Closed (17)
-    print(f"| **Stop Loss**.               | {stop_loss_count:>16,}  | {stop_loss_count / total_closed_positions * 100 if total_closed_positions > 0 else 0:>17.2f}% |")
+    print(f"| **Stop Loss** | {stop_loss_count:>16,}  | {stop_loss_count / total_closed_positions * 100 if total_closed_positions > 0 else 0:>17.2f}% |")
     print(f"| **Expired OTM (Max Profit)** | {expired_otm_count:>16,}  | {expired_otm_count / total_closed_positions * 100 if total_closed_positions > 0 else 0:>17.2f}% |")
     print(f"| **Expired ITM (Assignment)** | {expired_itm_count:>16,}  | {expired_itm_count / total_closed_positions * 100 if total_closed_positions > 0 else 0:>17.2f}% |")
-    print(f"| **Total Positions Closed**   | {total_closed_positions:>16,}  | {100.0:>17.2f}% |")
+    print(f"| **Total Positions Closed** | {total_closed_positions:>16,}  | {100.0:>17.2f}% |")
     
 # Execute the main function
 load_and_run_simulation(RULES_FILE_PATH, JSON_FILE_PATH)
