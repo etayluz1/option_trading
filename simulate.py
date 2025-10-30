@@ -222,9 +222,12 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     sim_end_date = None
     spy_start_price = None
     spy_end_price = None
+
+    # NEW: SPY tracking for monthly/yearly
+    # Stores the last closing price of SPY for a given month (Year, Month) -> Price
+    monthly_spy_prices = {} 
     
-    # NEW: Monthly P&L Log (Tuple: (Realized PNL for month, EOD Total Value))
-    # EOD Total Value is the Mark-to-Market value (Cash + Unrealized PNL)
+    # NEW: Monthly P&L Log (Tuple: (Realized PNL for month, EOD Total Value, SPY Close Price))
     monthly_pnl_log = {} 
     
     # NEW: Exit Counters
@@ -264,15 +267,21 @@ def load_and_run_simulation(rules_file_path, json_file_path):
             
             # --- START DAILY PROCESSING ---
             # Capture simulation dates and SPY prices
+            spy_current_price = None
+            if 'SPY' in stock_history_dict and date_str in stock_history_dict['SPY']:
+                spy_current_price = stock_history_dict['SPY'][date_str].get('adj_close')
+                
             if sim_start_date is None:
                 sim_start_date = daily_date_obj
-                if 'SPY' in stock_history_dict and date_str in stock_history_dict['SPY']:
-                    spy_start_price = stock_history_dict['SPY'][date_str].get('adj_close')
+                spy_start_price = spy_current_price
             
             sim_end_date = daily_date_obj # Update end date every successful day
-            if 'SPY' in stock_history_dict and date_str in stock_history_dict['SPY']:
-                spy_end_price = stock_history_dict['SPY'][date_str].get('adj_close')
-            
+            spy_end_price = spy_current_price # Update end SPY price every day
+
+            # Store SPY price for the current month/year
+            month_key = (daily_date_obj.year, daily_date_obj.month)
+            if spy_current_price is not None:
+                 monthly_spy_prices[month_key] = spy_current_price
             
             total_dates_processed += 1
             daily_investable_data = {} 
@@ -394,12 +403,12 @@ def load_and_run_simulation(rules_file_path, json_file_path):
             # --- Monthly and Yearly P&L Aggregation (Start of Day P&L aggregation) ---
             month_key = (daily_date_obj.year, daily_date_obj.month)
             
+            # Monthly PNL is now tracked as (Realized PNL, MTM Value, SPY Close)
             if month_key not in monthly_pnl_log:
-                # Value is: (Realized PNL for month, Final Value)
-                monthly_pnl_log[month_key] = (daily_pnl, 0.0) 
+                monthly_pnl_log[month_key] = (daily_pnl, 0.0, 0.0) 
             else:
-                current_pnl, _ = monthly_pnl_log[month_key]
-                monthly_pnl_log[month_key] = (current_pnl + daily_pnl, 0.0) 
+                current_pnl, _, _ = monthly_pnl_log[month_key]
+                monthly_pnl_log[month_key] = (current_pnl + daily_pnl, 0.0, 0.0) 
             
             # Update cumulative P&L with today's realized profit (Net of exit commissions)
             cumulative_realized_pnl += daily_pnl
@@ -724,12 +733,13 @@ def load_and_run_simulation(rules_file_path, json_file_path):
             # Total Account Value = Cash Balance + Net Unrealized P&L 
             total_account_value = cash_balance + unrealized_pnl
             
-            # FIX 2: Update the monthly log with the EOD Total Account Value for the last trading day of the month.
+            # FIX: Update the monthly log with the EOD Total Account Value and SPY Price.
             month_key = (daily_date_obj.year, daily_date_obj.month)
-            current_pnl, _ = monthly_pnl_log.get(month_key, (0.0, 0.0))
-            # Only update the EOD value if this is the last day of the month (or the last day of the sim)
-            # Simplest approach: overwrite the value every day, ensuring the last day's MTM value is captured.
-            monthly_pnl_log[month_key] = (current_pnl, total_account_value) 
+            current_pnl, _, _ = monthly_pnl_log.get(month_key, (0.0, 0.0, 0.0))
+            
+            # Capture MTM value and the latest SPY close price for this month
+            current_spy_close = monthly_spy_prices.get(month_key, 0.0)
+            monthly_pnl_log[month_key] = (current_pnl, total_account_value, current_spy_close)
             
             # Print Account Value breakdown (Corrected for Accuracy and Transparency)
             print(f"💵 **DAILY ACCOUNT VALUE (EOD):** ${total_account_value:,.2f}")
@@ -915,82 +925,113 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     # 8. Monthly and Yearly Performance Tables
     
     # --- P&L Aggregation for Tables ---
-    monthly_performance = {} # Final structure: (Month) -> (% Gain, $ Gain, End Value)
+    # Final structure: (Month) -> (% Gain, $ Gain, End Value, % SPY Gain)
+    monthly_performance = {} 
     yearly_performance = {}
     
-    # Pre-calculate the starting value for each month
+    # Pre-calculate the starting value for each month and SPY price
     sorted_months = sorted(monthly_pnl_log.keys())
     
     # --- Monthly Calculation Pass ---
+    # Need to pre-calculate SPY monthly returns based on the SPY price at the start of the month (end of previous month)
+    
+    # Get SPY start price for the first month
+    spy_start_of_sim = spy_start_price if spy_start_price is not None else 0.0
+    
+    # This will hold the closing SPY price from the last day of the *previous* month.
+    spy_previous_close = spy_start_of_sim 
+    
+    # This will hold the MTM value from the last day of the *previous* month.
+    portfolio_previous_close = INITIAL_CASH
+    
     for i, (year, month) in enumerate(sorted_months):
-        pnl_realized, month_end_value_mtm = monthly_pnl_log[(year, month)]
+        pnl_realized, month_end_value_mtm, spy_month_close = monthly_pnl_log[(year, month)]
         
-        # Determine Base Value (Start MTM Value)
-        if i == 0:
-            month_start_value = INITIAL_CASH
-        else:
-            # FIX 5: Calculate the start value based on the previous month's END MTM value
-            prev_year, prev_month = sorted_months[i-1]
-            # Retrieve the previous month's MTM value (index 1)
-            _, prev_eod_value_mtm = monthly_pnl_log[(prev_year, prev_month)] 
-            month_start_value = prev_eod_value_mtm
+        # 1. Portfolio Metrics
+        month_start_value = portfolio_previous_close
             
-        # ***CRITICAL FIX***: Replace the last month's MTM value with the final liquidiated cash value for a clean report closure.
-        # This resolves the discrepancy pointed out by the user between the final monthly entry and the Final Liquidation Summary.
+        # ***CRITICAL FIX***: Replace the last month's MTM value with the final liquidiated cash value.
         is_last_month = i == len(sorted_months) - 1
         month_end_value_reported = final_account_value_liquidated if is_last_month else month_end_value_mtm
         
-        # Calculate Monthly Metrics
-        # NOTE: Using month_end_value_reported to calculate gain vs previous month's MTM start value
+        # Calculate Monthly Gains
         monthly_gain_abs = month_end_value_reported - month_start_value
         monthly_gain_pct = (monthly_gain_abs / month_start_value) * 100.0 if month_start_value > 0 else 0.0
         
-        monthly_performance[(year, month)] = (monthly_gain_pct, monthly_gain_abs, month_end_value_reported)
+        # 2. SPY Metrics
+        spy_monthly_return = 0.0
+        if spy_month_close > 0 and spy_previous_close > 0:
+            spy_monthly_return = ((spy_month_close / spy_previous_close) - 1) * 100.0
         
-        # Aggregate to Year (Yearly Start Value = MTM at start of year; Yearly End Value = MTM/Realized at end of year)
+        monthly_performance[(year, month)] = {
+            'end_value': month_end_value_reported,
+            'gain_abs': monthly_gain_abs,
+            'gain_pct': monthly_gain_pct,
+            'spy_gain_pct': spy_monthly_return
+        }
+        
+        # 3. Aggregate to Year (Yearly Start Value, End Value, Realized PNL)
         if year not in yearly_performance:
             yearly_performance[year] = {
-                'start_value': month_start_value, # Start MTM value of the first month in the year (or sim)
+                'start_value': month_start_value, # Start value of the first month in the year
                 'end_value': month_end_value_reported,
-                'realized_pnl': pnl_realized
+                'realized_pnl': pnl_realized,
+                'spy_start_price': spy_previous_close,
+                'spy_end_price': spy_month_close
             }
         else:
             # Update the End Value to the current month's reported end value
             yearly_performance[year]['end_value'] = month_end_value_reported
             yearly_performance[year]['realized_pnl'] += pnl_realized
+            yearly_performance[year]['spy_end_price'] = spy_month_close
+
+        # Set values for the next iteration
+        portfolio_previous_close = month_end_value_reported
+        spy_previous_close = spy_month_close
 
     # --- Print Monthly Table ---
     print("")
     print("\n--- MONTHLY PORTFOLIO GAIN ---")
-    print("| Month   | Total Value End | $ Gain       | % Gain  |")
-    print("|---------|-----------------|--------------|---------|") # Fix 9: Aligned separator dashes
+    # NEW COLUMN: % SPY Gain
+    print("| Month   | Total Value End | $ Gain       | % Gain  | % SPY Gain |")
+    print("|---------|-----------------|--------------|---------|------------|") 
     
-    for (year, month), (pct_gain, abs_gain, end_value) in monthly_performance.items():
+    for (year, month), data in monthly_performance.items():
         month_label = datetime(year, month, 1).strftime('%Y-%m')
         
-        # FIX 6: Aligned columns using refined explicit width and right alignment (>)
-        # Total Value End (15) , $ Gain (12), % Gain (8)
-        # Split $ and number to align pipes
-        print(f"| {month_label:^5} | $ {end_value:>11,.2f}   | $ {abs_gain:>9,.2f} | {pct_gain:>6.2f}% |")
+        # Data widths used: End Value (11,.2f), $ Gain (9,.2f), % Gain (6.2f), % SPY Gain (8.2f)
+        print(
+            f"| {month_label:^5} | $ {data['end_value']:>11,.2f}   | $ {data['gain_abs']:>9,.2f} | "
+            f"{data['gain_pct']:>6.2f}% | {data['spy_gain_pct']:>8.2f}% |"
+        )
 
     # --- Print Yearly Table ---
     print("")
     print("\n--- YEARLY PORTFOLIO GAIN ---")
-    print("| Year    | Total Value End | $ Gain       | % Gain  |")
-    print("|---------|-----------------|--------------|---------|") # Fix 9: Aligned separator dashes
+    # NEW COLUMN: % SPY Gain
+    print("| Year    | Total Value End | $ Gain       | % Gain  | % SPY Gain |")
+    print("|---------|-----------------|--------------|---------|------------|") 
     
     for year in sorted(yearly_performance.keys()):
         data = yearly_performance[year]
         year_end_value = data['end_value']
         year_start_value = data['start_value']
+        spy_start = data['spy_start_price']
+        spy_end = data['spy_end_price']
         
         yearly_gain_abs = year_end_value - year_start_value
         yearly_gain_pct = (yearly_gain_abs / year_start_value) * 100.0 if year_start_value > 0 else 0.0
         
-        # FIX 7: Aligned columns using refined explicit width and right alignment (>)
-        # Total Value End (15) , $ Gain (12), % Gain (8)
-        # Split $ and number to align pipes
-        print(f"| {year:^5}   | $ {year_end_value:>11,.2f}   | $ {yearly_gain_abs:>9,.2f} | {yearly_gain_pct:>6.2f}% |")
+        # Calculate Yearly SPY Gain
+        spy_yearly_return = 0.0
+        if spy_end > 0 and spy_start > 0:
+            spy_yearly_return = ((spy_end / spy_start) - 1) * 100.0
+
+        # Data widths used: End Value (11,.2f), $ Gain (9,.2f), % Gain (6.2f), % SPY Gain (8.2f)
+        print(
+            f"| {year:^5}   | $ {year_end_value:>11,.2f}   | $ {yearly_gain_abs:>9,.2f} | "
+            f"{yearly_gain_pct:>6.2f}% | {spy_yearly_return:>8.2f}% |"
+        )
 
     # 9. Exit Statistics
     total_closed_positions = stop_loss_count + expired_otm_count + expired_itm_count
