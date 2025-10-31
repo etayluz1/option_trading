@@ -260,7 +260,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(f"✅ All {len(rules['entry_put_position'])} Entry Rules loaded successfully.")
             print(f"✅ Account Limits: Max Put Positions Total: {MAX_PUTS_PER_ACCOUNT}, Max Puts Per Stock: {MAX_PUTS_PER_STOCK}")
             print(f"✅ Trading Cost: Commission per contract is ${COMMISSION_PER_CONTRACT:.2f}")
-            print(f"📈 **Max Premium per Trade:** ${MAX_PREMIUM_PER_TRADE:,.2f}")
+            print(f"✅ Min risk/reward ratio: {MIN_RISK_REWARD_RATIO}")
+            print(f"📈 Max Premium per Trade: ${MAX_PREMIUM_PER_TRADE:,.2f}")
             print(f"✅ Stop Loss Rule (SMA150): Max Stock Drop Below SMA150 = {STOCK_MAX_BELOW_AVG_PCT * 100:.2f}%")
             # Position stop-loss rule: threshold is compared against daily option BID vs the entry BID
             # The rule is defined in `exit_put_position.position_stop_loss_pct` in rules.json
@@ -365,6 +366,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             
             # --- START DAILY PROCESSING ---
             # Capture simulation dates and SPY prices
+            print()              
+            print(daily_date_obj)
             spy_current_price = None
             if 'SPY' in stock_history_dict and date_str in stock_history_dict['SPY']:
                 spy_current_price = stock_history_dict['SPY'][date_str].get('adj_close')
@@ -660,14 +663,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # ----------------------------------------------
             
             # Check if we should skip the market scan due to global limits
-            if current_account_put_positions >= MAX_PUTS_PER_ACCOUNT and not account_full_today:
-                print(f"\n>>>> Date: {date_str} (Investable Tickers) <<<<")
+            if current_account_put_positions >= MAX_PUTS_PER_ACCOUNT and not account_full_today:               
                 print(f"🛑 **ACCOUNT FULL (Global Limit):** {current_account_put_positions}/{MAX_PUTS_PER_ACCOUNT} contracts. Skipping scan for new trades.")
                 account_full_today = True
             
-            # Print the daily header and limits info for scan days
-            if not account_full_today:
-                print(f"\n>>>> Date: {date_str} (Investable Tickers) <<<<")                
+            # Print the daily header and limits info for scan days                                   
 
             if not account_full_today:
                 
@@ -1465,7 +1465,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("\n")
     # Re-print the configured Position Stop Loss threshold here for visibility in the final summary
     print(f"✅ Position Stop Loss Threshold (daily bid loss vs entry bid): {POSITION_STOP_LOSS_PCT * 100:.2f}%")
-    print(f"✅ Min risk/reward ratio = {MIN_RISK_REWARD_RATIO}")
+    print(f"✅ Min risk/reward ratio: {MIN_RISK_REWARD_RATIO}")
     stock_max_below_avg = abs(safe_percentage_to_float(rules["exit_put_position"]["stock_max_below_avg"]))
     print(f"✅ Stop Loss Rule (SMA150): Max Stock Drop Below SMA150 = {stock_max_below_avg * 100:.2f}%")
     print(f"Annualized Gain (%)  {annualized_gain:>16.2f}%")
