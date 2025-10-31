@@ -95,13 +95,13 @@ def print_daily_portfolio_summary(open_puts_tracker):
     """Prints a summary of all tickers with currently open put positions."""
     
     open_tickers = []
-    total_contracts = 0
+    total_open_positions = 0
     
     # 1. Collect and sort all open positions
     for ticker, count in open_puts_tracker.items():
         if count > 0:
             open_tickers.append((ticker, count))
-            total_contracts += count
+            total_open_positions += count
             
     if not open_tickers:
         print("  (No open put positions.)")
@@ -110,7 +110,7 @@ def print_daily_portfolio_summary(open_puts_tracker):
     open_tickers.sort(key=lambda x: x[0]) # Sort by ticker name
     
     # 2. Print the summary
-    print(f"💼 **OPEN PORTFOLIO SUMMARY ({total_contracts} Total Contracts):**")
+    print(f"💼 **OPEN PORTFOLIO SUMMARY ({total_open_positions} Total Positions):**")
     
     summary_parts = []
     for ticker, count in open_tickers:
@@ -230,8 +230,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             
             print(f"✅ Simulation start date loaded: {start_date_str} (Parsed as {start_date_obj})")
             print(f"✅ All {len(rules['entry_put_position'])} Entry Rules loaded successfully.")
-            print(f"✅ Account Limits: Max Puts Total: {MAX_PUTS_PER_ACCOUNT}, Max Puts Per Stock: {MAX_PUTS_PER_STOCK}")
+            print(f"✅ Account Limits: Max Put Positions Total: {MAX_PUTS_PER_ACCOUNT}, Max Puts Per Stock: {MAX_PUTS_PER_STOCK}")
             print(f"✅ Trading Cost: Commission per contract is ${COMMISSION_PER_CONTRACT:.2f}")
+            print(f"📈 **Max Premium per Trade:** ${MAX_PREMIUM_PER_TRADE:,.2f}")
             print(f"✅ Stop Loss Rule (SMA150): Max Stock Drop Below SMA150 = {STOCK_MAX_BELOW_AVG_PCT * 100:.2f}%")
 
 
@@ -361,7 +362,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             except (FileNotFoundError, json.JSONDecodeError):
                 pass
             
-            current_account_puts = sum(open_puts_tracker.values())
+            current_account_put_positions = sum(open_puts_tracker.values())
             daily_pnl = 0.0 # Realized P&L from closed trades today
             
             # --- Liability Trackers (Re-initialized daily for fresh MTM calculation) ---
@@ -446,7 +447,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         
                         if is_itm:
                             # ITM/ASSIGNMENT SCENARIO (Loss)
-                            assignment_loss_gross = (trade['strike'] - current_adj_close) * qty * 100.0
+                            assignment_loss_gross = (trade['strike'] - current_adj_close) * qty * 100.0 + exit_commission 
                             net_profit = premium_collected_gross - assignment_loss_gross - exit_commission
                             
                             expired_itm_count += qty
@@ -461,6 +462,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         else:
                             # OTM/MAX PROFIT SCENARIO
                             cost_to_close_gross = 0.0 
+                            exit_commission = 0.0
                             net_profit = premium_collected_gross - exit_commission
                             
                             expired_otm_count += qty
@@ -475,7 +477,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         
                     elif stop_loss_triggered and current_ask_price is not None:
                         # STOP LOSS SCENARIO
-                        cost_to_close_gross = current_ask_price * qty * 100.0
+                        cost_to_close_gross = current_ask_price * qty * 100.0 + exit_commission
                         net_profit = premium_collected_gross - cost_to_close_gross - exit_commission
                         
                         stop_loss_count += qty
@@ -499,10 +501,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     market_cost_to_close = exit_details['AmountOut'] 
                     
                     # STEP 1: DEBIT - Pay the Cost to Close (Buy to Cover/Payout)
-                    cash_balance -= market_cost_to_close 
+                    cash_balance -= market_cost_to_close # includes payout + commission
                     
                     # STEP 2: DEBIT - Pay Commission
-                    cash_balance -= exit_commission
+                    # cash_balance -= exit_commission # Already included in market_cost_to_close above
                     
                     # STEP 3: CREDIT - Restore the Collected Premium. 
                     # FIX: This step IS required to realize the NET profit (Premium collected - Costs)
@@ -557,7 +559,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     
                     # Update trackers
                     positions_to_remove.append(i)
-                    open_puts_tracker[trade['ticker']] -= qty 
+                    open_puts_tracker[trade['ticker']] -= 1 
                     active_position_keys.remove(trade['unique_key'])
             
             # --- Monthly and Yearly P&L Aggregation (Start of Day P&L aggregation) ---
@@ -577,8 +579,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             for index in sorted(positions_to_remove, reverse=True):
                 open_trades_log.pop(index)
             
-            # Recalculate current_account_puts after exits
-            current_account_puts = sum(open_puts_tracker.values())
+            # Recalculate current_account_put_positions after exits
+            current_account_put_positions = sum(open_puts_tracker.values())
 
 
             # ----------------------------------------------
@@ -586,15 +588,14 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # ----------------------------------------------
             
             # Check if we should skip the market scan due to global limits
-            if current_account_puts >= MAX_PUTS_PER_ACCOUNT and not account_full_today:
+            if current_account_put_positions >= MAX_PUTS_PER_ACCOUNT and not account_full_today:
                 print(f"\n>>>> Date: {date_str} (Investable Tickers) <<<<")
-                print(f"🛑 **ACCOUNT FULL (Global Limit):** {current_account_puts}/{MAX_PUTS_PER_ACCOUNT} contracts. Skipping scan for new trades.")
+                print(f"🛑 **ACCOUNT FULL (Global Limit):** {current_account_put_positions}/{MAX_PUTS_PER_ACCOUNT} contracts. Skipping scan for new trades.")
                 account_full_today = True
             
             # Print the daily header and limits info for scan days
             if not account_full_today:
-                print(f"\n>>>> Date: {date_str} (Investable Tickers) <<<<")
-                print(f"📈 **Max Premium per Trade:** ${MAX_PREMIUM_PER_TRADE:,.2f}")
+                print(f"\n>>>> Date: {date_str} (Investable Tickers) <<<<")                
 
             if not account_full_today:
                 
@@ -756,7 +757,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                 qty_by_premium = 0
 
                             # Determine quantity based on remaining contract limits
-                            remaining_account_slots = MAX_PUTS_PER_ACCOUNT - current_account_puts
+                            remaining_account_slots = MAX_PUTS_PER_ACCOUNT - current_account_put_positions
                             remaining_stock_slots = MAX_PUTS_PER_STOCK - open_puts_tracker[ticker_check]
                             
                             # Final quantity is the minimum of the three constraints
@@ -828,7 +829,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     cash_balance -= entry_commission 
                     
                     # 5. Update the position count
-                    open_puts_tracker[ticker_to_enter] += trade_quantity
+                    open_puts_tracker[ticker_to_enter] += 1
                     
                     # 6. Log the trade details (include quantity)
                     trade_entry = {
@@ -926,8 +927,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             monthly_pnl_log[month_key] = (current_pnl, total_account_value, current_spy_close)
             
             # Print Account Value breakdown (Corrected for Accuracy and Transparency)
-            print(f"💵 **DAILY ACCOUNT VALUE (EOD - NAV):** ${total_account_value:,.2f}")
-            
+            print(f"💵 **DAILY ACCOUNT VALUE (EOD - NAV):** ${total_account_value:,.2f}")            
+            print(f"  > **Cash Balance:** ${cash_balance:,.2f}")
             # --- PROMOTED LIABILITY PRINT (This is the cumulative value) ---
             print(f"🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** ${total_put_liability:,.2f} (Computed using Ask Price)")
             
@@ -936,8 +937,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 for item in daily_liability_itemization:
                     print(item)
 
-            print(f"  > **Cash Balance:** ${cash_balance:,.2f}")
-            print(f"  > **Total Premium on Open Puts:** +${total_open_premium_collected:,.2f}")
+            
+            print(f"  > **Total accumulated Premium on Open Puts:** +${total_open_premium_collected:,.2f}")
             # Net Unrealized P&L is still calculated using the old definition: (Premium - Liability). 
             # We display it here for informational purposes, but it is NOT used in NAV.
             print(f"  > **Net Unrealized P&L:** ${unrealized_pnl:,.2f}")
@@ -1141,7 +1142,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("|-------------------------|-------------------|----------------|------------------|")
     # FIX 4: Aligned columns using refined explicit width and right alignment (>)
     # Portfolio Gain (16), SPY Benchmark (13), Comparison (10)
-    print(f"| **Total Net Gain (%)** | {percent_total_gain:>16.2f}% | {spy_total_return:>13.2f}% | **{percent_total_gain - spy_total_return:>10.2f}pp** |")
+    print(f"| **Total Net Gain (%)**  | {percent_total_gain:>16.2f}% | {spy_total_return:>13.2f}% | **{percent_total_gain - spy_total_return:>10.2f}pp** |")
     print(f"| **Annualized Gain (%)** | {annualized_gain:>16.2f}% | {spy_annualized_return:>13.2f}% | **{annualized_gain - spy_annualized_return:>10.2f}pp** |")
     
     # 8. Monthly and Yearly Performance Tables
@@ -1221,8 +1222,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         
         # Data widths used: End Value (11,.2f), $ Gain (9,.2f), % Gain (6.2f), % SPY Gain (8.2f)
         print(
-            f"| {month_label:^5} | $ {data['end_value']:>11,.2f}   | $ {data['gain_abs']:>9,.2f} | "
-            f"{data['gain_pct']:>6.2f}% | {data['spy_gain_pct']:>8.2f}% |"
+            f"| {month_label:^5} | $ {data['end_value']:>11,.2f}   | $ {data['gain_abs']:>10,.2f} | "
+            f"{data['gain_pct']:>6.2f}% | {data['spy_gain_pct']:>9.2f}% |"
         )
 
     # --- Print Yearly Table ---
@@ -1249,8 +1250,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
         # Data widths used: End Value (11,.2f), $ Gain (9,.2f), % Gain (6.2f), % SPY Gain (8.2f)
         print(
-            f"| {year:^5}   | $ {year_end_value:>11,.2f}   | $ {yearly_gain_abs:>9,.2f} | "
-            f"{yearly_gain_pct:>6.2f}% | {spy_yearly_return:>8.2f}% |"
+            f"| {year:^5}   | $ {year_end_value:>11,.2f}   | $ {yearly_gain_abs:>10,.2f} | "
+            f"{yearly_gain_pct:>6.2f}% | {spy_yearly_return:>9.2f}% |"
         )
 
     # 9. Exit Statistics (Focusing on Entry/Exit Events)
@@ -1282,48 +1283,48 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         return (gain / premium) * 100.0 if premium != 0.0 else 0.0
     
     # Header now includes the new gain columns
-    print("| Exit Reason                  | Exit Events       | % of Total Events | Total Gain $      | Net Gain % |")
-    print("|------------------------------|-------------------|-------------------|-------------------|------------|")
+    print("| Exit Reason                   | Exit Events       |  % of Total Events | Total Gain $      | Net Gain % |")
+    print("|-------------------------------|-------------------|--------------------|-------------------|------------|")
     
     # 1. STOP LOSS
     stop_loss_gain_pct = calculate_net_gain_percent(stop_loss_gain, stop_loss_premium_collected)
     print(
         f"| **Stop Loss**{' ':17}| {stop_loss_events:>16,}  | {stop_loss_events / total_closed_events * 100 if total_closed_events > 0 else 0:>17.2f}% | "
-        f"${stop_loss_gain:>15,.2f} | {stop_loss_gain_pct:>8.2f}% |"
+        f"${stop_loss_gain:>16,.2f} | {stop_loss_gain_pct:>9.2f}% |"
     )
 
     # 2. EXPIRED OTM (Max Profit)
     expired_otm_gain_pct = calculate_net_gain_percent(expired_otm_gain, expired_otm_premium_collected)
     print(
         f"| **Expired OTM (Max Profit)**{' ':2}| {expired_otm_events:>16,}  | {expired_otm_events / total_closed_events * 100 if total_closed_events > 0 else 0:>17.2f}% | "
-        f"${expired_otm_gain:>15,.2f} | {expired_otm_gain_pct:>8.2f}% |"
+        f"${expired_otm_gain:>16,.2f} | {expired_otm_gain_pct:>9.2f}% |"
     )
     
     # 3. EXPIRED ITM (Assignment)
     expired_itm_gain_pct = calculate_net_gain_percent(expired_itm_gain, expired_itm_premium_collected)
     print(
-        f"| **Expired ITM (Assignment)**{' ':4}| {expired_itm_events:>16,}  | {expired_itm_events / total_closed_events * 100 if total_closed_events > 0 else 0:>17.2f}% | "
-        f"${expired_itm_gain:>15,.2f} | {expired_itm_gain_pct:>8.2f}% |"
+        f"| **Expired ITM (Assignment)**  | {expired_itm_events:>16,}  | {expired_itm_events / total_closed_events * 100 if total_closed_events > 0 else 0:>17.2f}% | "
+        f"${expired_itm_gain:>16,.2f} | {expired_itm_gain_pct:>9.2f}% |"
     )
 
     # 4. LIQUIDATION
     liquidation_gain_pct = calculate_net_gain_percent(liquidation_gain, liquidation_premium_collected)
     print(
-        f"| **Liquidation**{' ':13}| {liquidation_events:>16,}  | {liquidation_events / total_closed_events * 100 if total_closed_events > 0 else 0:>17.2f}% | "
-        f"${liquidation_gain:>15,.2f} | {liquidation_gain_pct:>8.2f}% |"
+        f"| **Liquidation**{' ':15}| {liquidation_events:>16,}  | {liquidation_events / total_closed_events * 100 if total_closed_events > 0 else 0:>17.2f}% | "
+        f"${liquidation_gain:>16,.2f} | {liquidation_gain_pct:>9.2f}% |"
     )
     
     # 5. Total Exit Events Summary (Total of rows 1-4)
-    print("|------------------------------|-------------------|-------------------|-------------------|------------|")
+    print("|-------------------------------|-------------------|--------------------|-------------------|------------|")    
     # Total Premium Collected is ONLY used for Net Gain %, so we use 'N/A' for the gain %.
-    print(f"| **Total Exit Events Closed**{' ':4}| {total_closed_events:>16,}  | {100.0:>17.2f}% | "
-          f"${TOTAL_GAIN:>15,.2f} | {'N/A':>8} |"
+    print(f"| **Total Exit Events Closed**  | {total_closed_events:>16,}  | {100.0:>17.2f}% | "
+          f"${TOTAL_GAIN:>16,.2f} | {'N/A':>10} |"
     )
     
     # Row 6: Total Entry Events (For direct comparison)
-    print("|------------------------------|-------------------|-------------------|-------------------|------------|")
+    print("|-------------------------------|-------------------|--------------------|-------------------|------------|")    
     # Text length: "Total Entry Events" is 18 characters. Padding needed: 30 - 18 = 12 spaces.
-    print(f"| Total Entry Events{' ':12}| {total_entry_events:>16,}  | {'N/A':>17} | {'N/A':>17} | {'N/A':>8} |")
+    print(f"| Total Entry Events{' ':12}| {total_entry_events:>16,}  | {'N/A':>18} | {'N/A':>17} | {'N/A':>10} |")
     
     
     # 10. NEW: Detailed Closed Trade Log
@@ -1331,26 +1332,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         
         # Sort the log by exit date
         closed_trades_log.sort(key=lambda x: x['DayOut'])
-
-        print("\n\n--- DETAILED CLOSED TRADE LOG (Full History) ---")
-        
-        # Define Column Widths
-        COL_EXIT_NUM = 7
-        COL_TICKER, COL_QTY, COL_ENTRY_PRICE, COL_EXIT_PRICE = 6, 4, 9, 9
-        COL_IN_AMT, COL_OUT_AMT, COL_GAIN_ABS, COL_GAIN_PCT = 11, 11, 8, 7
-        COL_DAY, COL_REASON = 10, 26
-        
-        header = (
-            f"| {'Exit #':<{COL_EXIT_NUM}} | {'Ticker':<{COL_TICKER}} | {'Qty':>{COL_QTY}} | {'Day In':^{COL_DAY}} | "
-            f"{'Price In':>{COL_ENTRY_PRICE}} | {'Amount In':>{COL_IN_AMT}} | {'Day Out':^{COL_DAY}} | "
-            f"{'Price Out':>{COL_EXIT_PRICE}} | {'Amount Out':>{COL_OUT_AMT}} | "
-            f"{'Reason Why Closed':<{COL_REASON}} | {'Gain $':>{COL_GAIN_ABS}} | {'Gain %':>{COL_GAIN_PCT}} |"
-        )
-        
-        print(header)
-        
+    
         # Adjusted separator for new Exit # column
-        print("|:-------|:------|:----|:----------|:---------|:-----------|:----------|:---------|:-----------|:---------------------------|:--------|:--------|") 
+        print("\n\n--- DETAILED CLOSED TRADE LOG (Full History) ---")
+        print("| Exit #  | Ticker |  Qty |   Day In   | Price In  | Amount In   |  Day Out   | Price Out |  Amount Out | Reason Why Closed           |   Gain $ |  Gain % |")
+        print("|:--------|:-------|:-----|:-----------|:----------|:------------|:-----------|:----------|:------------|:----------------------------|:---------|:--------|")
         
         for index, trade in enumerate(closed_trades_log):
             
@@ -1358,23 +1344,28 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             exit_number = index + 1
             
             # Format numbers (Price In/Out, Amount In/Out, Gain $)
-            price_in_str = f"${trade['PriceIn']:>7.2f}"
-            price_out_str = f"${trade['PriceOut']:>7.2f}" if trade['PriceOut'] is not None else ""
+            price_in_str = f"${trade['PriceIn']:>9.2f}"
+            price_out_str = f"${trade['PriceOut']:>8.2f}" if trade['PriceOut'] is not None else ""
             
             amount_in_str = f"${trade['AmountIn']:>9,.2f}"
-            amount_out_str = f"${trade['AmountOut']:>9,.2f}"
+            amount_out_str = f"${trade['AmountOut']:>10,.2f}"
             
-            gain_abs_str = f"{trade['Gain$']:>6.2f}"
-            gain_pct_str = f"{trade['Gain%']:>5.2f}%"
+            gain_abs_str = f"{trade['Gain$']:>8.2f}"
+            gain_pct_str = f"{trade['Gain%']:>7.2f}%"
             
             # Truncate reason if necessary (Reason is 26 chars)
-            reason_str = trade['ReasonWhyClosed'][:COL_REASON]
+            # Define Column Widths
+            COL_EXIT_NUM = 7
+            COL_TICKER, COL_QTY, COL_ENTRY_PRICE, COL_EXIT_PRICE = 6, 4, 9, 9
+            COL_IN_AMT, COL_OUT_AMT, COL_GAIN_ABS, COL_GAIN_PCT = 11, 11, 8, 7
+            COL_DAY, COL_REASON = 10, 26
+            reason_str = trade['ReasonWhyClosed'][:25]
             
             row = (
-                f"| {exit_number:>{COL_EXIT_NUM}} | {trade['Ticker']:<{COL_TICKER}} | {trade['Qty']:>{COL_QTY}} | {trade['DayIn']:^{COL_DAY}} | "
-                f"{price_in_str} | {amount_in_str} | {trade['DayOut']:^{COL_DAY}} | "
+                f"| {exit_number:>{COL_EXIT_NUM}} | {trade['Ticker']:<{COL_TICKER}} | {trade['Qty']:>{COL_QTY}} | {trade['DayIn']:^{10}} | "
+                f"{price_in_str} | {amount_in_str} | {trade['DayOut']:^{10}} | "
                 f"{price_out_str} | {amount_out_str} | "
-                f" {reason_str:<{COL_REASON-1}} | {gain_abs_str} | {gain_pct_str} |"
+                f" {reason_str:<{25}} | {gain_abs_str} | {gain_pct_str} |"
             )
             print(row)
 
