@@ -1035,12 +1035,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 premium_collected_per_contract = trade['premium_received']
                 
                 # Financials (based on last known market price)
-                premium_collected_gross = premium_collected_per_contract * qty * 100.0
-                cost_to_close_gross = closing_ask * qty * 100.0
                 exit_commission = qty * FINAL_COMMISSION_PER_CONTRACT
+                premium_collected_gross = premium_collected_per_contract * qty * 100.0 - qty * FINAL_COMMISSION_PER_CONTRACT
+                cost_to_close_gross = closing_ask * qty * 100.0 + exit_commission
+                
                 
                 # P&L Calculation: (Initial Premium) - (Cost to Close) - (Exit Commission)
-                position_net_gain = premium_collected_gross - cost_to_close_gross - exit_commission
+                position_net_gain = premium_collected_gross - cost_to_close_gross 
                 
                 total_liquidation_pnl += position_net_gain
                 
@@ -1050,7 +1051,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 
                 # Adjust cash balance: Cash balance already holds the premium. Now we pay the cost to close.
                 # Total Debit Outflow = Cost to Close + Commission
-                total_debit_outflow = cost_to_close_gross + exit_commission 
+                total_debit_outflow = cost_to_close_gross # INCLUDES commission already
                 
                 cash_balance -= total_debit_outflow 
                 # Yuda: I don;t like this cash_balance += premium_collected_gross
@@ -1138,7 +1139,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     
     print(f"📈 **Simulation Period:** {sim_start_date} to {sim_end_date}")
     
-    print("\n| Metric                  | Portfolio Gain    | SPY Benchmark  | Comparison       |")
+    print("\n")
+    print("| Metric                  |  Account Gain [%] | SPY Benchmark  | Comparison       |") 
     print("|-------------------------|-------------------|----------------|------------------|")
     # FIX 4: Aligned columns using refined explicit width and right alignment (>)
     # Portfolio Gain (16), SPY Benchmark (13), Comparison (10)
