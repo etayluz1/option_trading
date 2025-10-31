@@ -1,7 +1,28 @@
 import json
 import os
 from datetime import datetime
-import math 
+import math
+import sys
+
+# --- Logger Class ---
+class Logger:
+    """Redirects print statements to both the console and a log file."""
+    def __init__(self, filepath):
+        self.terminal = sys.stdout
+        self.logfile = open(filepath, 'w', encoding='utf-8')
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.logfile.write(message)
+
+    def flush(self):
+        # This flush method is needed for python 3 compatibility.
+        # This handles the flush command, which is called by print().
+        self.terminal.flush()
+        self.logfile.flush()
+
+    def close(self):
+        self.logfile.close()
 
 # --- Configuration ---
 RULES_FILE_PATH = "rules.json"
@@ -143,6 +164,31 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     Implements exit logic, calculates daily P&L and account value, respects 
     portfolio limits, and sells the optimal quantity based on premium collected.
     """
+
+    # --- LOGGING SETUP ---
+    LOG_DIR = "logs"
+    if not os.path.exists(LOG_DIR):
+        os.makedirs(LOG_DIR)
+
+    log_file_number = 1
+    while os.path.exists(os.path.join(LOG_DIR, f"{log_file_number}.log")):
+        log_file_number += 1
+    
+    log_file_path = os.path.join(LOG_DIR, f"{log_file_number}.log")
+    
+    original_stdout = sys.stdout
+    logger = Logger(log_file_path)
+    sys.stdout = logger
+
+    try:
+        _run_simulation_logic(rules_file_path, json_file_path)
+    finally:
+        sys.stdout = original_stdout
+        logger.close()
+        print(f"\nSimulation complete. Log saved to: {log_file_path}")
+
+def _run_simulation_logic(rules_file_path, json_file_path):
+    """Internal function containing the core simulation logic."""
     
     # 1. Load and parse ALL rules from rules.json
     try:
@@ -1333,4 +1379,5 @@ def load_and_run_simulation(rules_file_path, json_file_path):
             print(row)
 
 # Execute the main function
-load_and_run_simulation(RULES_FILE_PATH, JSON_FILE_PATH)
+if __name__ == "__main__":
+    load_and_run_simulation(RULES_FILE_PATH, JSON_FILE_PATH)
