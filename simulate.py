@@ -463,7 +463,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                     # If we don't add the premium back, the cash balance will be Cash_Old - Cost_Close - Commission, 
                     # which is NOT the net P&L realized. The current simulation design uses the full premium 
                     # as part of the cash base, so it must be added back to complete the realization.
-                    cash_balance += premium_collected_gross
+                    # Yuda: I don't like this bug cash_balance += premium_collected_gross
                     
                     # Final P&L calculation
                     daily_pnl += net_profit
@@ -1006,7 +1006,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
                 total_debit_outflow = cost_to_close_gross + exit_commission 
                 
                 cash_balance -= total_debit_outflow 
-                cash_balance += premium_collected_gross
+                # Yuda: I don;t like this cash_balance += premium_collected_gross
                 
                 # Calculate percentage gain relative to max risk
                 max_risk_per_contract = (trade['strike'] * 100.0) - premium_collected_per_contract

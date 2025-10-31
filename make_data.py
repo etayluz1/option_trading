@@ -36,6 +36,7 @@ def load_sp500_data():
     if not os.path.exists(sp500_file):
          # Placeholder for case where the file is missing
         print(f"Warning: S&P 500 history file '{sp500_file}' not found. Filtering will only use the hardcoded ETFs list.")
+        quit()
         return
         
     with open(sp500_file, newline='', encoding='utf-8') as f:
