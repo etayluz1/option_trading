@@ -256,12 +256,26 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # Risk/Reward Ratio Rule
             MIN_RISK_REWARD_RATIO = float(rules["entry_put_position"]["min_risk_reward_ratio"])
             
+            # Derive the per-trade premium budget from initial cash and account-level max positions
+            # This replaces the hard-coded MAX_PREMIUM_PER_TRADE constant with a dynamic value.
+            global MAX_PREMIUM_PER_TRADE
+            try:
+                if MAX_PUTS_PER_ACCOUNT > 0:
+                    MAX_PREMIUM_PER_TRADE = float(INITIAL_CASH) / float(MAX_PUTS_PER_ACCOUNT)
+                else:
+                    # Fallback to existing constant if the rules are invalid
+                    MAX_PREMIUM_PER_TRADE = MAX_PREMIUM_PER_TRADE
+            except Exception:
+                # In case of any unexpected parsing issues, keep the module-default
+                pass
+
             print(f"✅ Simulation start date loaded: {start_date_str} (Parsed as {start_date_obj})")
             print(f"✅ All {len(rules['entry_put_position'])} Entry Rules loaded successfully.")
             print(f"✅ Account Limits: Max Put Positions Total: {MAX_PUTS_PER_ACCOUNT}, Max Puts Per Stock: {MAX_PUTS_PER_STOCK}")
             print(f"✅ Trading Cost: Commission per contract is ${COMMISSION_PER_CONTRACT:.2f}")
             print(f"✅ Min risk/reward ratio: {MIN_RISK_REWARD_RATIO}")
-            print(f"📈 Max Premium per Trade: ${MAX_PREMIUM_PER_TRADE:,.2f}")
+            print(f"📈 Max Premium per Trade (derived from initial_cash / max_puts_per_account): ${MAX_PREMIUM_PER_TRADE:,.2f}")            
+            print(f"✅ DTE Rules: MIN_DTE={MIN_DTE}, MAX_DTE={MAX_DTE}")
             print(f"✅ Stop Loss Rule (SMA150): Max Stock Drop Below SMA150 = {STOCK_MAX_BELOW_AVG_PCT * 100:.2f}%")
             # Position stop-loss rule: threshold is compared against daily option BID vs the entry BID
             # The rule is defined in `exit_put_position.position_stop_loss_pct` in rules.json
@@ -657,6 +671,37 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # Recalculate current_account_put_positions after exits
             current_account_put_positions = sum(open_puts_tracker.values())
 
+            # --- DYNAMIC RISK SIZING: Recalculate Max Premium Per Trade for THIS DAY ---
+            # Compute conservative NAV before new entries: Cash minus cost to close current open puts
+            total_put_liability = 0.0
+            for ot in open_trades_log:
+                price_for_ot = get_contract_exit_price(
+                    daily_orats_data,
+                    ot['ticker'],
+                    ot['expiration_date'],
+                    ot['strike']
+                )
+                if price_for_ot is not None:
+                    total_put_liability += price_for_ot * ot['quantity'] * 100.0
+
+            # NAV (Total Account Value) used for sizing = cash_balance - total_put_liability
+            total_account_value = cash_balance - total_put_liability
+            if total_account_value < 0:
+                # Prevent negative sizing
+                total_account_value = 0.0
+
+            # Daily max premium per trade = NAV divided by max allowed positions
+            if MAX_PUTS_PER_ACCOUNT > 0:
+                max_premium_per_trade_today = total_account_value / float(MAX_PUTS_PER_ACCOUNT)
+            else:
+                max_premium_per_trade_today = MAX_PREMIUM_PER_TRADE
+
+            # Ensure a sensible floor (avoid extremely small or zero budgets)
+            if max_premium_per_trade_today <= 0:
+                max_premium_per_trade_today = min(MAX_PREMIUM_PER_TRADE, 100.0)
+
+            print(f"📈 Max Premium per Trade (today, NAV/{MAX_PUTS_PER_ACCOUNT}): ${max_premium_per_trade_today:,.2f}")
+
 
             # ----------------------------------------------
             # --- Market Scan and Trade Entry ---
@@ -824,7 +869,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             
                             # Calculate quantity based on max premium per trade (floored)
                             if premium_per_contract > 0:
-                                qty_by_premium = math.floor(MAX_PREMIUM_PER_TRADE / premium_per_contract)
+                                qty_by_premium = math.floor(max_premium_per_trade_today / premium_per_contract)
                             else:
                                 qty_by_premium = 0
 
@@ -855,6 +900,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         # Re-calculate values for printing
                         total_premium_collected = premium_per_contract * trade_quantity
 
+                        # Calculate Strike/AdjClose ratio
+                        adj_close = best_contract.get('adj_close')
+                        strike_adj_close_ratio = (best_contract['strike'] / adj_close * 100) if adj_close and adj_close > 0 else None
+
                         best_info = (
                             f"  1. **{best_contract['ticker']}:** Qty={trade_quantity}, "
                             f"Total Premium Collected=${total_premium_collected:,.2f}, "
@@ -863,6 +912,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             f"R/R={best_contract['calculated_rr_ratio']:.2f}"
                         )
                         print(best_info)
+                        
+                        # Print Strike/AdjClose ratio
+                        if strike_adj_close_ratio is not None:
+                            print(f"     Strike/AdjClose Ratio: {strike_adj_close_ratio:.2f}%")
                         
                     else:
                         print("❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (All candidates failed limits/duplication checks or resulted in Qty=0).")
