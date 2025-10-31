@@ -155,6 +155,34 @@ def get_contract_exit_price(orats_data, ticker, expiration_date_str, strike):
                 return 0.0 
 
     return None
+
+
+def get_contract_bid_price(orats_data, ticker, expiration_date_str, strike):
+    """
+    Retrieves the current bid price for a given option contract from ORATS data.
+    Returns the bid price (float) or None if not found or invalid.
+    """
+    if not orats_data or ticker not in orats_data:
+        return None
+
+    ticker_data = orats_data[ticker]
+    if expiration_date_str not in ticker_data:
+        return None
+
+    exp_data = ticker_data[expiration_date_str]
+    options_array = exp_data.get('options', [])
+
+    for option in options_array:
+        option_strike = float(option.get('strike', 0))
+        if abs(option_strike - strike) < 0.001:
+            try:
+                pbidpx = float(str(option.get('pBidPx', 0.0)).strip())
+            except (ValueError, TypeError):
+                return None
+
+            return pbidpx if pbidpx > 0 else None
+
+    return None
     
 
 def load_and_run_simulation(rules_file_path, json_file_path):
@@ -234,6 +262,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(f"✅ Trading Cost: Commission per contract is ${COMMISSION_PER_CONTRACT:.2f}")
             print(f"📈 **Max Premium per Trade:** ${MAX_PREMIUM_PER_TRADE:,.2f}")
             print(f"✅ Stop Loss Rule (SMA150): Max Stock Drop Below SMA150 = {STOCK_MAX_BELOW_AVG_PCT * 100:.2f}%")
+            # Position stop-loss rule: threshold is compared against daily option BID vs the entry BID
+            # The rule is defined in `exit_put_position.position_stop_loss_pct` in rules.json
+            _pos_raw = rules.get('exit_put_position', {}).get('position_stop_loss_pct', "0%")
+            POSITION_STOP_LOSS_PCT = abs(safe_percentage_to_float(_pos_raw)) if _pos_raw is not None else 0.0
+            print(f"✅ Position Stop Loss Threshold (daily bid loss vs entry bid): {POSITION_STOP_LOSS_PCT * 100:.2f}% (sourced from exit_put_position.position_stop_loss_pct)")
 
 
     except Exception as e:
@@ -404,6 +437,39 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     
                     if current_adj_close < threshold:
                         stop_loss_triggered = True
+
+                # 1.b POSITION-LEVEL STOP-LOSS (based on option BID movement vs entry BID)
+                # If the option's daily BID moves above the entry BID by the configured percentage,
+                # treat it as a stop-loss and exit on the same day.
+                position_stop_loss_triggered = False
+                try:
+                    current_bid_price = get_contract_bid_price(
+                        daily_orats_data,
+                        trade['ticker'],
+                        trade['expiration_date'],
+                        trade['strike']
+                    )
+                except Exception:
+                    current_bid_price = None
+
+                entry_bid_price = trade.get('premium_received')
+                if current_bid_price is not None and entry_bid_price is not None and entry_bid_price > 0:
+                    # Loss ratio relative to entry bid (positive when current bid > entry bid)
+                    loss_ratio = (current_bid_price - entry_bid_price) / entry_bid_price
+                    if loss_ratio > 0 and loss_ratio >= POSITION_STOP_LOSS_PCT:
+                        position_stop_loss_triggered = True
+                        # mark as a stop loss so existing exit flow is used
+                        stop_loss_triggered = True
+                        # ensure we have a price to use for closing; prefer ASK, then BID
+                        if current_ask_price is None:
+                            # try to fetch an ask price specifically; get_contract_exit_price prioritizes ask
+                            fallback_ask = get_contract_exit_price(
+                                daily_orats_data,
+                                trade['ticker'],
+                                trade['expiration_date'],
+                                trade['strike']
+                            )
+                            current_ask_price = fallback_ask if fallback_ask is not None else current_bid_price
                         
                 # 2. EXPIRATION CHECK
                 try:
@@ -476,17 +542,23 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         # --- END CRITICAL FIX ---
                         
                     elif stop_loss_triggered and current_ask_price is not None:
-                        # STOP LOSS SCENARIO
+                        # STOP LOSS SCENARIO (stock-level stop OR position-level stop)
                         cost_to_close_gross = current_ask_price * qty * 100.0 + exit_commission
                         net_profit = premium_collected_gross - cost_to_close_gross - exit_commission
-                        
+
+                        # Determine specific stop-loss reason (position-level vs stock-level)
+                        if 'position_stop_loss_triggered' in locals() and position_stop_loss_triggered:
+                            reason = "POSITION STOP LOSS (Bid moved above entry threshold)"
+                        else:
+                            reason = "STOP LOSS (Stock Below SMA150)"
+
                         stop_loss_count += qty
                         stop_loss_gain += net_profit
                         stop_loss_premium_collected += premium_collected_gross
-                        
+
                         exit_details['PriceOut'] = current_ask_price # Option Ask Price at Exit
                         exit_details['AmountOut'] = cost_to_close_gross # Gross cost to close
-                        exit_details['ReasonWhyClosed'] = "STOP LOSS (Stock Below SMA150)"
+                        exit_details['ReasonWhyClosed'] = reason
                     else:
                         # Cannot determine exit price for stop-loss, skip for now 
                         continue 
@@ -1270,14 +1342,30 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     TOTAL_PREMIUM_COLLECTED = stop_loss_premium_collected + expired_otm_premium_collected + expired_itm_premium_collected + liquidation_premium_collected
     
     # --- CRITICAL FIX: Define Event Counters here ---
-    # Calculate Exit Event Counts: These are the number of distinct trades that closed for that reason.
-    stop_loss_events = sum(1 for trade in closed_trades_log if trade['ReasonWhyClosed'] == "STOP LOSS (Stock Below SMA150)")
-    expired_otm_events = sum(1 for trade in closed_trades_log if trade['ReasonWhyClosed'] == "Expiration (OTM/Max Profit)")
-    expired_itm_events = sum(1 for trade in closed_trades_log if trade['ReasonWhyClosed'] == "Expiration (ITM/Assigned)")
-    liquidation_events = sum(1 for trade in closed_trades_log if trade['ReasonWhyClosed'] == "LIQUIDATION")
-    
-    # Total Closed Trades = sum of all event types (This variable is used in the percentages)
-    total_closed_events = stop_loss_events + expired_otm_events + expired_itm_events + liquidation_events
+    # Calculate Exit Event Counts: Use substring matching to be robust to slightly different reason text.
+    # Treat any reason containing 'STOP LOSS' as a stop-loss event (covers position-level and stock-level stop losses).
+    stop_loss_events = sum(
+        1 for trade in closed_trades_log
+        if trade.get('ReasonWhyClosed') and 'STOP LOSS' in trade.get('ReasonWhyClosed')
+    )
+
+    expired_otm_events = sum(
+        1 for trade in closed_trades_log
+        if trade.get('ReasonWhyClosed') and 'Expiration (OTM' in trade.get('ReasonWhyClosed')
+    )
+
+    expired_itm_events = sum(
+        1 for trade in closed_trades_log
+        if trade.get('ReasonWhyClosed') and 'Expiration (ITM' in trade.get('ReasonWhyClosed')
+    )
+
+    liquidation_events = sum(
+        1 for trade in closed_trades_log
+        if trade.get('ReasonWhyClosed') and 'LIQUIDATION' in trade.get('ReasonWhyClosed')
+    )
+
+    # Total Closed Trades = length of the closed trades log (more robust than summing categories)
+    total_closed_events = len(closed_trades_log)
 
     # Calculate Net % Gain relative to premium collected for each category
     def calculate_net_gain_percent(gain, premium):
@@ -1319,7 +1407,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     # 5. Total Exit Events Summary (Total of rows 1-4)
     print("|-------------------------------|-------------------|--------------------|-------------------|------------|")    
     # Total Premium Collected is ONLY used for Net Gain %, so we use 'N/A' for the gain %.
-    print(f"| **Total Exit Events Closed**  | {total_closed_events:>16,}  | {100.0:>17.2f}% | "
+    print(f"| **Total Exit Trades Closed**  | {total_closed_events:>16,}  | {100.0:>17.2f}% | "
           f"${TOTAL_GAIN:>16,.2f} | {'N/A':>10} |"
     )
     
@@ -1334,7 +1422,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         
         # Sort the log by exit date
         closed_trades_log.sort(key=lambda x: x['DayOut'])
-    
+
+        print(f"✅ Position Stop Loss Threshold = {POSITION_STOP_LOSS_PCT * 100:.2f}%")
+       
+
         # Adjusted separator for new Exit # column
         print("\n\n--- DETAILED CLOSED TRADE LOG (Full History) ---")
         print("| Exit #  | Ticker |  Qty |   Day In   | Price In  | Amount In   |  Day Out   | Price Out |  Amount Out | Reason Why Closed           |   Gain $ |  Gain % |")
@@ -1371,6 +1462,15 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             )
             print(row)
 
+    print("\n")
+    # Re-print the configured Position Stop Loss threshold here for visibility in the final summary
+    print(f"✅ Position Stop Loss Threshold (daily bid loss vs entry bid): {POSITION_STOP_LOSS_PCT * 100:.2f}%")
+    print(f"✅ Min risk/reward ratio = {MIN_RISK_REWARD_RATIO}")
+    stock_max_below_avg = abs(safe_percentage_to_float(rules["exit_put_position"]["stock_max_below_avg"]))
+    print(f"✅ Stop Loss Rule (SMA150): Max Stock Drop Below SMA150 = {stock_max_below_avg * 100:.2f}%")
+    print(f"Annualized Gain (%)  {annualized_gain:>16.2f}%")
+    print(f"${TOTAL_GAIN:>16,.2f} | {'N/A':>10} |")
+    
 # Execute the main function
 if __name__ == "__main__":
     load_and_run_simulation(RULES_FILE_PATH, JSON_FILE_PATH)
