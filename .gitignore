@@ -3,8 +3,6 @@ My Naked Put Screener.xlsm
 ORATS_csv/
 ORATS_json/
 ORATS_zip/
-SP500_history.csv
 stock_history.json
 ticker_data/
 under_stock.json
-underlying_history.csv
