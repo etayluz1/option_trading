@@ -1,14 +1,15 @@
 import yfinance as yf
 import json
 import os
+from datetime import datetime
 
 # Load tickers
 with open('tickers.json', 'r') as f:
     tickers = json.load(f)
 
 # Define date range
-start_date = "2023-01-01"
-end_date = "2025-10-27"
+start_date = "2006-01-01"
+end_date = datetime.now().strftime("%Y-%m-%d")
 
 # Make sure output directory exists
 os.makedirs("ticker_data", exist_ok=True)

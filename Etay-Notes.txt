@@ -1,0 +1,21 @@
+SETUP
+1. Download Visual Stodio Code (VSC) 
+2. Connect source control with Etay's Github to c:\option_trading
+3. Use FileZila to download ORATS zip files 2007 - 2025 to c:\option_trading\ORATS_zip 
+4. Run extract_zip.py from VSC play button (zip --> csv under c:\option_trading\ORATS_csv)
+5. Run make_data.py (ORATS_csv --> c:\option_trading\ORATS_json)
+6. Run yahoo.py (download csv files from Yahoo.com to c:\option_trading\ticker_data\AAPL.csv)
+7. Run get_stock_history.py (ticker_data\ --> c:\option_trading\stock_history.json)
+8. Check the rules in rules.json
+9. Run sumulate.py
+10. Check the results in the latest log.txt under c:\option_trading\logs 
+
+
+SOURCE CONTROL
+1. Click on the folder icon on the top left to see the project source files
+2. Click on the 3rd button from the top to see the changes
+3. Anyting modified under changes you may want to stage for saving click on + sign
+4. Click on Commit button to save the staged files
+5. To switch to Graph changes, click on Changes
+6. Use Up arrow button to push to the cloud (Github)
+7. From another machine, use Dn arrow button to pull latest changes 
