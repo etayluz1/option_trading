@@ -464,6 +464,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     peak_account_value = INITIAL_CASH
     # NEW: Track worst drawdown percentage observed across all simulated dates (negative number, e.g., -12.34)
     worst_drawdown_pct = 0.0
+    # NEW: Track peak number of open positions across the account
+    peak_open_positions = 0
 
     all_tickers = list(open_puts_tracker.keys())
     print(f"✅ Trackers initialized for {len(all_tickers)} tickers.")
@@ -852,6 +854,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             
             # Recalculate current_account_put_positions after exits
             current_account_put_positions = sum(open_puts_tracker.values())
+            # Update peak open positions after processing exits
+            if current_account_put_positions > peak_open_positions:
+                peak_open_positions = current_account_put_positions
 
             # --- DYNAMIC RISK SIZING: Recalculate Max Premium Per Trade for THIS DAY ---
             # Compute conservative NAV before new entries: Cash minus cost to close current open puts
@@ -1186,6 +1191,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     
                     # 5. Update the position count
                     open_puts_tracker[ticker_to_enter] += 1
+                    # Update current and peak open positions after entry
+                    current_account_put_positions = sum(open_puts_tracker.values())
+                    if current_account_put_positions > peak_open_positions:
+                        peak_open_positions = current_account_put_positions
                     
                     # 6. Log the trade details (include quantity)
                     trade_entry = {
@@ -1855,6 +1864,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Annualized Gain    | {annualized_gain:>12.2f}% |")
     print(f"| Total Gain         | ${TOTAL_GAIN:>12,.2f} |")
     print(f"| Run Time           | {runtime_str:>12} |")
+    print(f"| Peak Open Positions| {peak_open_positions:>12} |")
     # NEW: Worst drawdown across all simulated dates
     try:
         print(f"| Worst Drawdown     | {worst_drawdown_pct:>12.2f}% |")
