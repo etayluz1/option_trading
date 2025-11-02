@@ -157,6 +157,12 @@ def process_csv(stop_after_first=False):
         output_filename = f"{file_date_dt.strftime('%Y-%m-%d')}.json"
         output_path = os.path.join(processed_folder_json, output_filename)
 
+        
+        # --- NEW: If the JSON already exists, skip processing to avoid overwriting ---
+        if os.path.exists(output_path):
+            print(f"⏩ Skipping {file}: Output JSON '{output_path}' already exists. Not overriding.")
+            continue
+
         sp500_dates = sorted(sp500_dict.keys())
         relevant_date = max((d for d in sp500_dates if d <= file_date_dt), default=None)
         
