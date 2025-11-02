@@ -1840,7 +1840,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("| Parameter          |  Value        |")
     print("|--------------------|---------------|")
     print(f"| Annualized Gain    | {annualized_gain:>12.2f}% |")
-    print(f"| Total Gain         | ${TOTAL_GAIN:>11,.2f} |")
+    print(f"| Total Gain         | ${TOTAL_GAIN:>12,.2f} |")
     # NEW: Worst drawdown across all simulated dates
     try:
         print(f"| Worst Drawdown     | {worst_drawdown_pct:>11.2f}% |")
