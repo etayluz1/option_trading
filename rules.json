@@ -1,9 +1,9 @@
 {
     "account_simulation": {
-        "start_date": "01/01/24",
-        "initial_cash": "100000",        
-        "max_puts_per_account": "20",
-        "max_puts_per_stock": "3"
+        "start_date": "01/01/20",
+        "initial_cash": "2000000",        
+        "max_puts_per_account": "150",
+        "max_puts_per_stock": "5"
     },
     "underlying_stock": {
         "min_5_day_rise_pct": "-5.0%",
@@ -17,7 +17,7 @@
     },
     "entry_put_position": {
         "min_days_for_expiration": "1",
-        "max_days_for_expiration": "500",
+        "max_days_for_expiration": "300",
         "min_put_bid_price": "2.50",
         "min_put_delta": "-25%",
         "max_put_delta": "-0.1%",
