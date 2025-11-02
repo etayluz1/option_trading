@@ -4,11 +4,16 @@ SETUP
 3. Use FileZila to download ORATS zip files 2007 - 2025 to c:\option_trading\ORATS_zip 
 4. Run extract_zip.py from VSC play button (zip --> csv under c:\option_trading\ORATS_csv)
 5. Run make_data.py (ORATS_csv --> c:\option_trading\ORATS_json)
-6. Run yahoo.py (download csv files from Yahoo.com to c:\option_trading\ticker_data\AAPL.csv)
-7. Run get_stock_history.py (ticker_data\ --> c:\option_trading\stock_history.json)
-8. Check the rules in rules.json
-9. Run sumulate.py
-10. Check the results in the latest log.txt under c:\option_trading\logs 
+6. Open terminal and run these command:
+   pip install yfinance
+   git config --global user.email "etayluz@gmail.com"
+   git config --global user.name "Etay Luz"
+git config --global user.name "Etay Luz"
+7. Run yahoo.py (download csv files from Yahoo.com to c:\option_trading\ticker_data\AAPL.csv)
+8. Run get_stock_history.py (ticker_data\ --> c:\option_trading\stock_history.json)
+9. Check the rules in rules.json
+10. Run sumulate.py
+11. Check the results in the latest log.txt under c:\option_trading\logs 
 
 
 SOURCE CONTROL
