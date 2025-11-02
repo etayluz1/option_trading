@@ -289,6 +289,32 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             _pos_raw = rules.get('exit_put_position', {}).get('position_stop_loss_pct', "0%")
             POSITION_STOP_LOSS_PCT = abs(safe_percentage_to_float(_pos_raw)) if _pos_raw is not None else 0.0
 
+            # Precompute Underlying Stock rules formatted strings (used in multiple tables)
+            try:
+                u_rules = rules.get('underlying_stock', {})
+                u_min_rise = safe_percentage_to_float(u_rules.get('min_5_day_rise_pct'))
+                u_min_above = safe_percentage_to_float(u_rules.get('min_above_avg_pct'))
+                u_max_above = safe_percentage_to_float(u_rules.get('max_above_avg_pct'))
+                u_min_slope = safe_percentage_to_float(u_rules.get('min_avg_up_slope_pct'))
+                try:
+                    u_min_price = float(str(u_rules.get('min_stock_price', '')).replace('$', '').replace(',', '').strip())
+                except Exception:
+                    u_min_price = None
+
+                # Consistent formatting widths across summaries
+                min_rise_str = f"{u_min_rise*100:>13.1f}%" if u_min_rise is not None else f"{'N/A':>13}"
+                min_above_str = f"{u_min_above*100:>13.1f}%" if u_min_above is not None else f"{'N/A':>13}"
+                max_above_str = f"{u_max_above*100:>13.1f}%" if u_max_above is not None else f"{'N/A':>13}"
+                min_slope_str = f"{u_min_slope*100:>13.1f}%" if u_min_slope is not None else f"{'N/A':>13}"
+                min_price_str = f"$ {u_min_price:>12.2f}" if u_min_price is not None else f"{'N/A':>14}"
+            except Exception:
+                # Provide fallbacks if rules are missing or malformed
+                min_rise_str = f"{'N/A':>13}"
+                min_above_str = f"{'N/A':>13}"
+                max_above_str = f"{'N/A':>13}"
+                min_slope_str = f"{'N/A':>13}"
+                min_price_str = f"{'N/A':>14}"
+
             # Print rules in formatted tables
             print("\n=== TRADING RULES SUMMARY ===\n")
             
@@ -304,7 +330,20 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print("|--------------------|----------------|")
             print()
             
-            # 2. Entry Rules
+            # 2.b Underlying Stock Rules (precomputed values)
+            print("🧩 Underlying Stock Rules")
+            print("|----------------------------|----------------|")
+            print("| Parameter                  | Value          |")
+            print("|----------------------------|----------------|")
+            print(f"| Min 5-Day Rise             | {min_rise_str} |")
+            print(f"| Min Above Avg              | {min_above_str} |")
+            print(f"| Max Above Avg              | {max_above_str} |")
+            print(f"| Min 10-Day Avg Slope       | {min_slope_str} |")
+            print(f"| Min Stock Price            | {min_price_str} |")
+            print("|----------------------------|----------------|")
+            print()
+
+            # 3. Entry Put Position Rules
             print("📈 Entry Put Position Rules")
             print("|------------------------|----------------|")
             print("| Parameter              | Value          |")
@@ -325,7 +364,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print("|------------------------|----------------|")
             print()
 
-            # 3. Exit Rules
+            # 4. Exit Put Position Rules
             print("📉 Exit Put Position Rules")
             print("|--------------------|--------------|")
             print("| Parameter          | Value        |")
@@ -1741,7 +1780,20 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("|--------------------|----------------|")
     print()   
 
-    # 2. Entry Rules
+    # 2. Underlying Stock Rules (Final Summary)
+    print("🧩 Underlying Stock Rules")
+    print("|----------------------------|----------------|")
+    print("| Parameter                  | Value          |")
+    print("|----------------------------|----------------|")
+    print(f"| Min 5-Day Rise             | {min_rise_str} |")
+    print(f"| Min Above Avg              | {min_above_str} |")
+    print(f"| Max Above Avg              | {max_above_str} |")
+    print(f"| Min 10-Day Avg Slope       | {min_slope_str} |")
+    print(f"| Min Stock Price            | {min_price_str} |")
+    print("|----------------------------|----------------|")
+    print()
+
+    # 3. Entry Put Position Rules
     print("📈 Entry Put Position Rules")
     print("|------------------------|----------------|")
     print("| Parameter              | Value          |")
@@ -1762,7 +1814,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("|------------------------|----------------|")
     print()
 
-    # 3. Exit Rules
+    # 4. Exit Put Position Rules
     print("📉 Exit Put Position Rules")
     print("|--------------------|--------------|")
     print("| Parameter          | Value        |")
