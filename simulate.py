@@ -823,7 +823,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             exit_details['AmountOut'] = 0.0 # Gross cost to close
                             exit_details['ReasonWhyClosed'] = "Expiration (OTM/Max Profit)"
                             
-                        # --- END CRITICAL FIX ---
+                        # --- END CRITICAL FIX --- 
                         
                     elif stop_loss_triggered and current_ask_price is not None:
                         # STOP LOSS SCENARIO (stock-level stop OR position-level stop)
