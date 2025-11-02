@@ -294,16 +294,16 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             
             # 1. Account Simulation Rules
             print("📊 Account Simulation Rules")
-            print("|--------------------|--------------|")
-            print("| Parameter          | Value        |")
-            print("|--------------------|--------------|")
-            print(f"| Start Date         | {start_date_str:<12} |")
-            print(f"| Initial Cash       | ${float(rules['account_simulation']['initial_cash']):>11,.2f} |")
-            print(f"| Max Puts/Account   | {MAX_PUTS_PER_ACCOUNT:>12} |")
-            print(f"| Max Puts/Stock     | {MAX_PUTS_PER_STOCK:>12} |")
-            print("|--------------------|--------------|")
+            print("|--------------------|----------------|")
+            print("| Parameter          | Value          |")
+            print("|--------------------|----------------|")
+            print(f"| Start Date         | {start_date_str:<14} |")
+            print(f"| Initial Cash       | ${float(rules['account_simulation']['initial_cash']):>13,.2f} |")
+            print(f"| Max Puts/Account   | {MAX_PUTS_PER_ACCOUNT:>14} |")
+            print(f"| Max Puts/Stock     | {MAX_PUTS_PER_STOCK:>14} |")
+            print("|--------------------|----------------|")
             print()
-
+            
             # 2. Entry Rules
             print("📈 Entry Put Position Rules")
             print("|------------------------|----------------|")
@@ -1553,24 +1553,24 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("")
     print("\n--- MONTHLY PORTFOLIO GAIN ---")
     # NEW COLUMN: % SPY Gain
-    print("| Month   | Total Value End | $ Gain       | % Gain  | % SPY Gain |")
-    print("|---------|-----------------|--------------|---------|------------|") 
+    print("| Month   | Total Value EOD  | $ Gain       |  % Gain  | % SPY Gain |")
+    print("|---------|------------------|--------------|----------|------------|") 
     
     for (year, month), data in monthly_performance.items():
         month_label = datetime(year, month, 1).strftime('%Y-%m')
         
         # Data widths used: End Value (11,.2f), $ Gain (9,.2f), % Gain (6.2f), % SPY Gain (8.2f)
         print(
-            f"| {month_label:^5} | $ {data['end_value']:>11,.2f}   | $ {data['gain_abs']:>10,.2f} | "
-            f"{data['gain_pct']:>6.2f}% | {data['spy_gain_pct']:>9.2f}% |"
+            f"| {month_label:^5} | $ {data['end_value']:>12,.2f}   | $ {data['gain_abs']:>11,.2f} | "
+            f"{data['gain_pct']:>7.2f}% | {data['spy_gain_pct']:>9.2f}% |"
         )
 
     # --- Print Yearly Table ---
     print("")
     print("\n--- YEARLY PORTFOLIO GAIN ---")
     # NEW COLUMN: % SPY Gain
-    print("| Year    | Total Value End | $ Gain       | % Gain  | % SPY Gain |")
-    print("|---------|-----------------|--------------|---------|------------|") 
+    print("| Year    | Total Value EOD  | $ Gain        | % Gain  | % SPY Gain |")
+    print("|---------|------------------|---------------|---------|------------|") 
     
     for year in sorted(yearly_performance.keys()):
         data = yearly_performance[year]
@@ -1589,7 +1589,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
         # Data widths used: End Value (11,.2f), $ Gain (9,.2f), % Gain (6.2f), % SPY Gain (8.2f)
         print(
-            f"| {year:^5}   | $ {year_end_value:>11,.2f}   | $ {yearly_gain_abs:>10,.2f} | "
+            f"| {year:^5}   | $ {year_end_value:>12,.2f}   | $ {yearly_gain_abs:>11,.2f} | "
             f"{yearly_gain_pct:>6.2f}% | {spy_yearly_return:>9.2f}% |"
         )
 
@@ -1693,8 +1693,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
         # Adjusted separator for new Exit # column
         print("\n\n--- DETAILED CLOSED TRADE LOG (Full History) ---")
-        print("| Exit #  | Ticker |  Qty |   Day In   | Price In   | Amount In  |  Day Out   | Price Out |  Amount Out | Reason Why Closed          |    Gain $ |   Gain % |")
-        print("|---------|--------|------|------------|------------|------------|------------|-----------|-------------|----------------------------|-----------|----------|")
+        print("| Exit #  | Ticker |  Qty |   Day In   | Price In   | Amount In  |  Day Out   | Price Out |  Amount Out | Reason Why Closed          |    Gain $  |   Gain % |")
+        print("|---------|--------|------|------------|------------|------------|------------|-----------|-------------|----------------------------|------------|----------|")
         
         for index, trade in enumerate(closed_trades_log):
             
@@ -1708,7 +1708,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             amount_in_str = f"${trade['AmountIn']:>9,.2f}"
             amount_out_str = f"${trade['AmountOut']:>10,.2f}"
             
-            gain_abs_str = f"{trade['Gain$']:>9.2f}"
+            gain_abs_str = f"{trade['Gain$']:>10.2f}"
             gain_pct_str = f"{trade['Gain%']:>7.2f}%"
             
             # Truncate reason if necessary (Reason is 26 chars)
@@ -1731,15 +1731,15 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     
     # 1. Account Simulation Rules
     print("📊 Account Simulation Rules")
-    print("|--------------------|--------------|")
-    print("| Parameter          | Value        |")
-    print("|--------------------|--------------|")
-    print(f"| Start Date         | {start_date_str:<12} |")
-    print(f"| Initial Cash       | ${float(rules['account_simulation']['initial_cash']):>11,.2f} |")
-    print(f"| Max Puts/Account   | {MAX_PUTS_PER_ACCOUNT:>12} |")
-    print(f"| Max Puts/Stock     | {MAX_PUTS_PER_STOCK:>12} |")
-    print("|--------------------|--------------|")
-    print()
+    print("|--------------------|----------------|")
+    print("| Parameter          | Value          |")
+    print("|--------------------|----------------|")
+    print(f"| Start Date         | {start_date_str:<14} |")
+    print(f"| Initial Cash       | ${float(rules['account_simulation']['initial_cash']):>13,.2f} |")
+    print(f"| Max Puts/Account   | {MAX_PUTS_PER_ACCOUNT:>14} |")
+    print(f"| Max Puts/Stock     | {MAX_PUTS_PER_STOCK:>14} |")
+    print("|--------------------|----------------|")
+    print()   
 
     # 2. Entry Rules
     print("📈 Entry Put Position Rules")
@@ -1784,10 +1784,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
  
     # Performance Summary
     print("📊 Final Performance")
-    print("|--------------------|--------------|")
-    print("| Parameter          | Value        |")
-    print("|--------------------|--------------|")
-    print(f"| Annualized Gain    | {annualized_gain:>11.2f}% |")
+    print("|--------------------|---------------|")
+    print("| Parameter          |  Value        |")
+    print("|--------------------|---------------|")
+    print(f"| Annualized Gain    | {annualized_gain:>12.2f}% |")
     print(f"| Total Gain         | ${TOTAL_GAIN:>11,.2f} |")
     # NEW: Worst drawdown across all simulated dates
     try:
@@ -1795,25 +1795,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     except Exception:
         # If for any reason the metric isn't available, skip gracefully
         pass
-    print("|--------------------|--------------|")
-    print()
-    
-    # Export results to CSV files
-    try:
-        from export_to_excel import export_trades_to_csv, export_monthly_performance_to_csv
-        
-        # Export trades
-        if closed_trades_log:
-            trades_file = export_trades_to_csv(closed_trades_log)
-            print(f"\n✅ Trades exported to: {trades_file}")
-        
-        # Export monthly performance
-        if monthly_performance:
-            performance_file = export_monthly_performance_to_csv(monthly_performance)
-            print(f"✅ Monthly performance exported to: {performance_file}")
-            
-    except Exception as e:
-        print(f"\n⚠️ Could not export to Excel: {str(e)}")
+    print("|--------------------|---------------|")
+    print()    
     
 # Execute the main function
 if __name__ == "__main__":
