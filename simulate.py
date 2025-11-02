@@ -418,6 +418,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     liquidation_gain = 0.0
     liquidation_premium_collected = 0.0
 
+    # NEW: Track peak NAV to compute current drawdown
+    peak_account_value = INITIAL_CASH
+
     all_tickers = list(open_puts_tracker.keys())
     print(f"✅ Trackers initialized for {len(all_tickers)} tickers.")
     print("-" * 50)
@@ -1251,6 +1254,25 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # Net Unrealized P&L is still calculated using the old definition: (Premium - Liability). 
             # We display it here for informational purposes, but it is NOT used in NAV.
             print(f"  > **Net Unrealized P&L:** ${unrealized_pnl:,.2f}")
+
+            # NEW: Current Drawdown vs. peak NAV so far
+            try:
+                if peak_account_value and peak_account_value > 0:
+                    current_drawdown_pct = ((total_account_value / peak_account_value) - 1.0) * 100.0
+                else:
+                    current_drawdown_pct = 0.0
+                print(f"  > **Current Drawdown:** {current_drawdown_pct:.2f}% (vs peak ${peak_account_value:,.2f})")
+            except Exception:
+                # If any unexpected numeric issue occurs, skip printing drawdown for the day
+                pass
+
+            # Update peak NAV after computing drawdown for this day
+            if total_account_value is not None:
+                try:
+                    if float(total_account_value) > float(peak_account_value):
+                        peak_account_value = float(total_account_value)
+                except Exception:
+                    pass
             
             # Print Realized P&L
             if daily_pnl != 0.0:
