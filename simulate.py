@@ -255,6 +255,22 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             
             # Risk/Reward Ratio Rule
             MIN_RISK_REWARD_RATIO = float(rules["entry_put_position"]["min_risk_reward_ratio"])
+            # Additional selection flags and thresholds
+            USE_RR_SELECTOR = bool(rules['entry_put_position'].get('select_by_risk_reward_ratio', False))
+            USE_ANNUAL_SELECTOR = bool(rules['entry_put_position'].get('select_by_annual_risk', False))
+            USE_EXPECTED_SELECTOR = bool(rules['entry_put_position'].get('select_by_expected_profit', False))
+
+            # Parse the additional numeric thresholds
+            MIN_ANNUAL_RISK = safe_percentage_to_float(rules['entry_put_position'].get('min_annual_risk', None))
+            MIN_EXPECTED_PROFIT = safe_percentage_to_float(rules['entry_put_position'].get('min_expected_profit', None))
+
+            # Validate that only one selector is enabled at a time
+            selectors_enabled = sum([1 if USE_RR_SELECTOR else 0,
+                                     1 if USE_ANNUAL_SELECTOR else 0,
+                                     1 if USE_EXPECTED_SELECTOR else 0])
+            if selectors_enabled > 1:
+                print("❌ Rule error: More than one entry-selection method is enabled in rules.json. Please enable only one of select_by_risk_reward_ratio, select_by_annual_risk, select_by_expected_profit.")
+                return
             
             # Derive the per-trade premium budget from initial cash and account-level max positions
             # This replaces the hard-coded MAX_PREMIUM_PER_TRADE constant with a dynamic value.
@@ -290,18 +306,23 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
             # 2. Entry Rules
             print("📈 Entry Put Position Rules")
-            print("|------------------------|--------------|")
-            print("| Parameter              | Value        |")
-            print("|------------------------|--------------|")
-            print(f"| Min DTE                | {MIN_DTE:>12} |")
-            print(f"| Max DTE                | {MAX_DTE:>12} |")
-            print(f"| Min Put Bid Price      | ${MIN_BID_PRICE:>11.2f} |")
-            print(f"| Min Put Delta          | {MIN_DELTA*100:>11.1f}% |")
-            print(f"| Max Put Delta          | {MAX_DELTA*100:>11.1f}% |")
-            print(f"| Max Bid-Ask Spread     | {MAX_SPREAD_DECIMAL*100:>11.1f}% |")
-            print(f"| Min Avg Above Strike   | {MIN_AVG_ABOVE_STRIKE_PCT*100:>11.1f}% |")
-            print(f"| Min Risk/Reward Ratio  | {MIN_RISK_REWARD_RATIO:>12.1f} |")
-            print("|------------------------|--------------|")
+            print("|------------------------|----------------|")
+            print("| Parameter              | Value          |")
+            print("|------------------------|----------------|")
+            print(f"| Min DTE                | {MIN_DTE:>14} |")
+            print(f"| Max DTE                | {MAX_DTE:>14} |")
+            print(f"| Min Put Bid Price      | $ {MIN_BID_PRICE:>12.2f} |")
+            print(f"| Min Put Delta          | {MIN_DELTA*100:>13.1f}% |")
+            print(f"| Max Put Delta          | {MAX_DELTA*100:>13.1f}% |")
+            print(f"| Max Bid-Ask Spread     | {MAX_SPREAD_DECIMAL*100:>13.1f}% |")
+            print(f"| Min Avg Above Strike   | {MIN_AVG_ABOVE_STRIKE_PCT*100:>13.1f}% |")
+            print(f"| Min Risk/Reward Ratio  | {MIN_RISK_REWARD_RATIO:>14.1f} |")
+            print(f"| Min Annual Risk        | {safe_percentage_to_float(rules['entry_put_position']['min_annual_risk'])*100:>13.1f}% |")
+            print(f"| Min Expected Profit    | {safe_percentage_to_float(rules['entry_put_position']['min_expected_profit'])*100:>13.1f}% |")
+            print(f"| Use Risk/Reward Ratio  | {('Yes' if rules['entry_put_position']['select_by_risk_reward_ratio'] else 'No'):>14} |")
+            print(f"| Use Annual Risk        | {('Yes' if rules['entry_put_position']['select_by_annual_risk'] else 'No'):>14} |")
+            print(f"| Use Expected Profit    | {('Yes' if rules['entry_put_position']['select_by_expected_profit'] else 'No'):>14} |")
+            print("|------------------------|----------------|")
             print()
 
             # 3. Exit Rules
@@ -400,6 +421,71 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     all_tickers = list(open_puts_tracker.keys())
     print(f"✅ Trackers initialized for {len(all_tickers)} tickers.")
     print("-" * 50)
+    
+    # Helper: determine if a given day's data meets the 'investable' criteria
+    def compute_investable_flag(daily_data, rules):
+        """Return True if the day's metrics satisfy the underlying_stock entry filters.
+
+        This mirrors the logic used in get_stock_history.py but operates on the
+        already-loaded `daily_data` dict (which contains strings like "5.000%" for
+        many metrics). It returns a boolean.
+        """
+        try:
+            # Local helper to convert percent-strings like '5.000%' -> 5.0
+            def pct_str_to_percent(value):
+                if value is None:
+                    return None
+                v = safe_percentage_to_float(value)
+                return (v * 100.0) if v is not None else None
+
+            # Extract day's metrics (strings with % or numeric adj_close)
+            day_rise = pct_str_to_percent(daily_data.get('5_day_rise'))
+            adj_above_pct = pct_str_to_percent(daily_data.get('adj_price_above_avg_pct'))
+            sma_slope = pct_str_to_percent(daily_data.get('10_day_avg_slope'))
+            adj_close = daily_data.get('adj_close')
+
+            # Parse rules and convert to comparable units (percent values as raw numbers)
+            min_5_day_rise_pct = safe_percentage_to_float(rules['underlying_stock']['min_5_day_rise_pct'])
+            min_5_day_rise_pct = min_5_day_rise_pct * 100.0 if min_5_day_rise_pct is not None else None
+
+            min_above_avg_pct = safe_percentage_to_float(rules['underlying_stock']['min_above_avg_pct'])
+            max_above_avg_pct = safe_percentage_to_float(rules['underlying_stock']['max_above_avg_pct'])
+            if min_above_avg_pct is not None:
+                min_above_avg_pct *= 100.0
+            if max_above_avg_pct is not None:
+                max_above_avg_pct *= 100.0
+
+            min_avg_up_slope_pct = safe_percentage_to_float(rules['underlying_stock']['min_avg_up_slope_pct'])
+            min_avg_up_slope_pct = min_avg_up_slope_pct * 100.0 if min_avg_up_slope_pct is not None else None
+
+            # Price rule (strip $)
+            min_stock_price_rule = None
+            try:
+                min_stock_price_rule = float(str(rules['underlying_stock'].get('min_stock_price', '')).replace('$', '').strip())
+            except Exception:
+                min_stock_price_rule = None
+
+            # If any essential metric is missing, conservatively mark as not investable
+            if day_rise is None or adj_above_pct is None or sma_slope is None or adj_close is None:
+                return False
+
+            # Apply the same conditions used in get_stock_history.py
+            cond_rise = day_rise > (min_5_day_rise_pct if min_5_day_rise_pct is not None else -1e9)
+            cond_above_avg = True
+            if min_above_avg_pct is not None and max_above_avg_pct is not None:
+                cond_above_avg = (adj_above_pct >= min_above_avg_pct) and (adj_above_pct <= max_above_avg_pct)
+
+            cond_slope = sma_slope > (min_avg_up_slope_pct if min_avg_up_slope_pct is not None else -1e9)
+            cond_price = True
+            if min_stock_price_rule is not None:
+                try:
+                    cond_price = float(adj_close) > float(min_stock_price_rule)
+                except Exception:
+                    cond_price = False
+
+            return cond_rise and cond_above_avg and cond_slope and cond_price
+        except Exception:
+            return False
     
     # 4. Determine the chronological order of all unique dates
     all_dates = set()
@@ -767,8 +853,15 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 
                 # Inner loop: Check ALL tickers for viable contracts
                 for ticker in all_tickers:
-                    # Check 1 & 2: Data exists for date AND ticker is investable
-                    if date_str in stock_history_dict[ticker] and stock_history_dict[ticker][date_str].get('investable') is True:
+                    # Check 1: Data exists for date
+                    if date_str in stock_history_dict[ticker]:
+                        # Compute investable dynamically from the day's metrics and rules
+                        daily_data = stock_history_dict[ticker][date_str]
+                        is_investable = compute_investable_flag(daily_data, rules)
+                        # Set the flag so downstream code (and prints) can still observe it
+                        daily_data['investable'] = is_investable
+                        if not is_investable:
+                            continue # Skip non-investable tickers
                         
                         # Optimization: Skip scanning this ticker if its limit is reached
                         if open_puts_tracker[ticker] >= MAX_PUTS_PER_STOCK:
@@ -835,17 +928,46 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                             if not passes_safety_margin: continue # Fail fast
 
                                             # --- Check 5: Risk/Reward Ratio ---
-                                            passes_risk_reward = False
+                                            passes_metric = False
                                             risk_reward_ratio = None
+                                            annual_rr = None
+                                            expected_profit = None
                                             
                                             if pbidpx_value > 0 and strike_value > pbidpx_value:
+                                                # Base R/R ratio
                                                 risk_reward_ratio = calculate_risk_reward_ratio(strike_value, pbidpx_value)
-                                                if risk_reward_ratio is not None:
-                                                    passes_risk_reward = risk_reward_ratio > MIN_RISK_REWARD_RATIO
+                                                # Compute annualized R/R (if DTE available)
+                                                try:
+                                                    if risk_reward_ratio is not None and isinstance(dte, int) and dte > 0:
+                                                        annual_rr = risk_reward_ratio * (365.0 / float(dte))
+                                                except Exception:
+                                                    annual_rr = None
+
+                                                # Compute expected profit metric when Delta is available
+                                                try:
+                                                    if put_delta_value is not None:
+                                                        # put_delta_value is a decimal (e.g., -0.2)
+                                                        expected_profit = (pbidpx_value * (1.0 + put_delta_value) + (strike_value - pbidpx_value) * put_delta_value) / pbidpx_value
+                                                except Exception:
+                                                    expected_profit = None
+
+                                                # Choose which metric to apply as the filter based on rules
+                                                if USE_ANNUAL_SELECTOR:
+                                                    if annual_rr is not None and MIN_ANNUAL_RISK is not None:
+                                                        passes_metric = annual_rr > MIN_ANNUAL_RISK
+                                                elif USE_EXPECTED_SELECTOR:
+                                                    if expected_profit is not None and MIN_EXPECTED_PROFIT is not None:
+                                                        passes_metric = expected_profit > MIN_EXPECTED_PROFIT
+                                                else:
+                                                    # Default or USE_RR_SELECTOR
+                                                    if risk_reward_ratio is not None:
+                                                        passes_metric = risk_reward_ratio > MIN_RISK_REWARD_RATIO
                                             
-                                            if passes_risk_reward:
-                                                # Store R/R ratio and Adj. Close on the option for easy access
+                                            if passes_metric:
+                                                # Store computed metrics and Adj. Close on the option for easy access
                                                 option['calculated_rr_ratio'] = risk_reward_ratio
+                                                option['annual_rr'] = annual_rr
+                                                option['expected_profit'] = expected_profit
                                                 option['adj_close'] = current_adj_close 
                                                 filtered_options.append(option)
                                                 
@@ -888,8 +1010,16 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 bid_at_entry = 0.0
 
                 if daily_trade_candidates:
-                    # Sort the ENTIRE list of candidates globally by R/R ratio (highest R/R first)
-                    daily_trade_candidates.sort(key=lambda x: x.get('calculated_rr_ratio', -float('inf')), reverse=True)
+                    # Sort the ENTIRE list of candidates globally by the selected metric
+                    if USE_ANNUAL_SELECTOR:
+                        sort_key = lambda x: x.get('annual_rr', -float('inf'))
+                    elif USE_EXPECTED_SELECTOR:
+                        sort_key = lambda x: x.get('expected_profit', -float('inf'))
+                    else:
+                        # Default: risk/reward ratio (also used when USE_RR_SELECTOR is True)
+                        sort_key = lambda x: x.get('calculated_rr_ratio', -float('inf'))
+
+                    daily_trade_candidates.sort(key=sort_key, reverse=True)
                     
                     # Iterate through the ranked candidates to find the first non-duplicate and limit-respecting contract
                     for contract in daily_trade_candidates:
@@ -922,12 +1052,17 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             else:
                                 qty_by_premium = 0
 
-                            # Determine quantity based on remaining contract limits
-                            remaining_account_slots = MAX_PUTS_PER_ACCOUNT - current_account_put_positions
-                            remaining_stock_slots = MAX_PUTS_PER_STOCK - open_puts_tracker[ticker_check]
-                            
-                            # Final quantity is the minimum of the three constraints
-                            trade_quantity = min(qty_by_premium, remaining_account_slots, remaining_stock_slots)
+                            # Determine position slot availability (positions, not contract counts)
+                            remaining_account_position_slots = MAX_PUTS_PER_ACCOUNT - current_account_put_positions
+                            remaining_stock_position_slots = MAX_PUTS_PER_STOCK - open_puts_tracker[ticker_check]
+
+                            # If there are no position slots available (either account-level or per-stock), skip
+                            if remaining_account_position_slots <= 0 or remaining_stock_position_slots <= 0:
+                                # Cannot open a new position for this ticker due to position limits
+                                continue
+
+                            # Final quantity is solely determined by premium budget (contracts per position)
+                            trade_quantity = qty_by_premium
                             
                             if trade_quantity >= 1:
                                 best_contract = contract
@@ -1530,8 +1665,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
         # Adjusted separator for new Exit # column
         print("\n\n--- DETAILED CLOSED TRADE LOG (Full History) ---")
-        print("| Exit #  | Ticker |  Qty |   Day In   | Price In  | Amount In   |  Day Out   | Price Out |  Amount Out | Reason Why Closed           |   Gain $ |  Gain % |")
-        print("|:--------|:-------|:-----|:-----------|:----------|:------------|:-----------|:----------|:------------|:----------------------------|:---------|:--------|")
+        print("| Exit #  | Ticker |  Qty |   Day In   | Price In   | Amount In  |  Day Out   | Price Out |  Amount Out | Reason Why Closed          |    Gain $ |   Gain % |")
+        print("|---------|--------|------|------------|------------|------------|------------|-----------|-------------|----------------------------|-----------|----------|")
         
         for index, trade in enumerate(closed_trades_log):
             
@@ -1545,7 +1680,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             amount_in_str = f"${trade['AmountIn']:>9,.2f}"
             amount_out_str = f"${trade['AmountOut']:>10,.2f}"
             
-            gain_abs_str = f"{trade['Gain$']:>8.2f}"
+            gain_abs_str = f"{trade['Gain$']:>9.2f}"
             gain_pct_str = f"{trade['Gain%']:>7.2f}%"
             
             # Truncate reason if necessary (Reason is 26 chars)
@@ -1580,18 +1715,23 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
     # 2. Entry Rules
     print("📈 Entry Put Position Rules")
-    print("|------------------------|--------------|")
-    print("| Parameter              | Value        |")
-    print("|------------------------|--------------|")
-    print(f"| Min DTE                | {MIN_DTE:>12} |")
-    print(f"| Max DTE                | {MAX_DTE:>12} |")
-    print(f"| Min Put Bid Price      | ${MIN_BID_PRICE:>11.2f} |")
-    print(f"| Min Put Delta          | {MIN_DELTA*100:>11.1f}% |")
-    print(f"| Max Put Delta          | {MAX_DELTA*100:>11.1f}% |")
-    print(f"| Max Bid-Ask Spread     | {MAX_SPREAD_DECIMAL*100:>11.1f}% |")
-    print(f"| Min Avg Above Strike   | {MIN_AVG_ABOVE_STRIKE_PCT*100:>11.1f}% |")
-    print(f"| Min Risk/Reward Ratio  | {MIN_RISK_REWARD_RATIO:>12.1f} |")
-    print("|------------------------|--------------|")
+    print("|------------------------|----------------|")
+    print("| Parameter              | Value          |")
+    print("|------------------------|----------------|")
+    print(f"| Min DTE                | {MIN_DTE:>14} |")
+    print(f"| Max DTE                | {MAX_DTE:>14} |")
+    print(f"| Min Put Bid Price      | $ {MIN_BID_PRICE:>12.2f} |")
+    print(f"| Min Put Delta          | {MIN_DELTA*100:>13.1f}% |")
+    print(f"| Max Put Delta          | {MAX_DELTA*100:>13.1f}% |")
+    print(f"| Max Bid-Ask Spread     | {MAX_SPREAD_DECIMAL*100:>13.1f}% |")
+    print(f"| Min Avg Above Strike   | {MIN_AVG_ABOVE_STRIKE_PCT*100:>13.1f}% |")
+    print(f"| Min Risk/Reward Ratio  | {MIN_RISK_REWARD_RATIO:>14.1f} |")
+    print(f"| Min Annual Risk        | {safe_percentage_to_float(rules['entry_put_position']['min_annual_risk'])*100:>13.1f}% |")
+    print(f"| Min Expected Profit    | {safe_percentage_to_float(rules['entry_put_position']['min_expected_profit'])*100:>13.1f}% |")
+    print(f"| Use Risk/Reward Ratio  | {('Yes' if rules['entry_put_position']['select_by_risk_reward_ratio'] else 'No'):>14} |")
+    print(f"| Use Annual Risk        | {('Yes' if rules['entry_put_position']['select_by_annual_risk'] else 'No'):>14} |")
+    print(f"| Use Expected Profit    | {('Yes' if rules['entry_put_position']['select_by_expected_profit'] else 'No'):>14} |")
+    print("|------------------------|----------------|")
     print()
 
     # 3. Exit Rules
