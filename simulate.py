@@ -420,6 +420,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
     # NEW: Track peak NAV to compute current drawdown
     peak_account_value = INITIAL_CASH
+    # NEW: Track worst drawdown percentage observed across all simulated dates (negative number, e.g., -12.34)
+    worst_drawdown_pct = 0.0
 
     all_tickers = list(open_puts_tracker.keys())
     print(f"✅ Trackers initialized for {len(all_tickers)} tickers.")
@@ -1261,6 +1263,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     current_drawdown_pct = ((total_account_value / peak_account_value) - 1.0) * 100.0
                 else:
                     current_drawdown_pct = 0.0
+                # Track the worst drawdown seen so far
+                if current_drawdown_pct < worst_drawdown_pct:
+                    worst_drawdown_pct = current_drawdown_pct
                 print(f"  > **Current Drawdown:** {current_drawdown_pct:.2f}% (vs peak ${peak_account_value:,.2f})")
             except Exception:
                 # If any unexpected numeric issue occurs, skip printing drawdown for the day
@@ -1784,6 +1789,12 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("|--------------------|--------------|")
     print(f"| Annualized Gain    | {annualized_gain:>11.2f}% |")
     print(f"| Total Gain         | ${TOTAL_GAIN:>11,.2f} |")
+    # NEW: Worst drawdown across all simulated dates
+    try:
+        print(f"| Worst Drawdown     | {worst_drawdown_pct:>11.2f}% |")
+    except Exception:
+        # If for any reason the metric isn't available, skip gracefully
+        pass
     print("|--------------------|--------------|")
     print()
     
