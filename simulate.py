@@ -292,6 +292,25 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             _pos_raw = rules.get('exit_put_position', {}).get('position_stop_loss_pct', "0%")
             POSITION_STOP_LOSS_PCT = abs(safe_percentage_to_float(_pos_raw)) if _pos_raw is not None else 0.0
 
+            # New Exit Rule: Stock Min Above Strike (percentage buffer above strike required)
+            try:
+                _min_above_strike_raw = rules.get('exit_put_position', {}).get('stock_min_above_strike', None)
+                STOCK_MIN_ABOVE_STRIKE_PCT = safe_percentage_to_float(_min_above_strike_raw) if _min_above_strike_raw is not None else None
+            except Exception:
+                STOCK_MIN_ABOVE_STRIKE_PCT = None
+
+            # New Exit Rule: Stock Max Below Entry (percentage drop from entry AdjClose)
+            try:
+                _max_below_entry = None
+                exit_rules = rules.get('exit_put_position', {})
+                if 'stock_max_below_entry' in exit_rules:
+                    _max_below_entry = exit_rules.get('stock_max_below_entry')
+                elif 'Stock max below entry' in exit_rules:
+                    _max_below_entry = exit_rules.get('Stock max below entry')
+                STOCK_MAX_BELOW_ENTRY_PCT = abs(safe_percentage_to_float(_max_below_entry)) if _max_below_entry is not None else None
+            except Exception:
+                STOCK_MAX_BELOW_ENTRY_PCT = None
+
             # Precompute Underlying Stock rules formatted strings (used in multiple tables)
             try:
                 u_rules = rules.get('underlying_stock', {})
@@ -369,15 +388,17 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
             # 4. Exit Put Position Rules
             print("📉 Exit Put Position Rules")
-            print("|--------------------|--------------|")
-            print("| Parameter          | Value        |")
-            print("|--------------------|--------------|")
-            print(f"| Position Stop Loss | {POSITION_STOP_LOSS_PCT*100:>11.1f}% |")
-            print(f"| Stock Below SMA150 | {STOCK_MAX_BELOW_AVG_PCT*100:>11.1f}% |")
-            print("|--------------------|--------------|")
-            print()
+            print("|-----------------------------|--------------|")
+            print("| Parameter                   | Value        |")
+            print("|-----------------------------|--------------|")
+            print(f"| Position Stop Loss          | {POSITION_STOP_LOSS_PCT*100:>11.1f}% |")
+            print(f"| Stock Below SMA150          | {STOCK_MAX_BELOW_AVG_PCT*100:>11.1f}% |")
+            print(f"| Stock Min Above Strike      | {STOCK_MIN_ABOVE_STRIKE_PCT*100:>11.1f}% |")   
+            print(f"| Stock Max Below Entry       | {STOCK_MAX_BELOW_ENTRY_PCT*100:>11.1f}% |") 
+            print("|-----------------------------|--------------|")
+            print()                        
 
-            # 4. Trading Costs and Limits
+            # 4a. Trading Costs and Limits
             print("💰 Trading Parameters")
             print("|--------------------|--------------|")
             print("| Parameter          | Value        |")
@@ -612,7 +633,28 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # --- Position Management/Exit Logic (Stop-Loss & Expiration) ---
             # ----------------------------------------------------
             positions_to_remove = []
-            
+
+            # Precompute entry-drop breached tickers (if rule configured)
+            entry_drop_breached_tickers = set()
+            if 'STOCK_MAX_BELOW_ENTRY_PCT' in locals() and STOCK_MAX_BELOW_ENTRY_PCT is not None and STOCK_MAX_BELOW_ENTRY_PCT > 0:
+                # Build today's adj_close per ticker
+                todays_adj = {}
+                for tkr in stock_history_dict.keys():
+                    try:
+                        todays_adj[tkr] = stock_history_dict.get(tkr, {}).get(date_str, {}).get('adj_close')
+                    except Exception:
+                        todays_adj[tkr] = None
+                # Evaluate per open trade; if any position's entry baseline breached, mark ticker to close all
+                for tr in open_trades_log:
+                    tkr = tr.get('ticker')
+                    entry_base = tr.get('entry_adj_close')
+                    curr_px = todays_adj.get(tkr)
+                    if entry_base is None or curr_px is None:
+                        continue
+                    threshold_px = entry_base * (1.0 - STOCK_MAX_BELOW_ENTRY_PCT)
+                    if curr_px < threshold_px:
+                        entry_drop_breached_tickers.add(tkr)
+
             for i, trade in enumerate(open_trades_log):
                 ticker = trade['ticker']
                 
@@ -631,6 +673,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
                 # 1. STOP-LOSS CHECK (If data is available)
                 stop_loss_triggered = False
+                strike_buffer_stop_triggered = False
+                entry_drop_stop_triggered = False
                 if current_adj_close is not None and sma150_adj_close is not None:
                     
                     # Calculate the threshold: SMA150 * (1 - Max Drop %)
@@ -638,6 +682,45 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     
                     if current_adj_close < threshold:
                         stop_loss_triggered = True
+
+                # 1.a New stock-vs-strike buffer stop rule (per-position)
+                # If configured, exit when current AdjClose is below Strike * (1 + buffer_pct)
+                try:
+                    if current_adj_close is not None and STOCK_MIN_ABOVE_STRIKE_PCT is not None:
+                        strike_buffer_threshold = trade['strike'] * (1.0 + STOCK_MIN_ABOVE_STRIKE_PCT)
+                        if current_adj_close < strike_buffer_threshold:
+                            strike_buffer_stop_triggered = True
+                            stop_loss_triggered = True
+                            # Ensure we have an exit price; prefer ASK, then BID as fallback
+                            if current_ask_price is None:
+                                fallback_ask2 = get_contract_exit_price(
+                                    daily_orats_data,
+                                    trade['ticker'],
+                                    trade['expiration_date'],
+                                    trade['strike']
+                                )
+                                if fallback_ask2 is not None:
+                                    current_ask_price = fallback_ask2
+                except Exception:
+                    pass
+
+                # 1.b New stock-vs-entry drop rule (per-ticker close-all)
+                if 'entry_drop_breached_tickers' in locals() and ticker in entry_drop_breached_tickers:
+                    entry_drop_stop_triggered = True
+                    stop_loss_triggered = True
+                    # Ensure we have an exit price; prefer ASK, fallback to BID
+                    if current_ask_price is None:
+                        try:
+                            fallback_ask3 = get_contract_exit_price(
+                                daily_orats_data,
+                                trade['ticker'],
+                                trade['expiration_date'],
+                                trade['strike']
+                            )
+                            if fallback_ask3 is not None:
+                                current_ask_price = fallback_ask3
+                        except Exception:
+                            pass
 
                 # 1.b POSITION-LEVEL STOP-LOSS (based on option BID movement vs entry BID)
                 # If the option's daily BID moves above the entry BID by the configured percentage,
@@ -750,6 +833,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         # Determine specific stop-loss reason (position-level vs stock-level)
                         if 'position_stop_loss_triggered' in locals() and position_stop_loss_triggered:
                             reason = "POSITION STOP LOSS (Bid moved above entry threshold)"
+                        elif strike_buffer_stop_triggered:
+                            reason = "STOP LOSS (Stock Below Strike Threshold)"
+                        elif entry_drop_stop_triggered:
+                            reason = "STOP LOSS (Stock Below Entry Threshold)"
                         else:
                             reason = "STOP LOSS (Stock Below SMA150)"
 
@@ -1197,6 +1284,17 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         peak_open_positions = current_account_put_positions
                     
                     # 6. Log the trade details (include quantity)
+                    # Determine the entry stock AdjClose for this ticker on entry day
+                    try:
+                        entry_adj_close_value = best_contract.get('adj_close', None)
+                    except Exception:
+                        entry_adj_close_value = None
+                    if entry_adj_close_value is None:
+                        try:
+                            entry_adj_close_value = stock_history_dict.get(ticker_to_enter, {}).get(date_str, {}).get('adj_close')
+                        except Exception:
+                            entry_adj_close_value = None
+
                     trade_entry = {
                         'entry_date': daily_date_obj.strftime('%Y-%m-%d'),
                         'ticker': ticker_to_enter,
@@ -1204,6 +1302,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         'expiration_date': best_contract['expiration_date'],
                         'premium_received': bid_at_entry, 
                         'quantity': trade_quantity,
+                        'entry_adj_close': entry_adj_close_value,
                         'unique_key': (ticker_to_enter, best_contract['strike'], best_contract['expiration_date'])
                     }
                     open_trades_log.append(trade_entry)
@@ -1828,15 +1927,17 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
     # 4. Exit Put Position Rules
     print("📉 Exit Put Position Rules")
-    print("|--------------------|--------------|")
-    print("| Parameter          | Value        |")
-    print("|--------------------|--------------|")
-    print(f"| Position Stop Loss | {POSITION_STOP_LOSS_PCT*100:>11.1f}% |")
-    print(f"| Stock Below SMA150 | {STOCK_MAX_BELOW_AVG_PCT*100:>11.1f}% |")
-    print("|--------------------|--------------|")
+    print("|-----------------------------|--------------|")
+    print("| Parameter                   | Value        |")
+    print("|-----------------------------|--------------|")
+    print(f"| Position Stop Loss          | {POSITION_STOP_LOSS_PCT*100:>11.1f}% |")
+    print(f"| Stock Below SMA150          | {STOCK_MAX_BELOW_AVG_PCT*100:>11.1f}% |")
+    print(f"| Stock Min Above Strike      | {STOCK_MIN_ABOVE_STRIKE_PCT*100:>11.1f}% |")   
+    print(f"| Stock Max Below Entry       | {STOCK_MAX_BELOW_ENTRY_PCT*100:>11.1f}% |") 
+    print("|-----------------------------|--------------|")
     print()
 
-    # 4. Trading Costs and Limits
+    # 5. Trading Costs and Limits
     print("💰 Trading Parameters")
     print("|--------------------|--------------|")
     print("| Parameter          | Value        |")
