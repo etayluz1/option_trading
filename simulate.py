@@ -1719,8 +1719,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("")
     print("\n--- YEARLY PORTFOLIO GAIN ---")
     # NEW COLUMN: % SPY Gain
-    print("| Year    | Total Value EOD  | $ Gain        | % Gain  | % SPY Gain |")
-    print("|---------|------------------|---------------|---------|------------|") 
+    print("| Year    | Total Value EOD  | $ Gain        | % Gain   | % SPY Gain |")
+    print("|---------|------------------|---------------|----------|------------|") 
     
     for year in sorted(yearly_performance.keys()):
         data = yearly_performance[year]
@@ -1739,7 +1739,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
         # Data widths used: End Value (11,.2f), $ Gain (9,.2f), % Gain (6.2f), % SPY Gain (8.2f)
         print(
-            f"| {year:^5}   | $ {year_end_value:>12,.2f}   | $ {yearly_gain_abs:>11,.2f} | "
+            f"| {year:^5}   | $ {year_end_value:>12,.2f}   | $ {yearly_gain_abs:>12,.2f} | "
             f"{yearly_gain_pct:>6.2f}% | {spy_yearly_return:>9.2f}% |"
         )
 
