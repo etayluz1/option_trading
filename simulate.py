@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 import math
 import sys
+import time
 
 # --- Logger Class ---
 class Logger:
@@ -217,6 +218,8 @@ def load_and_run_simulation(rules_file_path, json_file_path):
 
 def _run_simulation_logic(rules_file_path, json_file_path):
     """Internal function containing the core simulation logic."""
+    # Track wall-clock runtime of the whole simulation
+    _sim_start_time = time.perf_counter()
     
     # 1. Load and parse ALL rules from rules.json
     try:
@@ -1834,6 +1837,16 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("|--------------------|--------------|")
     print() 
  
+    # Compute runtime for the Performance Summary
+    try:
+        _elapsed_seconds = int(time.perf_counter() - _sim_start_time)
+        _hh = _elapsed_seconds // 3600
+        _mm = (_elapsed_seconds % 3600) // 60
+        _ss = _elapsed_seconds % 60
+        runtime_str = f"{_hh:02d}:{_mm:02d}:{_ss:02d}"
+    except Exception:
+        runtime_str = "N/A"
+
     # Performance Summary
     print("📊 Final Performance")
     print("|--------------------|---------------|")
@@ -1841,9 +1854,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("|--------------------|---------------|")
     print(f"| Annualized Gain    | {annualized_gain:>12.2f}% |")
     print(f"| Total Gain         | ${TOTAL_GAIN:>12,.2f} |")
+    print(f"| Run Time           | {runtime_str:>12} |")
     # NEW: Worst drawdown across all simulated dates
     try:
-        print(f"| Worst Drawdown     | {worst_drawdown_pct:>11.2f}% |")
+        print(f"| Worst Drawdown     | {worst_drawdown_pct:>12.2f}% |")
     except Exception:
         # If for any reason the metric isn't available, skip gracefully
         pass
