@@ -1255,7 +1255,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # Print Realized P&L
             if daily_pnl != 0.0:
                 print(f"💸 **DAILY NET REALIZED P&L:** ${daily_pnl:,.2f}")
-                
+
+            print(f"💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** ${total_account_value:,.2f}")    
             print("-" * 35)
 
             # Continue with Ticker-by-Ticker printing (optional but useful)
