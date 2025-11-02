@@ -390,6 +390,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     spy_start_price = None
     spy_end_price = None
     
+    # Drawdown Tracking
+    peak_account_value = INITIAL_CASH
+    current_drawdown_pct = 0.0
+    
     # NEW TRACKER: Total number of distinct trade entry events
     total_entry_events = 0
     # NEW TRACKER: Total number of distinct trade exit events
@@ -1227,6 +1231,16 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # This is the industry-standard way to calculate NAV for short premium strategies.
             total_account_value = cash_balance - total_put_liability
             
+            # Update peak and calculate drawdown
+            if total_account_value > peak_account_value:
+                peak_account_value = total_account_value
+                current_drawdown_pct = 0.0
+            else:
+                if peak_account_value > 0:
+                    current_drawdown_pct = ((peak_account_value - total_account_value) / peak_account_value) * 100.0
+                else:
+                    current_drawdown_pct = 0.0
+            
             # FIX: Update the monthly log with the EOD Total Account Value.
             month_key = (daily_date_obj.year, daily_date_obj.month)
             current_pnl, _, _ = monthly_pnl_log.get(month_key, (0.0, 0.0, 0.0))
@@ -1251,11 +1265,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # Net Unrealized P&L is still calculated using the old definition: (Premium - Liability). 
             # We display it here for informational purposes, but it is NOT used in NAV.
             print(f"  > **Net Unrealized P&L:** ${unrealized_pnl:,.2f}")
+            print(f"  > **Current Drawdown:** {current_drawdown_pct:.2f}% (Peak: ${peak_account_value:,.2f})")
             
             # Print Realized P&L
             if daily_pnl != 0.0:
                 print(f"💸 **DAILY NET REALIZED P&L:** ${daily_pnl:,.2f}")
-                
+
+            print(f"💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** ${total_account_value:,.2f}")    
             print("-" * 35)
 
             # Continue with Ticker-by-Ticker printing (optional but useful)
