@@ -269,14 +269,63 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 # In case of any unexpected parsing issues, keep the module-default
                 pass
 
-            print(f"✅ Simulation start date loaded: {start_date_str} (Parsed as {start_date_obj})")
-            print(f"✅ All {len(rules['entry_put_position'])} Entry Rules loaded successfully.")
-            print(f"✅ Account Limits: Max Put Positions Total: {MAX_PUTS_PER_ACCOUNT}, Max Puts Per Stock: {MAX_PUTS_PER_STOCK}")
-            print(f"✅ Trading Cost: Commission per contract is ${COMMISSION_PER_CONTRACT:.2f}")
-            print(f"✅ Min risk/reward ratio: {MIN_RISK_REWARD_RATIO}")
-            print(f"📈 Max Premium per Trade (derived from initial_cash / max_puts_per_account): ${MAX_PREMIUM_PER_TRADE:,.2f}")            
-            print(f"✅ DTE Rules: MIN_DTE={MIN_DTE}, MAX_DTE={MAX_DTE}")
-            print(f"✅ Stop Loss Rule (SMA150): Max Stock Drop Below SMA150 = {STOCK_MAX_BELOW_AVG_PCT * 100:.2f}%")
+            # Define POSITION_STOP_LOSS_PCT first
+            _pos_raw = rules.get('exit_put_position', {}).get('position_stop_loss_pct', "0%")
+            POSITION_STOP_LOSS_PCT = abs(safe_percentage_to_float(_pos_raw)) if _pos_raw is not None else 0.0
+
+            # Print rules in formatted tables
+            print("\n=== TRADING RULES SUMMARY ===\n")
+            
+            # 1. Account Simulation Rules
+            print("📊 Account Simulation Rules")
+            print("|--------------------|--------------|")
+            print("| Parameter          | Value        |")
+            print("|--------------------|--------------|")
+            print(f"| Start Date         | {start_date_str:<12} |")
+            print(f"| Initial Cash       | ${float(rules['account_simulation']['initial_cash']):>11,.2f} |")
+            print(f"| Max Puts/Account   | {MAX_PUTS_PER_ACCOUNT:>12} |")
+            print(f"| Max Puts/Stock     | {MAX_PUTS_PER_STOCK:>12} |")
+            print("|--------------------|--------------|")
+            print()
+
+            # 2. Entry Rules
+            print("📈 Entry Put Position Rules")
+            print("|------------------------|--------------|")
+            print("| Parameter              | Value        |")
+            print("|------------------------|--------------|")
+            print(f"| Min DTE                | {MIN_DTE:>12} |")
+            print(f"| Max DTE                | {MAX_DTE:>12} |")
+            print(f"| Min Put Bid Price      | ${MIN_BID_PRICE:>11.2f} |")
+            print(f"| Min Put Delta          | {MIN_DELTA*100:>11.1f}% |")
+            print(f"| Max Put Delta          | {MAX_DELTA*100:>11.1f}% |")
+            print(f"| Max Bid-Ask Spread     | {MAX_SPREAD_DECIMAL*100:>11.1f}% |")
+            print(f"| Min Avg Above Strike   | {MIN_AVG_ABOVE_STRIKE_PCT*100:>11.1f}% |")
+            print(f"| Min Risk/Reward Ratio  | {MIN_RISK_REWARD_RATIO:>12.1f} |")
+            print("|------------------------|--------------|")
+            print()
+
+            # 3. Exit Rules
+            print("📉 Exit Put Position Rules")
+            print("|--------------------|--------------|")
+            print("| Parameter          | Value        |")
+            print("|--------------------|--------------|")
+            print(f"| Position Stop Loss | {POSITION_STOP_LOSS_PCT*100:>11.1f}% |")
+            print(f"| Stock Below SMA150 | {STOCK_MAX_BELOW_AVG_PCT*100:>11.1f}% |")
+            print("|--------------------|--------------|")
+            print()
+
+            # 4. Trading Costs and Limits
+            print("💰 Trading Parameters")
+            print("|--------------------|--------------|")
+            print("| Parameter          | Value        |")
+            print("|--------------------|--------------|")
+            print(f"| Commission/Contract| ${COMMISSION_PER_CONTRACT:>11.2f} |")
+            print(f"| Max Premium/Trade  | ${MAX_PREMIUM_PER_TRADE:>11.2f} |")
+            print("|--------------------|--------------|")
+            print()
+            
+            # Stop here to view the tables
+            # quit()
             # Position stop-loss rule: threshold is compared against daily option BID vs the entry BID
             # The rule is defined in `exit_put_position.position_stop_loss_pct` in rules.json
             _pos_raw = rules.get('exit_put_position', {}).get('position_stop_loss_pct', "0%")
@@ -1515,14 +1564,82 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             )
             print(row)
 
-    print("\n")
-    # Re-print the configured Position Stop Loss threshold here for visibility in the final summary
-    print(f"✅ Position Stop Loss Threshold (daily bid loss vs entry bid): {POSITION_STOP_LOSS_PCT * 100:.2f}%")
-    print(f"✅ Min risk/reward ratio: {MIN_RISK_REWARD_RATIO}")
-    stock_max_below_avg = abs(safe_percentage_to_float(rules["exit_put_position"]["stock_max_below_avg"]))
-    print(f"✅ Stop Loss Rule (SMA150): Max Stock Drop Below SMA150 = {stock_max_below_avg * 100:.2f}%")
-    print(f"Annualized Gain (%)  {annualized_gain:>16.2f}%")
-    print(f"${TOTAL_GAIN:>16,.2f} | {'N/A':>10} |")
+    print("\n=== FINAL TRADING RULES SUMMARY ===\n")
+    
+    # 1. Account Simulation Rules
+    print("📊 Account Simulation Rules")
+    print("|--------------------|--------------|")
+    print("| Parameter          | Value        |")
+    print("|--------------------|--------------|")
+    print(f"| Start Date         | {start_date_str:<12} |")
+    print(f"| Initial Cash       | ${float(rules['account_simulation']['initial_cash']):>11,.2f} |")
+    print(f"| Max Puts/Account   | {MAX_PUTS_PER_ACCOUNT:>12} |")
+    print(f"| Max Puts/Stock     | {MAX_PUTS_PER_STOCK:>12} |")
+    print("|--------------------|--------------|")
+    print()
+
+    # 2. Entry Rules
+    print("📈 Entry Put Position Rules")
+    print("|------------------------|--------------|")
+    print("| Parameter              | Value        |")
+    print("|------------------------|--------------|")
+    print(f"| Min DTE                | {MIN_DTE:>12} |")
+    print(f"| Max DTE                | {MAX_DTE:>12} |")
+    print(f"| Min Put Bid Price      | ${MIN_BID_PRICE:>11.2f} |")
+    print(f"| Min Put Delta          | {MIN_DELTA*100:>11.1f}% |")
+    print(f"| Max Put Delta          | {MAX_DELTA*100:>11.1f}% |")
+    print(f"| Max Bid-Ask Spread     | {MAX_SPREAD_DECIMAL*100:>11.1f}% |")
+    print(f"| Min Avg Above Strike   | {MIN_AVG_ABOVE_STRIKE_PCT*100:>11.1f}% |")
+    print(f"| Min Risk/Reward Ratio  | {MIN_RISK_REWARD_RATIO:>12.1f} |")
+    print("|------------------------|--------------|")
+    print()
+
+    # 3. Exit Rules
+    print("📉 Exit Put Position Rules")
+    print("|--------------------|--------------|")
+    print("| Parameter          | Value        |")
+    print("|--------------------|--------------|")
+    print(f"| Position Stop Loss | {POSITION_STOP_LOSS_PCT*100:>11.1f}% |")
+    print(f"| Stock Below SMA150 | {STOCK_MAX_BELOW_AVG_PCT*100:>11.1f}% |")
+    print("|--------------------|--------------|")
+    print()
+
+    # 4. Trading Costs and Limits
+    print("💰 Trading Parameters")
+    print("|--------------------|--------------|")
+    print("| Parameter          | Value        |")
+    print("|--------------------|--------------|")
+    print(f"| Commission/Contract| ${COMMISSION_PER_CONTRACT:>11.2f} |")
+    print(f"| Max Premium/Trade  | ${MAX_PREMIUM_PER_TRADE:>11.2f} |")
+    print("|--------------------|--------------|")
+    print() 
+ 
+    # Performance Summary
+    print("📊 Final Performance")
+    print("|--------------------|--------------|")
+    print("| Parameter          | Value        |")
+    print("|--------------------|--------------|")
+    print(f"| Annualized Gain    | {annualized_gain:>11.2f}% |")
+    print(f"| Total Gain         | ${TOTAL_GAIN:>11,.2f} |")
+    print("|--------------------|--------------|")
+    print()
+    
+    # Export results to CSV files
+    try:
+        from export_to_excel import export_trades_to_csv, export_monthly_performance_to_csv
+        
+        # Export trades
+        if closed_trades_log:
+            trades_file = export_trades_to_csv(closed_trades_log)
+            print(f"\n✅ Trades exported to: {trades_file}")
+        
+        # Export monthly performance
+        if monthly_performance:
+            performance_file = export_monthly_performance_to_csv(monthly_performance)
+            print(f"✅ Monthly performance exported to: {performance_file}")
+            
+    except Exception as e:
+        print(f"\n⚠️ Could not export to Excel: {str(e)}")
     
 # Execute the main function
 if __name__ == "__main__":
