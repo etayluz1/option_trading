@@ -416,15 +416,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # The rule is defined in `exit_put_position.position_stop_loss_pct` in rules.json
             _pos_raw = rules.get('exit_put_position', {}).get('position_stop_loss_pct', "0%")
             POSITION_STOP_LOSS_PCT = abs(safe_percentage_to_float(_pos_raw)) if _pos_raw is not None else 0.0
-            print(f"✅ Position Stop Loss Threshold (daily bid loss vs entry bid): {POSITION_STOP_LOSS_PCT * 100:.2f}% (sourced from exit_put_position.position_stop_loss_pct)")
-
 
     except Exception as e:
         print(f"❌ Error loading/parsing rules.json values: {e}")
         return
     
     # 2. Load the main ticker data from stock_history.json
-    print("Load stock_history.json")
+    print("Loading stock_history.json")
     try:
         with open(json_file_path, 'r') as f:
             stock_history_dict = json.load(f)
@@ -1860,10 +1858,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     if closed_trades_log:
         
         # Sort the log by exit date
-        closed_trades_log.sort(key=lambda x: x['DayOut'])
-
-        print(f"✅ Position Stop Loss Threshold = {POSITION_STOP_LOSS_PCT * 100:.2f}%")
-       
+        closed_trades_log.sort(key=lambda x: x['DayOut'])       
 
         # Adjusted separator for new Exit # column
         print("\n\n--- DETAILED CLOSED TRADE LOG (Full History) ---")
