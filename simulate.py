@@ -1966,6 +1966,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Total Gain         | ${TOTAL_GAIN:>12,.2f} |")
     print(f"| Run Time           | {runtime_str:>13} |")
     print(f"| Peak Open Positions| {peak_open_positions:>13} |")
+    print(f"| Total Entry Events | {total_entry_events:>13} |")
     # NEW: Worst drawdown across all simulated dates
     try:
         print(f"| Worst Drawdown     | {worst_drawdown_pct:>12.2f}% |")
