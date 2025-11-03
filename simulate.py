@@ -1957,7 +1957,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"|----------------------------|----------------|")
     print()   
 
-    # 4a. Trading Costs and Limits
+    # 4a. Trading Costs and Limits 
     print("💰 Trading Parameters")
     print(f"|----------------------------|----------------|")
     print(f"| Parameter                  | Value          |")
