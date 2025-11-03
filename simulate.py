@@ -422,6 +422,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         return
     
     # 2. Load the main ticker data from stock_history.json
+    print("Load stock_history.json")
     try:
         with open(json_file_path, 'r') as f:
             stock_history_dict = json.load(f)
