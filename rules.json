@@ -2,8 +2,8 @@
     "account_simulation": {
         "start_date": "01/01/20",
         "initial_cash": "1000000",        
-        "max_puts_per_account": "75",
-        "max_puts_per_stock": "7"
+        "max_puts_per_account": "70",
+        "max_puts_per_stock": "6"
     },
     "underlying_stock": {
         "min_5_day_rise_pct": "-5.0%",
