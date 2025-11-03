@@ -32,8 +32,8 @@
     },
     "exit_put_position": {
         "position_stop_loss_pct": "9999%",        
-        "stock_max_below_avg":  "20%",  
-        "stock_min_above_strike": "1%",
-        "Stock max below entry": "2000%"        
+        "stock_max_below_avg":  "15%",  
+        "stock_min_above_strike": "-9999%",
+        "Stock max below entry": "40%"        
     }
 }
