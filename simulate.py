@@ -1955,7 +1955,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Stock Min Above Strike     | {STOCK_MIN_ABOVE_STRIKE_PCT*100:>13.1f}% |")   
     print(f"| Stock Max Below Entry      | {STOCK_MAX_BELOW_ENTRY_PCT*100:>13.1f}% |") 
     print(f"|----------------------------|----------------|")
-    print()
+    print()   
 
     # 4a. Trading Costs and Limits
     print("💰 Trading Parameters")
@@ -1967,7 +1967,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"|----------------------------|----------------|")
     print()
 
-    # Compute runtime for the Performance Summary     
+    # Compute runtime for the Performance Summary      
     try:
         _elapsed_seconds = int(time.perf_counter() - _sim_start_time)
         _hh = _elapsed_seconds // 3600
