@@ -230,6 +230,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             INITIAL_CASH = float(rules["account_simulation"]["initial_cash"].replace('$', '').replace(',', '').strip())
             MAX_PUTS_PER_ACCOUNT = int(rules["account_simulation"]["max_puts_per_account"])
             MAX_PUTS_PER_STOCK = int(rules["account_simulation"]["max_puts_per_stock"])
+            MAX_PUTS_PER_DAY = int(rules["account_simulation"]["max_puts_per_day"])
             
             # --- RISK MANAGEMENT RULE (Stock Price Stop Loss) ---
             STOCK_MAX_BELOW_AVG_PCT = abs(safe_percentage_to_float(rules["exit_put_position"]["stock_max_below_avg"]))
@@ -349,6 +350,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(f"| Initial Cash       | ${float(rules['account_simulation']['initial_cash']):>13,.2f} |")
             print(f"| Max Puts/Account   | {MAX_PUTS_PER_ACCOUNT:>14} |")
             print(f"| Max Puts/Stock     | {MAX_PUTS_PER_STOCK:>14} |")
+            print(f"| Max Puts/Day       | {MAX_PUTS_PER_DAY:>14} |")
             print("|--------------------|----------------|")
             print()
             
@@ -629,6 +631,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # FIX 1: Initialize total_account_value and account_full_today at the start of the loop
             total_account_value = cash_balance # Placeholder; actual MTM calculated later
             account_full_today = False 
+            
+            # Track number of new positions entered today
+            daily_entries_count = 0
 
             # ----------------------------------------------------
             # --- Position Management/Exit Logic (Stop-Loss & Expiration) ---
@@ -833,13 +838,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
                         # Determine specific stop-loss reason (position-level vs stock-level)
                         if 'position_stop_loss_triggered' in locals() and position_stop_loss_triggered:
-                            reason = "POSITION STOP LOSS (Bid moved above entry threshold)"
+                            reason = "StopLoss Bid above entry threshold"
                         elif strike_buffer_stop_triggered:
-                            reason = "STOP LOSS (Stock Below Strike Threshold)"
+                            reason = "StopLoss Stk below Strike Threshold"
                         elif entry_drop_stop_triggered:
-                            reason = "STOP LOSS (Stock Below Entry Threshold)"
+                            reason = "StopLoss Stk Below Entry Threshold)"
                         else:
-                            reason = "STOP LOSS (Stock Below SMA150)"
+                            reason = "StopLoss Stk Below SMA150"
 
                         stop_loss_count += qty
                         stop_loss_gain += net_profit
@@ -1142,195 +1147,213 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
                 
                 
-                # --- Select the ABSOLUTE BEST NON-DUPLICATE, LIMIT-RESPECTING Contract of the Day ---
-                
-                best_contract = None
-                trade_quantity = 0
-                ask_at_entry_float = 0.0 # FIX: Renamed variable to reflect float status
-                bid_at_entry = 0.0
-
-                if daily_trade_candidates:
-                    # Sort the ENTIRE list of candidates globally by the selected metric
-                    if USE_ANNUAL_SELECTOR:
-                        sort_key = lambda x: x.get('annual_rr', -float('inf'))
-                    elif USE_EXPECTED_SELECTOR:
-                        sort_key = lambda x: x.get('expected_profit', -float('inf'))
-                    else:
-                        # Default: risk/reward ratio (also used when USE_RR_SELECTOR is True)
-                        sort_key = lambda x: x.get('calculated_rr_ratio', -float('inf'))
-
-                    daily_trade_candidates.sort(key=sort_key, reverse=True)
+                # --- DAILY TRADE ENTRY LOOP (up to MAX_PUTS_PER_DAY new positions) ---
+                while daily_entries_count < MAX_PUTS_PER_DAY:
                     
-                    # Iterate through the ranked candidates to find the first non-duplicate and limit-respecting contract
-                    for contract in daily_trade_candidates:
+                    # --- Select the ABSOLUTE BEST NON-DUPLICATE, LIMIT-RESPECTING Contract of the Day ---
+                    
+                    best_contract = None
+                    trade_quantity = 0
+                    ask_at_entry_float = 0.0 # FIX: Renamed variable to reflect float status
+                    bid_at_entry = 0.0
+
+                    if daily_trade_candidates:
+                        # Sort the ENTIRE list of candidates globally by the selected metric
+                        if USE_ANNUAL_SELECTOR:
+                            sort_key = lambda x: x.get('annual_rr', -float('inf'))
+                        elif USE_EXPECTED_SELECTOR:
+                            sort_key = lambda x: x.get('expected_profit', -float('inf'))
+                        else:
+                            # Default: risk/reward ratio (also used when USE_RR_SELECTOR is True)
+                            sort_key = lambda x: x.get('calculated_rr_ratio', -float('inf'))
+
+                        daily_trade_candidates.sort(key=sort_key, reverse=True)
                         
-                        ticker_check = contract['ticker']
-                        
-                        # 1. Check if the ticker has reached its per-stock limit
-                        if open_puts_tracker[ticker_check] >= MAX_PUTS_PER_STOCK:
-                            continue 
-                        
-                        # 2. Check for duplicate position
-                        unique_key = (ticker_check, contract['strike'], contract['expiration_date'])
-                        if unique_key not in active_position_keys:
+                        # Iterate through the ranked candidates to find the first non-duplicate and limit-respecting contract
+                        for contract in daily_trade_candidates:
                             
-                            # --- QUANTITY CALCULATION (PREMIUM-BASED) ---
+                            ticker_check = contract['ticker']
                             
-                            # FIX: Ensure pBidPx and pAskPx are floats
-                            try:
-                                pBidPx_value = float(contract['pBidPx'])
-                                pAskPx_value = float(contract['pAskPx']) 
-                            except ValueError:
-                                # Skip the contract if the bid price is invalid
-                                continue
+                            # 1. Check if the ticker has reached its per-stock limit
+                            if open_puts_tracker[ticker_check] >= MAX_PUTS_PER_STOCK:
+                                continue 
+                            
+                            # 2. Check for duplicate position
+                            unique_key = (ticker_check, contract['strike'], contract['expiration_date'])
+                            if unique_key not in active_position_keys:
                                 
-                            premium_per_contract = pBidPx_value * 100.0
+                                # --- QUANTITY CALCULATION (PREMIUM-BASED) ---
+                                
+                                # FIX: Ensure pBidPx and pAskPx are floats
+                                try:
+                                    pBidPx_value = float(contract['pBidPx'])
+                                    pAskPx_value = float(contract['pAskPx']) 
+                                except ValueError:
+                                    # Skip the contract if the bid price is invalid
+                                    continue
+                                    
+                                premium_per_contract = pBidPx_value * 100.0
+                                
+                                # Calculate quantity based on max premium per trade (floored)
+                                if premium_per_contract > 0:
+                                    qty_by_premium = math.floor(max_premium_per_trade_today / premium_per_contract)
+                                else:
+                                    qty_by_premium = 0
+
+                                # Determine position slot availability (positions, not contract counts)
+                                remaining_account_position_slots = MAX_PUTS_PER_ACCOUNT - current_account_put_positions
+                                remaining_stock_position_slots = MAX_PUTS_PER_STOCK - open_puts_tracker[ticker_check]
+
+                                # If there are no position slots available (either account-level or per-stock), skip
+                                if remaining_account_position_slots <= 0 or remaining_stock_position_slots <= 0:
+                                    # Cannot open a new position for this ticker due to position limits
+                                    continue
+
+                                # Final quantity is solely determined by premium budget (contracts per position)
+                                trade_quantity = qty_by_premium
+                                
+                                if trade_quantity >= 1:
+                                    best_contract = contract
+                                    # FIX: Capture Ask Price as a float for instant MTM calculation
+                                    ask_at_entry_float = pAskPx_value 
+                                    bid_at_entry = pBidPx_value
+                                    break # Found the best eligible contract with trade quantity >= 1
+                        
+                        
+                        if best_contract:
                             
-                            # Calculate quantity based on max premium per trade (floored)
-                            if premium_per_contract > 0:
-                                qty_by_premium = math.floor(max_premium_per_trade_today / premium_per_contract)
-                            else:
-                                qty_by_premium = 0
-
-                            # Determine position slot availability (positions, not contract counts)
-                            remaining_account_position_slots = MAX_PUTS_PER_ACCOUNT - current_account_put_positions
-                            remaining_stock_position_slots = MAX_PUTS_PER_STOCK - open_puts_tracker[ticker_check]
-
-                            # If there are no position slots available (either account-level or per-stock), skip
-                            if remaining_account_position_slots <= 0 or remaining_stock_position_slots <= 0:
-                                # Cannot open a new position for this ticker due to position limits
-                                continue
-
-                            # Final quantity is solely determined by premium budget (contracts per position)
-                            trade_quantity = qty_by_premium
+                            print(f"🥇 **ABSOLUTE BEST CONTRACT TODAY (Ranked by R/R Ratio):**")
                             
-                            if trade_quantity >= 1:
-                                best_contract = contract
-                                # FIX: Capture Ask Price as a float for instant MTM calculation
-                                ask_at_entry_float = pAskPx_value 
-                                bid_at_entry = pBidPx_value
-                                break # Found the best eligible contract with trade quantity >= 1
-                        
-                    
-                    if best_contract:
-                        
-                        print(f"🥇 **ABSOLUTE BEST CONTRACT TODAY (Ranked by R/R Ratio):**")
-                        
-                        # Fetch the original delta value using the safer function
-                        original_delta = best_contract.get('putDelta')
-                        delta_float = safe_percentage_to_float(original_delta)
-                        delta_str = f"{delta_float:.4f}" if delta_float is not None else "N/A"
-                        
-                        # Re-calculate values for printing
-                        total_premium_collected = premium_per_contract * trade_quantity
+                            # Fetch the original delta value using the safer function
+                            original_delta = best_contract.get('putDelta')
+                            delta_float = safe_percentage_to_float(original_delta)
+                            delta_str = f"{delta_float:.4f}" if delta_float is not None else "N/A"
+                            
+                            # Re-calculate values for printing
+                            total_premium_collected = premium_per_contract * trade_quantity
 
-                        # Calculate Strike/AdjClose ratio
-                        adj_close = best_contract.get('adj_close')
-                        strike_adj_close_ratio = (best_contract['strike'] / adj_close * 100) if adj_close and adj_close > 0 else None
+                            # Calculate Strike/AdjClose ratio
+                            adj_close = best_contract.get('adj_close')
+                            strike_adj_close_ratio = (best_contract['strike'] / adj_close * 100) if adj_close and adj_close > 0 else None
 
-                        best_info = (
-                            f"  1. **{best_contract['ticker']}:** Qty={trade_quantity}, "
-                            f"Total Premium Collected=${total_premium_collected:,.2f}, "
-                            f"Strike=${best_contract['strike']:.2f}, "
-                            f"DTE={best_contract['dte']}, "
-                            f"R/R={best_contract['calculated_rr_ratio']:.2f}"
-                        )
-                        print(best_info)
-                        
-                        # Print Strike/AdjClose ratio
-                        if strike_adj_close_ratio is not None:
-                            print(f"     Strike/AdjClose Ratio: {strike_adj_close_ratio:.2f}%")
-                        
+                            # Entry number for today (1, 2, 3, etc.)
+                            entry_number_today = daily_entries_count + 1
+                            
+                            best_info = (
+                                f"  {entry_number_today}. **{best_contract['ticker']}:** Qty={trade_quantity}, "
+                                f"Total Premium Collected=${total_premium_collected:,.2f}, "
+                                f"Strike=${best_contract['strike']:.2f}, "
+                                f"DTE={best_contract['dte']}, "
+                                f"R/R={best_contract['calculated_rr_ratio']:.2f}"
+                            )
+                            print(best_info)
+                            
+                            # Print Strike/AdjClose ratio
+                            if strike_adj_close_ratio is not None:
+                                print(f"     Strike/AdjClose Ratio: {strike_adj_close_ratio:.2f}%")
+                            
+                        else:
+                            print("❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (All candidates failed limits/duplication checks or resulted in Qty=0).")
+                            
                     else:
-                        print("❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (All candidates failed limits/duplication checks or resulted in Qty=0).")
+                        print(f"❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).")
+                    
+                    
+                    # --- TRADING LOGIC: ENTER POSITION ---
+                    if best_contract and trade_quantity >= 1:
+                        ticker_to_enter = best_contract['ticker']
                         
-                else:
-                    print(f"❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).")
-                
-                
-                # --- TRADING LOGIC: ENTER POSITION ---
-                if best_contract and trade_quantity >= 1:
-                    ticker_to_enter = best_contract['ticker']
-                    
-                    # Store current values for logging the change
-                    cash_before_trade = cash_balance
-                    
-                    # 1. Commission Cost (Realized Loss)
-                    entry_commission = trade_quantity * COMMISSION_PER_CONTRACT
-                    
-                    # 2. Update the master entry counters
-                    total_entry_events += 1 # Increment by 1 for each new trade opened (EVENT)
-                    total_contracts_opened_qty += trade_quantity # Increment by contract quantity (QTY)
+                        # Store current values for logging the change
+                        cash_before_trade = cash_balance
+                        
+                        # 1. Commission Cost (Realized Loss)
+                        entry_commission = trade_quantity * COMMISSION_PER_CONTRACT
+                        
+                        # 2. Update the master entry counters
+                        total_entry_events += 1 # Increment by 1 for each new trade opened (EVENT)
+                        total_contracts_opened_qty += trade_quantity # Increment by contract quantity (QTY)
 
-                    # 3. Calculate cash change and P&L
-                    daily_pnl -= entry_commission
-                    cumulative_realized_pnl -= entry_commission
-                    premium_inflow = premium_per_contract * trade_quantity
-                    
-                    # Calculate instant MTM liability and change for logging
-                    position_liability_at_entry = ask_at_entry_float * trade_quantity * 100.0
-                    
-                    # Instantaneous MTM Change = Premium Inflow - Liability - Commission
-                    instant_mtm_change = premium_inflow - position_liability_at_entry - entry_commission
-                    
-                    # 4. Update cash balance: Cash increases by premium inflow minus commission (Physical Cash Flow)
-                    cash_balance += premium_inflow
-                    cash_balance -= entry_commission 
-                    
-                    # 5. Update the position count
-                    open_puts_tracker[ticker_to_enter] += 1
-                    # Update current and peak open positions after entry
-                    current_account_put_positions = sum(open_puts_tracker.values())
-                    if current_account_put_positions > peak_open_positions:
-                        peak_open_positions = current_account_put_positions
-                    
-                    # 6. Log the trade details (include quantity)
-                    # Determine the entry stock AdjClose for this ticker on entry day
-                    try:
-                        entry_adj_close_value = best_contract.get('adj_close', None)
-                    except Exception:
-                        entry_adj_close_value = None
-                    if entry_adj_close_value is None:
+                        # 3. Calculate cash change and P&L
+                        daily_pnl -= entry_commission
+                        cumulative_realized_pnl -= entry_commission
+                        premium_inflow = premium_per_contract * trade_quantity
+                        
+                        # Calculate instant MTM liability and change for logging
+                        position_liability_at_entry = ask_at_entry_float * trade_quantity * 100.0
+                        
+                        # Instantaneous MTM Change = Premium Inflow - Liability - Commission
+                        instant_mtm_change = premium_inflow - position_liability_at_entry - entry_commission
+                        
+                        # 4. Update cash balance: Cash increases by premium inflow minus commission (Physical Cash Flow)
+                        cash_balance += premium_inflow
+                        cash_balance -= entry_commission 
+                        
+                        # 5. Update the position count
+                        open_puts_tracker[ticker_to_enter] += 1
+                        # Update current and peak open positions after entry
+                        current_account_put_positions = sum(open_puts_tracker.values())
+                        if current_account_put_positions > peak_open_positions:
+                            peak_open_positions = current_account_put_positions
+                        
+                        # 6. Log the trade details (include quantity)
+                        # Determine the entry stock AdjClose for this ticker on entry day
                         try:
-                            entry_adj_close_value = stock_history_dict.get(ticker_to_enter, {}).get(date_str, {}).get('adj_close')
+                            entry_adj_close_value = best_contract.get('adj_close', None)
                         except Exception:
                             entry_adj_close_value = None
+                        if entry_adj_close_value is None:
+                            try:
+                                entry_adj_close_value = stock_history_dict.get(ticker_to_enter, {}).get(date_str, {}).get('adj_close')
+                            except Exception:
+                                entry_adj_close_value = None
 
-                    trade_entry = {
-                        'entry_date': daily_date_obj.strftime('%Y-%m-%d'),
-                        'ticker': ticker_to_enter,
-                        'strike': best_contract['strike'],
-                        'expiration_date': best_contract['expiration_date'],
-                        'premium_received': bid_at_entry, 
-                        'quantity': trade_quantity,
-                        'entry_adj_close': entry_adj_close_value,
-                        'unique_key': (ticker_to_enter, best_contract['strike'], best_contract['expiration_date'])
-                    }
-                    open_trades_log.append(trade_entry)
-                    
-                    # 7. Update the quick-check set
-                    active_position_keys.add(trade_entry['unique_key'])
-                    
-                    # 8. Print the consolidated portfolio summary
-                    print_daily_portfolio_summary(open_puts_tracker)
-                    
-                    # --- NEW: DETAILED TRANSACTION LOG ---
-                    
-                    print("\n📈 **TODAY'S ENTRY TRANSACTION DETAILS:**")
-                    print(f"  | Ticker/Contract: {ticker_to_enter} (Qty {trade_quantity})")
-                    print(f"  | Bid Price: ${bid_at_entry:.2f} | Ask Price: ${ask_at_entry_float:.2f}")
-                    
-                    # --- DETAILED VALUE CALCULATION INSERTED HERE (FIXED) ---
-                    print("\n💵 **VALUE CALCULATION AT ENTRY (MTM):**")
-                    print(f"  | Cash Balance Before: ${cash_before_trade:,.2f}")
-                    print(f"  | + Gross Premium Collected (Cash Inflow): +${premium_inflow:,.2f}")
-                    print(f"  | - Entry Commission: -${entry_commission:,.2f}")
-                    print(f"  | - Instant MTM Liability (Cost to Close): -${position_liability_at_entry:,.2f}")
-                    print(f"  | **Instantaneous Change to Portfolio Value (MTM):** ${instant_mtm_change:,.2f} (Expected small negative)")
-                    print(f"  | **New Cash Balance:** ${cash_balance:,.2f} (Available for margin)")
-                    # --- END DETAILED VALUE CALCULATION ---
-                    
-                    print(f"  | Position Liability (Ask Price): ${position_liability_at_entry:,.2f}")
+                        trade_entry = {
+                            'entry_date': daily_date_obj.strftime('%Y-%m-%d'),
+                            'ticker': ticker_to_enter,
+                            'strike': best_contract['strike'],
+                            'expiration_date': best_contract['expiration_date'],
+                            'premium_received': bid_at_entry, 
+                            'quantity': trade_quantity,
+                            'entry_adj_close': entry_adj_close_value,
+                            'unique_key': (ticker_to_enter, best_contract['strike'], best_contract['expiration_date'])
+                        }
+                        open_trades_log.append(trade_entry)
+                        
+                        # 7. Update the quick-check set
+                        active_position_keys.add(trade_entry['unique_key'])
+                        
+                        # 8. Print the consolidated portfolio summary
+                        print_daily_portfolio_summary(open_puts_tracker)
+                        
+                        # --- NEW: DETAILED TRANSACTION LOG ---
+                        
+                        print("\n📈 **TODAY'S ENTRY TRANSACTION DETAILS:**")
+                        print(f"  | Ticker/Contract: {ticker_to_enter} (Qty {trade_quantity})")
+                        print(f"  | Bid Price: ${bid_at_entry:.2f} | Ask Price: ${ask_at_entry_float:.2f}")
+                        
+                        # --- DETAILED VALUE CALCULATION INSERTED HERE (FIXED) ---
+                        print("\n💵 **VALUE CALCULATION AT ENTRY (MTM):**")
+                        print(f"  | Cash Balance Before: ${cash_before_trade:,.2f}")
+                        print(f"  | + Gross Premium Collected (Cash Inflow): +${premium_inflow:,.2f}")
+                        print(f"  | - Entry Commission: -${entry_commission:,.2f}")
+                        print(f"  | - Instant MTM Liability (Cost to Close): -${position_liability_at_entry:,.2f}")
+                        print(f"  | **Instantaneous Change to Portfolio Value (MTM):** ${instant_mtm_change:,.2f} (Expected small negative)")
+                        print(f"  | **New Cash Balance:** ${cash_balance:,.2f} (Available for margin)")
+                        # --- END DETAILED VALUE CALCULATION ---
+                        
+                        print(f"  | Position Liability (Ask Price): ${position_liability_at_entry:,.2f}")
+                        
+                        # Increment daily entry counter and remove entered contract from candidates
+                        daily_entries_count += 1
+                        
+                        # Remove the entered contract from the candidates list to prevent re-selection
+                        daily_trade_candidates.remove(best_contract)
+                        
+                    else:
+                        # No valid contract found in this iteration, exit the daily entry loop
+                        break
+                
+                # --- END OF DAILY TRADE ENTRY LOOP ---
             
             # ----------------------------------------------
             # --- FINAL EOD VALUATION CALCULATIONS ---
@@ -1567,7 +1590,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     'PriceOut': closing_ask, # Option Ask Price at liquidation
                     'QtyOut': qty,
                     'AmountOut': cost_to_close_gross, # Gross cost to close
-                    'ReasonWhyClosed': "LIQUIDATION",
+                    'ReasonWhyClosed': "Last day liquidation",
                     'Gain$': position_net_gain,
                     'Gain%': position_gain_percent,
                 }
@@ -1844,8 +1867,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
         # Adjusted separator for new Exit # column
         print("\n\n--- DETAILED CLOSED TRADE LOG (Full History) ---")
-        print("| Exit #  | Ticker |  Qty |   Day In   | Price In   | Amount In  |  Day Out   | Price Out |  Amount Out | Reason Why Closed          |    Gain $  |   Gain % |")
-        print("|---------|--------|------|------------|------------|------------|------------|-----------|-------------|----------------------------|------------|----------|")
+        print("| Exit #  | Ticker |  Qty |   Day In   | Price In   | Amount In   |  Day Out   | Price Out |  Amount Out | Reason Why Closed          |    Gain $  |   Gain % |")
+        print("|---------|--------|------|------------|------------|-------------|------------|-----------|-------------|----------------------------|------------|----------|")
         
         for index, trade in enumerate(closed_trades_log):
             
@@ -1856,7 +1879,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             price_in_str = f"${trade['PriceIn']:>9.2f}"
             price_out_str = f"${trade['PriceOut']:>8.2f}" if trade['PriceOut'] is not None else ""
             
-            amount_in_str = f"${trade['AmountIn']:>9,.2f}"
+            amount_in_str = f"${trade['AmountIn']:>10,.2f}"
             amount_out_str = f"${trade['AmountOut']:>10,.2f}"
             
             gain_abs_str = f"{trade['Gain$']:>10.2f}"
@@ -1889,6 +1912,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Initial Cash       | ${float(rules['account_simulation']['initial_cash']):>13,.2f} |")
     print(f"| Max Puts/Account   | {MAX_PUTS_PER_ACCOUNT:>14} |")
     print(f"| Max Puts/Stock     | {MAX_PUTS_PER_STOCK:>14} |")
+    print(f"| Max Puts/Day       | {MAX_PUTS_PER_DAY:>14} |")
     print("|--------------------|----------------|")
     print()   
 
