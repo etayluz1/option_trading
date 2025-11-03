@@ -1967,7 +1967,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"|----------------------------|----------------|")
     print()
 
-    # Compute runtime for the Performance Summary
+    # Compute runtime for the Performance Summary     
     try:
         _elapsed_seconds = int(time.perf_counter() - _sim_start_time)
         _hh = _elapsed_seconds // 3600
@@ -1979,7 +1979,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
     # Performance Summary
     print("📊 Final Performance")
-    print(f"|----------------------------|----------------|")
+    print(f"|----------------------------|----------------|") 
     print(f"| Parameter                  |  Value         |")
     print(f"|----------------------------|----------------|")
     print(f"| Annualized Gain            | {annualized_gain:>13.2f}% |")
