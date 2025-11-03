@@ -210,61 +210,14 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     sys.stdout = logger
 
     try:
-        # Persistent cache of per-day ORATS data across reruns in this session
-        orats_cache = {}
-        # Track whether we've auto-opened the log once to avoid spawning multiple windows
-        opened_log_once = False
-
-        while True:
-            _run_simulation_logic(rules_file_path, json_file_path, orats_cache)
-
-            # Before prompting, flush and open the log so you can review results first
-            try:
-                # Ensure all output is flushed to file
-                logger.logfile.flush()
-                try:
-                    os.fsync(logger.logfile.fileno())
-                except Exception:
-                    # fsync may not be available/necessary on some platforms
-                    pass
-
-                if not opened_log_once:
-                    # Auto-open the log file (Windows: Notepad/associated app)
-                    if sys.platform.startswith("win"):
-                        try:
-                            os.startfile(os.path.abspath(log_file_path))
-                            opened_log_once = True
-                        except Exception:
-                            pass
-                    else:
-                        try:
-                            import subprocess
-                            opener = "open" if sys.platform == "darwin" else "xdg-open"
-                            subprocess.Popen([opener, log_file_path])
-                            opened_log_once = True
-                        except Exception:
-                            pass
-            except Exception as e:
-                print(f"(Could not auto-open log file before prompt: {e})")
-
-            # Ask if user wants to tweak rules.json and run again, reusing cached ORATS data
-            sys.stdout.flush()
-            choice = input("\nRun again with updated rules.json and cached ORATS data? [y/N]: ").strip().lower()
-            if choice not in ("y", "yes"):
-                break
+        _run_simulation_logic(rules_file_path, json_file_path)
     finally:
         sys.stdout = original_stdout
         logger.close()
         print(f"\nSimulation complete. Log saved to: {log_file_path}")
 
-def _run_simulation_logic(rules_file_path, json_file_path, orats_cache=None):
-    """Internal function containing the core simulation logic.
-
-    Parameters:
-        rules_file_path: path to rules.json
-        json_file_path: path to stock_history.json
-        orats_cache: Optional dict for caching per-day ORATS JSON. Keys are 'YYYY-MM-DD'.
-    """
+def _run_simulation_logic(rules_file_path, json_file_path):
+    """Internal function containing the core simulation logic."""
     # Track wall-clock runtime of the whole simulation
     _sim_start_time = time.perf_counter()
     
@@ -654,21 +607,15 @@ def _run_simulation_logic(rules_file_path, json_file_path, orats_cache=None):
             daily_investable_data = {} 
             daily_trade_candidates = [] 
             
-            # Load ORATS data for this specific date (with cache reuse across reruns)
+            # Load ORATS data for this specific date
+            orats_file_path = os.path.join(ORATS_FOLDER, f"{date_str}.json")
             daily_orats_data = None
-            if orats_cache is not None and date_str in orats_cache:
-                daily_orats_data = orats_cache.get(date_str)
-                last_daily_orats_data = daily_orats_data
-            else:
-                orats_file_path = os.path.join(ORATS_FOLDER, f"{date_str}.json")
-                try:
-                    with open(orats_file_path, 'r') as f:
-                        daily_orats_data = json.load(f)
-                        last_daily_orats_data = daily_orats_data # Store the latest successful load
-                        if orats_cache is not None:
-                            orats_cache[date_str] = daily_orats_data
-                except (FileNotFoundError, json.JSONDecodeError):
-                    pass
+            try:
+                with open(orats_file_path, 'r') as f:
+                    daily_orats_data = json.load(f)
+                    last_daily_orats_data = daily_orats_data # Store the latest successful load
+            except (FileNotFoundError, json.JSONDecodeError):
+                pass
             
             current_account_put_positions = sum(open_puts_tracker.values())
             daily_pnl = 0.0 # Realized P&L from closed trades today
