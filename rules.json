@@ -17,7 +17,7 @@
         "min_days_for_expiration": "1",
         "max_days_for_expiration": "275",
         "min_put_bid_price": "3.50",
-        "min_put_delta": "-25%",
+        "min_put_delta": "-20%",
         "max_put_delta": "-0.1%",
         "max_ask_above_bid_pct": "25.0%",
         "min_avg_above_strike": "8.0%",
@@ -32,6 +32,7 @@
         "position_stop_loss_pct": "9999%",        
         "stock_max_below_avg":  "15%",  
         "stock_min_above_strike": "-9999%",
-        "stock_max_below_entry": "25%"        
+        "stock_max_below_entry": "25%",
+        "min_gain_to_take_profit": "50%"
     }
 }
