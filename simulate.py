@@ -823,7 +823,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     
                     # --- Calculate Exit P&L ---
                     exit_commission = qty * FINAL_COMMISSION_PER_CONTRACT
-                    premium_collected_gross = trade['premium_received'] * qty * 100.0
+                    # Net premium collected, subtracting entry commission
+                    premium_collected_gross = (trade['premium_received'] * qty * 100.0) - (qty * COMMISSION_PER_CONTRACT)
                     
                     if expired_triggered:
                         # --- CRITICAL FIX FOR OTM/ITM ASSIGNMENT ---
