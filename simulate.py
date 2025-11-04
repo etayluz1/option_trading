@@ -824,7 +824,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     # --- Calculate Exit P&L ---
                     exit_commission = qty * FINAL_COMMISSION_PER_CONTRACT
                     # Net premium collected, subtracting entry commission
-                    premium_collected_gross = (trade['premium_received'] * qty * 100.0) - (qty * COMMISSION_PER_CONTRACT)
+                    premium_collected_gross = (trade['premium_received'] * qty * 100.0)
+                    entry_commission = qty * COMMISSION_PER_CONTRACT
                     
                     if expired_triggered:
                         # --- CRITICAL FIX FOR OTM/ITM ASSIGNMENT ---
@@ -836,8 +837,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         
                         if is_itm:
                             # ITM/ASSIGNMENT SCENARIO (Loss)
-                            assignment_loss_gross = (trade['strike'] - current_adj_close) * qty * 100.0 + exit_commission 
-                            net_profit = premium_collected_gross - assignment_loss_gross - exit_commission
+                            assignment_loss_gross = (trade['strike'] - current_adj_close) * qty * 100.0 + entry_commission + exit_commission 
+                            net_profit = premium_collected_gross  - assignment_loss_gross - exit_commission
                             
                             # Count exit EVENTS (not contracts)
                             expired_itm_count += 1
@@ -853,7 +854,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             # OTM/MAX PROFIT SCENARIO
                             cost_to_close_gross = 0.0 
                             exit_commission = 0.0
-                            net_profit = premium_collected_gross - exit_commission
+                            net_profit = premium_collected_gross- entry_commission - exit_commission
                             
                             # Count exit EVENTS (not contracts)
                             expired_otm_count += 1
