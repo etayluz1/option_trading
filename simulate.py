@@ -293,6 +293,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             _pos_raw = rules.get('exit_put_position', {}).get('position_stop_loss_pct', "0%")
             POSITION_STOP_LOSS_PCT = abs(safe_percentage_to_float(_pos_raw)) if _pos_raw is not None else 0.0
 
+            # New Exit Rule: Min Gain to Take Profit (percentage profit threshold vs entry bid)
+            try:
+                _tp_raw = rules.get('exit_put_position', {}).get('min_gain_to_take_profit', None)
+                TAKE_PROFIT_MIN_GAIN_PCT = safe_percentage_to_float(_tp_raw) if _tp_raw is not None else None
+            except Exception:
+                TAKE_PROFIT_MIN_GAIN_PCT = None
+
             # New Exit Rule: Stock Min Above Strike (percentage buffer above strike required)
             try:
                 _min_above_strike_raw = rules.get('exit_put_position', {}).get('stock_min_above_strike', None)
@@ -397,6 +404,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(f"| Stock Below SMA150         | {STOCK_MAX_BELOW_AVG_PCT*100:>13.1f}% |")
             print(f"| Stock Min Above Strike     | {STOCK_MIN_ABOVE_STRIKE_PCT*100:>13.1f}% |")   
             print(f"| Stock Max Below Entry      | {STOCK_MAX_BELOW_ENTRY_PCT*100:>13.1f}% |") 
+            print(f"| Min Gain to Take Profit    | {TAKE_PROFIT_MIN_GAIN_PCT*100:>13.1f}% |")
             print(f"|----------------------------|----------------|")
             print()                        
 
@@ -679,6 +687,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 stop_loss_triggered = False
                 strike_buffer_stop_triggered = False
                 entry_drop_stop_triggered = False
+                take_profit_triggered = False
                 if current_adj_close is not None and sma150_adj_close is not None:
                     
                     # Calculate the threshold: SMA150 * (1 - Max Drop %)
@@ -758,6 +767,28 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                 trade['strike']
                             )
                             current_ask_price = fallback_ask if fallback_ask is not None else current_bid_price
+
+                # 1.c TAKE-PROFIT CHECK (based on current ASK vs entry BID)
+                try:
+                    if (
+                        TAKE_PROFIT_MIN_GAIN_PCT is not None and TAKE_PROFIT_MIN_GAIN_PCT > 0 and
+                        entry_bid_price is not None and entry_bid_price > 0
+                    ):
+                        # Ensure we have an ask price to compute profit; prefer ASK
+                        if current_ask_price is None:
+                            fallback_tp_ask = get_contract_exit_price(
+                                daily_orats_data,
+                                trade['ticker'],
+                                trade['expiration_date'],
+                                trade['strike']
+                            )
+                            current_ask_price = fallback_tp_ask
+                        if current_ask_price is not None and current_ask_price > 0:
+                            profit_ratio = 1.0 - (current_ask_price / entry_bid_price)
+                            if profit_ratio >= TAKE_PROFIT_MIN_GAIN_PCT:
+                                take_profit_triggered = True
+                except Exception:
+                    pass
                         
                 # 2. EXPIRATION CHECK
                 try:
@@ -772,7 +803,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 expired_triggered = (exp_date_obj <= daily_date_obj)
 
 
-                if stop_loss_triggered or expired_triggered:
+                if stop_loss_triggered or take_profit_triggered or expired_triggered:
                     
                     qty = trade['quantity'] 
                     
@@ -804,7 +835,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             assignment_loss_gross = (trade['strike'] - current_adj_close) * qty * 100.0 + exit_commission 
                             net_profit = premium_collected_gross - assignment_loss_gross - exit_commission
                             
-                            expired_itm_count += qty
+                            # Count exit EVENTS (not contracts)
+                            expired_itm_count += 1
                             expired_itm_gain += net_profit
                             expired_itm_premium_collected += premium_collected_gross
                             
@@ -819,7 +851,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             exit_commission = 0.0
                             net_profit = premium_collected_gross - exit_commission
                             
-                            expired_otm_count += qty
+                            # Count exit EVENTS (not contracts)
+                            expired_otm_count += 1
                             expired_otm_gain += net_profit
                             expired_otm_premium_collected += premium_collected_gross
                             
@@ -829,24 +862,29 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             
                         # --- END CRITICAL FIX --- 
                         
-                    elif stop_loss_triggered and current_ask_price is not None:
-                        # STOP LOSS SCENARIO (stock-level stop OR position-level stop)
+                    elif (stop_loss_triggered or take_profit_triggered) and current_ask_price is not None:
+                        # STOP LOSS or TAKE PROFIT SCENARIO (uses option Ask for closure)
                         cost_to_close_gross = current_ask_price * qty * 100.0 + exit_commission
                         net_profit = premium_collected_gross - cost_to_close_gross - exit_commission
 
-                        # Determine specific stop-loss reason (position-level vs stock-level)
-                        if 'position_stop_loss_triggered' in locals() and position_stop_loss_triggered:
-                            reason = "StopLoss Bid above entry threshold"
-                        elif strike_buffer_stop_triggered:
-                            reason = "StopLoss Stk below Strike Threshold"
-                        elif entry_drop_stop_triggered:
-                            reason = "StopLoss Stk Below Entry Threshold)"
+                        # Determine specific reason (take-profit has priority if triggered)
+                        if take_profit_triggered:
+                            reason = "TakeProfit Min gain reached"
                         else:
-                            reason = "StopLoss Stk Below SMA150"
+                            if 'position_stop_loss_triggered' in locals() and position_stop_loss_triggered:
+                                reason = "StopLoss Bid above entry threshold"
+                            elif strike_buffer_stop_triggered:
+                                reason = "StopLoss Stk below Strike Threshold"
+                            elif entry_drop_stop_triggered:
+                                reason = "StopLoss Stk Below Entry Threshold)"
+                            else:
+                                reason = "StopLoss Stk Below SMA150"
 
-                        stop_loss_count += qty
-                        stop_loss_gain += net_profit
-                        stop_loss_premium_collected += premium_collected_gross
+                            # Only count toward stop-loss stats when it's a stop-loss exit
+                            # Count exit EVENTS (not contracts)
+                            stop_loss_count += 1
+                            stop_loss_gain += net_profit
+                            stop_loss_premium_collected += premium_collected_gross
 
                         exit_details['PriceOut'] = current_ask_price # Option Ask Price at Exit
                         exit_details['AmountOut'] = cost_to_close_gross # Gross cost to close
@@ -1779,11 +1817,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     TOTAL_PREMIUM_COLLECTED = stop_loss_premium_collected + expired_otm_premium_collected + expired_itm_premium_collected + liquidation_premium_collected
     
     # --- CRITICAL FIX: Define Event Counters here ---
-    # Calculate Exit Event Counts: Use substring matching to be robust to slightly different reason text.
-    # Treat any reason containing 'STOP LOSS' as a stop-loss event (covers position-level and stock-level stop losses).
+    # Calculate Exit Event Counts: Use case-insensitive matching to be robust to slightly different reason text.
+    def reason_lower(trade):
+        return (trade.get('ReasonWhyClosed') or '').lower()
+
     stop_loss_events = sum(
         1 for trade in closed_trades_log
-        if trade.get('ReasonWhyClosed') and 'STOP LOSS' in trade.get('ReasonWhyClosed')
+        if 'stop loss' in reason_lower(trade) or 'stoploss' in reason_lower(trade)
     )
 
     expired_otm_events = sum(
@@ -1954,6 +1994,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Stock Below SMA150         | {STOCK_MAX_BELOW_AVG_PCT*100:>13.1f}% |")
     print(f"| Stock Min Above Strike     | {STOCK_MIN_ABOVE_STRIKE_PCT*100:>13.1f}% |")   
     print(f"| Stock Max Below Entry      | {STOCK_MAX_BELOW_ENTRY_PCT*100:>13.1f}% |") 
+    print(f"| Min Gain to Take Profit    | {TAKE_PROFIT_MIN_GAIN_PCT*100:>13.1f}% |")
     print(f"|----------------------------|----------------|")
     print()   
 
