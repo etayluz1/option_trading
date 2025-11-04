@@ -489,6 +489,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     expired_itm_premium_collected = 0.0
     liquidation_gain = 0.0
     liquidation_premium_collected = 0.0
+    # NEW: Take-Profit aggregators
+    take_profit_gain = 0.0
+    take_profit_premium_collected = 0.0
 
     # NEW: Track peak NAV to compute current drawdown
     peak_account_value = INITIAL_CASH
@@ -870,6 +873,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         # Determine specific reason (take-profit has priority if triggered)
                         if take_profit_triggered:
                             reason = "TakeProfit Min gain reached"
+                            # Count take-profit aggregates
+                            take_profit_gain += net_profit
+                            take_profit_premium_collected += premium_collected_gross
                         else:
                             if 'position_stop_loss_triggered' in locals() and position_stop_loss_triggered:
                                 reason = "StopLoss Bid above entry threshold"
@@ -1813,18 +1819,47 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("\n--- TRADE EXIT STATISTICS (by Trade Event Count) ---")
     
     # Define Total Gain/Premium Collected for the whole simulation
-    TOTAL_GAIN = stop_loss_gain + expired_otm_gain + expired_itm_gain + liquidation_gain
-    TOTAL_PREMIUM_COLLECTED = stop_loss_premium_collected + expired_otm_premium_collected + expired_itm_premium_collected + liquidation_premium_collected
+    TOTAL_GAIN = stop_loss_gain + take_profit_gain + expired_otm_gain + expired_itm_gain + liquidation_gain
+    TOTAL_PREMIUM_COLLECTED = stop_loss_premium_collected + take_profit_premium_collected + expired_otm_premium_collected + expired_itm_premium_collected + liquidation_premium_collected
     
     # --- Build detailed exit reason breakdown ---
-    # Count events and sum gains per specific exit reason
+    # Normalize stop-loss reasons into the 4 canonical categories from exit_put_position
+    def _normalize_reason(reason_raw: str) -> str:
+        if not reason_raw:
+            return 'Unknown'
+        r = str(reason_raw).strip()
+        rl = r.lower()
+        # Take Profit
+        if 'takeprofit' in rl:
+            return 'TakeProfit Min gain reached'
+        # Expiration
+        if 'expiration' in rl and 'itm' in rl:
+            return 'Expiration (ITM/Assigned)'
+        if 'expiration' in rl and 'otm' in rl:
+            return 'Expiration (OTM/Max Profit)'
+        # Liquidation
+        if 'liquidation' in rl or 'last day' in rl:
+            return 'Last day liquidation'
+        # Stop-Loss canonicalization (4 reasons)
+        if 'stoploss' in rl:
+            if 'bid' in rl:
+                return 'StopLoss: Option Bid Above Entry'
+            if 'strike' in rl:
+                return 'StopLoss: Stock Below Strike Threshold'
+            if 'entry' in rl:
+                return 'StopLoss: Stock Below Entry Threshold'
+            if 'sma150' in rl or 'avg' in rl:
+                return 'StopLoss: Stock Below SMA150'
+            return 'StopLoss: Other'
+        return r
+
+    # Count events and sum gains per specific (normalized) exit reason
     exit_reason_stats = {}
-    
     for trade in closed_trades_log:
-        reason = trade.get('ReasonWhyClosed', 'Unknown')
+        raw_reason = trade.get('ReasonWhyClosed', 'Unknown')
+        reason = _normalize_reason(raw_reason)
         if reason not in exit_reason_stats:
             exit_reason_stats[reason] = {'count': 0, 'gain': 0.0}
-        
         exit_reason_stats[reason]['count'] += 1
         exit_reason_stats[reason]['gain'] += trade.get('Gain$', 0.0)
     
@@ -1857,8 +1892,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             net_gain_pct = calculate_net_gain_percent(gain, expired_otm_premium_collected) if expired_otm_premium_collected > 0 else 0
         elif 'LIQUIDATION' in reason:
             net_gain_pct = calculate_net_gain_percent(gain, liquidation_premium_collected) if liquidation_premium_collected > 0 else 0
-        elif 'StopLoss' in reason or 'TakeProfit' in reason:
-            # For stop-loss and take-profit, use aggregated stop-loss premium as baseline
+        elif 'TakeProfit' in reason:
+            # For take-profit rows, use take-profit premium as baseline
+            net_gain_pct = calculate_net_gain_percent(gain, take_profit_premium_collected) if take_profit_premium_collected > 0 else 0
+        elif 'StopLoss' in reason:
+            # For stop-loss rows, use stop-loss premium as baseline
             net_gain_pct = calculate_net_gain_percent(gain, stop_loss_premium_collected) if stop_loss_premium_collected > 0 else 0
         else:
             net_gain_pct = 0
