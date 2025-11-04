@@ -1,10 +1,12 @@
 import os, csv, re, json
 from datetime import datetime
 
-# --- Configuration (Copied from User Input) ---
-extract_to = "ORATS_csv"
+# Run make_data.py (It will read ORATS_csv and generate c:\option_trading\ORATS_json)
+
+# Configuration (Copied from User Input) ---
+csv_folder = "D:\ORATS_csv"
+json_folder = "c:\option_trading\ORATS_json"    # New JSON folder
 columns_to_keep = ["expirDate", "strike", "pVolu", "pOi", "pBidPx", "pAskPx", "pMidIv", "delta"]
-processed_folder_json = "ORATS_json"    # New JSON folder
 
 sp500_file = "SP500_history.csv"
 sp500_dict = {}
@@ -62,11 +64,11 @@ import os, csv, re, json
 from datetime import datetime
 
 # --- Configuration (Copied from User Input) ---
-extract_to = "ORATS_csv"
+csv_folder = "ORATS_csv"
 # 'delta' is kept here because it's required for calculation, even if its value is 
 # transformed for the putDelta field.
 columns_to_keep = ["expirDate", "strike", "pVolu", "pOi", "pBidPx", "pAskPx", "pMidIv", "delta"]
-processed_folder_json = "ORATS_json"    # New JSON folder
+json_folder = "ORATS_json"    # New JSON folder
 
 sp500_file = "SP500_history.csv"
 sp500_dict = {}
@@ -126,25 +128,25 @@ def process_csv(stop_after_first=False):
     """
 
     load_sp500_data()
-    os.makedirs(processed_folder_json, exist_ok=True)
+    os.makedirs(json_folder, exist_ok=True)
     
     # option_fields_to_keep ensures the raw data is kept, excluding the date/ticker fields
     option_fields_to_keep = [col for col in columns_to_keep if col not in ["expirDate", "ticker"]]
     
-    # Recursively discover CSV files inside the extract_to directory and
+    # Recursively discover CSV files inside the csv_folder directory and
     # keep relative paths so nested files can be processed and their
     # filenames (used for date extraction) remain available.
     files_to_process = []
-    for root, _, files in os.walk(extract_to):
+    for root, _, files in os.walk(csv_folder):
         for fname in files:
             if fname.lower().endswith(".csv"):
-                rel_path = os.path.relpath(os.path.join(root, fname), extract_to)
+                rel_path = os.path.relpath(os.path.join(root, fname), csv_folder)
                 files_to_process.append(rel_path)
     files_to_process = sorted(files_to_process)
     processed_count = 0
 
     for file in files_to_process:
-        input_path = os.path.join(extract_to, file)
+        input_path = os.path.join(csv_folder, file)
 
         match = re.search(r"(\d{8})", file)
         if not match:
@@ -155,7 +157,7 @@ def process_csv(stop_after_first=False):
         file_date_dt = datetime.strptime(file_date_str_yyyymmdd, "%Y%m%d").date()
         
         output_filename = f"{file_date_dt.strftime('%Y-%m-%d')}.json"
-        output_path = os.path.join(processed_folder_json, output_filename)
+        output_path = os.path.join(json_folder, output_filename)
 
         
         # --- NEW: If the JSON already exists, skip processing to avoid overwriting ---

@@ -983,13 +983,59 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # Update cumulative P&L with today's realized profit (Net of exit commissions)
             cumulative_realized_pnl += daily_pnl
             
+            # INTEGRITY CHECK: Store current open positions for reconciliation
+            prev_open_positions = {
+                trade['unique_key']: trade for trade in open_trades_log
+            }
+            
             # Remove closed positions from the log, iterating backwards
             for index in sorted(positions_to_remove, reverse=True):
                 open_trades_log.pop(index)
             
             # Recalculate current_account_put_positions after exits
             current_account_put_positions = sum(open_puts_tracker.values())
-            # Update peak open positions after processing exits
+            
+            # INTEGRITY CHECK: Verify all position transitions are accounted for
+            current_open_positions = {
+                trade['unique_key']: trade for trade in open_trades_log
+            }
+            
+            # Find positions that disappeared without being properly closed
+            for key, trade in prev_open_positions.items():
+                if (key not in current_open_positions and 
+                    key not in {t['unique_key'] for t in closed_trades_log}):
+                    # Position disappeared without proper closure - force close it
+                    print(f"⚠️ **WARNING: Found unclosed position:** {trade['ticker']} (Strike ${trade['strike']:.2f}, Qty {trade['quantity']})")
+                    
+                    # Create exit record with warning
+                    exit_details = {
+                        'DayOut': daily_date_obj.strftime('%Y-%m-%d'),
+                        'PriceOut': 0.0,  # No price available
+                        'QtyOut': trade['quantity'],
+                        'AmountOut': 0.0,
+                        'ReasonWhyClosed': "WARNING: Position disappeared without closure",
+                        'Gain$': 0.0,
+                        'Gain%': 0.0
+                    }
+                    
+                    # Log the recovered trade
+                    trade_to_log = {
+                        'Ticker': trade['ticker'],
+                        'Strike': trade['strike'],
+                        'ExpDate': trade['expiration_date'],
+                        'DayIn': trade['entry_date'],
+                        'PriceIn': trade['premium_received'],
+                        'Qty': trade['quantity'],
+                        'AmountIn': trade['premium_received'] * trade['quantity'] * 100.0,
+                        **exit_details
+                    }
+                    closed_trades_log.append(trade_to_log)
+                    total_exit_events += 1  # Count recovered exits
+                    
+                    # Update tracker
+                    open_puts_tracker[trade['ticker']] = max(0, open_puts_tracker.get(trade['ticker'], 0) - trade['quantity'])
+            
+            # Update peak open positions after processing exits and recoveries
             if current_account_put_positions > peak_open_positions:
                 peak_open_positions = current_account_put_positions
 
@@ -1299,6 +1345,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             
                     else:
                         print(f"❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).")
+                        # Print portfolio summary on days with no viable contracts
+                        total_positions = sum(open_puts_tracker.values())
+                        if total_positions > 0:
+                            print(f"\n**OPEN PORTFOLIO SUMMARY ({total_positions} Total Positions):**")
+                            print_daily_portfolio_summary(open_puts_tracker)
                     
                     
                     # --- TRADING LOGIC: ENTER POSITION ---
@@ -1469,6 +1520,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
             
             print(f"  > **Total accumulated Premium on Open Puts:** +${total_open_premium_collected:,.2f}")
+
+            print(f"💰 **Cash Balance:** ${cash_balance:,.2f}")
 
             # NEW: Current Drawdown vs. peak NAV so far
             try:
