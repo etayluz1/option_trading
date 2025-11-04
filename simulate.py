@@ -32,7 +32,7 @@ TARGET_TICKER = "SPY" # Retained for context, but the script processes ALL ticke
 DEBUG_VERBOSE = False # Set to True to see individual ticker details (Total Viable Options / Details by DTE)
 
 # Commission Fee
-COMMISSION_PER_CONTRACT = 0.67
+COMMISSION_PER_CONTRACT = 0 # 0.67
 FINAL_COMMISSION_PER_CONTRACT = COMMISSION_PER_CONTRACT # Commission for closing trades
 
 # Maximum premium to collect per single trade entry
@@ -924,9 +924,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     # Yuda: I don't like this bug cash_balance += premium_collected_gross
                     
                     # Final P&L calculation
-                    daily_pnl += net_profit
-                    cumulative_realized_pnl += net_profit
-
+                    daily_pnl += net_profit  # Add to daily P&L only; cumulative is updated at end of day
                     
                     # Calculate percentage gain relative to max risk (Premium / Max Loss)
                     premium_collected_per_contract = trade['premium_received'] * 100.0
@@ -1471,9 +1469,6 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
             
             print(f"  > **Total accumulated Premium on Open Puts:** +${total_open_premium_collected:,.2f}")
-            # Net Unrealized P&L is still calculated using the old definition: (Premium - Liability). 
-            # We display it here for informational purposes, but it is NOT used in NAV.
-            print(f"  > **Net Unrealized P&L:** ${unrealized_pnl:,.2f}")
 
             # NEW: Current Drawdown vs. peak NAV so far
             try:
@@ -1489,6 +1484,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 # If any unexpected numeric issue occurs, skip printing drawdown for the day
                 pass
 
+            # Net Unrealized P&L is still calculated using the old definition: (Premium - Liability). 
+            # We display it here for informational purposes, but it is NOT used in NAV.
+            print(f"  > **Net Unrealized P&L:** ${unrealized_pnl:,.2f}")
+
             # Update peak NAV after computing drawdown for this day
             if total_account_value is not None:
                 try:
@@ -1501,8 +1500,33 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             if daily_pnl != 0.0:
                 print(f"💸 **DAILY NET REALIZED P&L:** ${daily_pnl:,.2f}")
 
-            print(f"💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** ${total_account_value:,.2f}")    
-            print("-" * 35)
+            # Print cumulative realized P&L (Total net realized P&L)
+            print(f"💰 **TOTAL NET REALIZED P&L (Cumulative):** ${cumulative_realized_pnl:,.2f}")
+
+            # Print total P&L (Realized + Unrealized)
+            print(f"💰 **TOTAL P&L (Realized + Unrealized):** ${(cumulative_realized_pnl + unrealized_pnl):,.2f}")
+
+            # Print cash basis + total P&L (helpful sanity check: cash + (realized+unrealized))
+
+            # Compute from current INITIAL_CASH + total P&L
+            cash_plus_total_pnl = INITIAL_CASH + (cumulative_realized_pnl + unrealized_pnl)
+            print(f"🧾 **INITIAL_CASH + TOTAL P&L (Cash Basis):** ${cash_plus_total_pnl:,.2f}")
+            print(f"💵 **DAILY ACCOUNT VALUE (EOD - NAV):** ${total_account_value:,.2f}")   
+
+            # Compare with NAV (total_account_value). If mismatch, print and quit.
+            try:
+                import sys
+                # Allow a tiny numerical tolerance (1 cent)
+                if abs(cash_plus_total_pnl - float(total_account_value)) <= 0.01:
+                    print("✅ Total is the same as cash+gain")
+                else:
+                    print("❌ Total is not the same as cash+gain")
+                    print(f"  | cash_plus_total_pnl: ${cash_plus_total_pnl:,.2f}")
+                    print(f"  | total_account_value: ${total_account_value:,.2f}")
+                    # sys.exit(1)
+            except Exception:
+                # If comparison or exit fails for any reason, continue but report
+                print("⚠️ Could not compare cash+gain to total_account_value due to an internal error.")
 
             # Continue with Ticker-by-Ticker printing (optional but useful)
             if DEBUG_VERBOSE and (daily_investable_data or account_full_today):
@@ -1783,6 +1807,14 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             f"{data['gain_pct']:>7.2f}% | {data['spy_gain_pct']:>9.2f}% |"
         )
 
+    # Cumulative monthly $ Gain total
+    try:
+        total_monthly_gain_abs = sum(d.get('gain_abs', 0.0) for d in monthly_performance.values())
+        print("|-------------------------|------------------|--------------|----------|------------|")
+        print(f"| {'TOTAL (Months)':<9} | {'':18} | $ {total_monthly_gain_abs:>11,.2f} | {'':8} | {'':10} |")
+    except Exception:
+        pass
+
     # --- Print Yearly Table ---
     print("")
     print("\n--- YEARLY PORTFOLIO GAIN ---")
@@ -1810,6 +1842,14 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             f"| {year:^5}   | $ {year_end_value:>12,.2f}   | $ {yearly_gain_abs:>12,.2f} | "
             f"{yearly_gain_pct:>6.2f}% | {spy_yearly_return:>9.2f}% |"
         )
+
+    # Cumulative yearly $ Gain total
+    try:
+        total_yearly_gain_abs = sum((data.get('end_value', 0.0) - data.get('start_value', 0.0)) for data in yearly_performance.values())
+        print("|---------|------------------|---------------|----------|------------|")
+        print(f"| {'TOTAL (Years)':<9} | {'':18} | $ {total_yearly_gain_abs:>12,.2f} | {'':8} | {'':10} |")
+    except Exception:
+        pass
 
     # 9. Exit Statistics (Focusing on Entry/Exit Events)
     total_closed_positions_qty = stop_loss_count + expired_otm_count + expired_itm_count
@@ -1964,6 +2004,20 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 f" {reason_str:<{25}} | {gain_abs_str} | {gain_pct_str} |"
             )
             print(row)
+
+        # Cumulative totals for closed trades (AmountIn, AmountOut, Gain$)
+        try:
+            total_amount_in = sum(float(t.get('AmountIn') or 0.0) for t in closed_trades_log)
+            total_amount_out = sum(float(t.get('AmountOut') or 0.0) for t in closed_trades_log)
+            total_gain_dollars = sum(float(t.get('Gain$') or 0.0) for t in closed_trades_log)
+            print()
+            print("--- CLOSED TRADES CUMULATIVE TOTALS ---")
+            print(f"  Total Amount In : ${total_amount_in:,.2f}")
+            print(f"  Total Amount Out: ${total_amount_out:,.2f}")
+            print(f"  Total Net Gain $ : ${total_gain_dollars:,.2f}")
+        except Exception:
+            # If any unexpected format occurs, skip totals but continue gracefully
+            pass
 
     print("\n=== FINAL TRADING RULES SUMMARY ===\n")
     
