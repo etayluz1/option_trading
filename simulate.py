@@ -1816,32 +1816,19 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     TOTAL_GAIN = stop_loss_gain + expired_otm_gain + expired_itm_gain + liquidation_gain
     TOTAL_PREMIUM_COLLECTED = stop_loss_premium_collected + expired_otm_premium_collected + expired_itm_premium_collected + liquidation_premium_collected
     
-    # --- CRITICAL FIX: Define Event Counters here ---
-    # Calculate Exit Event Counts: Use case-insensitive matching to be robust to slightly different reason text.
-    def reason_lower(trade):
-        return (trade.get('ReasonWhyClosed') or '').lower()
-
-    stop_loss_events = sum(
-        1 for trade in closed_trades_log
-        if 'stop loss' in reason_lower(trade) or 'stoploss' in reason_lower(trade)
-    )
-
-    expired_otm_events = sum(
-        1 for trade in closed_trades_log
-        if trade.get('ReasonWhyClosed') and 'Expiration (OTM' in trade.get('ReasonWhyClosed')
-    )
-
-    expired_itm_events = sum(
-        1 for trade in closed_trades_log
-        if trade.get('ReasonWhyClosed') and 'Expiration (ITM' in trade.get('ReasonWhyClosed')
-    )
-
-    liquidation_events = sum(
-        1 for trade in closed_trades_log
-        if trade.get('ReasonWhyClosed') and 'LIQUIDATION' in trade.get('ReasonWhyClosed')
-    )
-
-    # Total Closed Trades = length of the closed trades log (more robust than summing categories)
+    # --- Build detailed exit reason breakdown ---
+    # Count events and sum gains per specific exit reason
+    exit_reason_stats = {}
+    
+    for trade in closed_trades_log:
+        reason = trade.get('ReasonWhyClosed', 'Unknown')
+        if reason not in exit_reason_stats:
+            exit_reason_stats[reason] = {'count': 0, 'gain': 0.0}
+        
+        exit_reason_stats[reason]['count'] += 1
+        exit_reason_stats[reason]['gain'] += trade.get('Gain$', 0.0)
+    
+    # Total Closed Trades
     total_closed_events = len(closed_trades_log)
 
     # Calculate Net % Gain relative to premium collected for each category
@@ -1849,42 +1836,44 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         # We calculate P&L / Premium Collected (Return on Premium)
         return (gain / premium) * 100.0 if premium != 0.0 else 0.0
     
-    # Header now includes the new gain columns
-    print("| Exit Reason                   | Exit Events       |  % of Total Events | Total Gain $      | Net Gain % |")
-    print("|-------------------------------|-------------------|--------------------|-------------------|------------|")
+    # Sort reasons alphabetically for consistent display
+    sorted_reasons = sorted(exit_reason_stats.keys())
     
-    # 1. STOP LOSS
-    stop_loss_gain_pct = calculate_net_gain_percent(stop_loss_gain, stop_loss_premium_collected)
-    print(
-        f"| **Stop Loss**{' ':17}| {stop_loss_events:>16,}  | {stop_loss_events / total_closed_events * 100 if total_closed_events > 0 else 0:>17.2f}% | "
-        f"${stop_loss_gain:>16,.2f} | {stop_loss_gain_pct:>9.2f}% |"
-    )
-
-    # 2. EXPIRED OTM (Max Profit)
-    expired_otm_gain_pct = calculate_net_gain_percent(expired_otm_gain, expired_otm_premium_collected)
-    print(
-        f"| **Expired OTM (Max Profit)**{' ':2}| {expired_otm_events:>16,}  | {expired_otm_events / total_closed_events * 100 if total_closed_events > 0 else 0:>17.2f}% | "
-        f"${expired_otm_gain:>16,.2f} | {expired_otm_gain_pct:>9.2f}% |"
-    )
+    # Header
+    print("| Exit Reason                          | Exit Events  |  % of Total | Total Gain $      | Net Gain % |")
+    print("|--------------------------------------|--------------|-------------|-------------------|------------|")
     
-    # 3. EXPIRED ITM (Assignment)
-    expired_itm_gain_pct = calculate_net_gain_percent(expired_itm_gain, expired_itm_premium_collected)
-    print(
-        f"| **Expired ITM (Assignment)**  | {expired_itm_events:>16,}  | {expired_itm_events / total_closed_events * 100 if total_closed_events > 0 else 0:>17.2f}% | "
-        f"${expired_itm_gain:>16,.2f} | {expired_itm_gain_pct:>9.2f}% |"
-    )
-
-    # 4. LIQUIDATION
-    liquidation_gain_pct = calculate_net_gain_percent(liquidation_gain, liquidation_premium_collected)
-    print(
-        f"| **Liquidation**{' ':15}| {liquidation_events:>16,}  | {liquidation_events / total_closed_events * 100 if total_closed_events > 0 else 0:>17.2f}% | "
-        f"${liquidation_gain:>16,.2f} | {liquidation_gain_pct:>9.2f}% |"
-    )
+    # Print each specific exit reason
+    for reason in sorted_reasons:
+        stats = exit_reason_stats[reason]
+        count = stats['count']
+        gain = stats['gain']
+        pct_of_total = (count / total_closed_events * 100) if total_closed_events > 0 else 0
+        
+        # Determine which premium bucket this reason belongs to for Net Gain %
+        if 'Expiration (ITM' in reason:
+            net_gain_pct = calculate_net_gain_percent(gain, expired_itm_premium_collected) if expired_itm_premium_collected > 0 else 0
+        elif 'Expiration (OTM' in reason:
+            net_gain_pct = calculate_net_gain_percent(gain, expired_otm_premium_collected) if expired_otm_premium_collected > 0 else 0
+        elif 'LIQUIDATION' in reason:
+            net_gain_pct = calculate_net_gain_percent(gain, liquidation_premium_collected) if liquidation_premium_collected > 0 else 0
+        elif 'StopLoss' in reason or 'TakeProfit' in reason:
+            # For stop-loss and take-profit, use aggregated stop-loss premium as baseline
+            net_gain_pct = calculate_net_gain_percent(gain, stop_loss_premium_collected) if stop_loss_premium_collected > 0 else 0
+        else:
+            net_gain_pct = 0
+        
+        # Truncate reason if too long (max 36 chars to fit column)
+        reason_display = reason[:36] if len(reason) <= 36 else reason[:33] + "..."
+        
+        print(
+            f"| {reason_display:<36} | {count:>12,} | {pct_of_total:>10.2f}% | "
+            f"${gain:>16,.2f} | {net_gain_pct:>9.2f}% |"
+        )
     
-    # 5. Total Exit Events Summary (Total of rows 1-4)
-    print("|-------------------------------|-------------------|--------------------|-------------------|------------|")    
-    # Total Premium Collected is ONLY used for Net Gain %, so we use 'N/A' for the gain %.
-    print(f"| **Total Exit Trades Closed**  | {total_closed_events:>16,}  | {100.0:>17.2f}% | "
+    # Separator and Total
+    print("|--------------------------------------|--------------|-------------|-------------------|------------|")    
+    print(f"| **Total Exit Trades Closed**         | {total_closed_events:>12,} | {100.0:>10.2f}% | "
           f"${TOTAL_GAIN:>16,.2f} | {'N/A':>10} |"
     )
     
