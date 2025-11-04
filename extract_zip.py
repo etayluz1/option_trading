@@ -84,7 +84,7 @@ def extract_and_filter_zip():
                             writer.writeheader()
                             
                             rows_written = 0
-                            rows_skipped_zero_bid = 0
+                            rows_skipped_zero_bid_or_ask = 0
                             
                             for row in reader:
                                 # Keep records that have either valid bid OR ask prices
@@ -96,12 +96,12 @@ def extract_and_filter_zip():
                                         writer.writerow(row)
                                         rows_written += 1
                                     else:
-                                        rows_skipped_zero_bid += 1
+                                        rows_skipped_zero_bid_or_ask += 1
                                 except (ValueError, TypeError):
                                     # Skip only if prices are unparseable
-                                    rows_skipped_zero_bid += 1
+                                    rows_skipped_zero_bid_or_ask += 1
 
-                print(f"✅ Extracted and Filtered: '{csv_in_zip_name}' from '{filename}' ({rows_written} rows written, {rows_skipped_zero_bid} skipped due to zero/invalid bid).")
+                print(f"✅ Extracted and Filtered: '{csv_in_zip_name}' from '{filename}' ({rows_written} rows written, {rows_skipped_zero_bid_or_ask} skipped due to zero bid or ask).")
                 files_processed += 1
                 
             except zipfile.BadZipFile:

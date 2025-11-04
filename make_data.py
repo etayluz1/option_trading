@@ -6,7 +6,7 @@ from datetime import datetime
 # Configuration (Copied from User Input) ---
 csv_folder = "D:\\ORATS_csv"
 json_folder = "c:\\option_trading\\ORATS_json"    # New JSON folder
-columns_to_keep = ["expirDate", "strike", "pVolu", "pOi", "pBidPx", "pAskPx", "pMidIv", "delta"]
+columns_to_keep = ["expirDate", "strike", "pBidPx", "pAskPx", "delta"]
 
 sp500_file = "SP500_history.csv"
 sp500_dict = {}
