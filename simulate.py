@@ -17,8 +17,8 @@ class Logger:
     def write(self, message):
         if not self.suppress_output:
             self.terminal.write(message)
-            self.logfile.write(message)
-        # Always buffer to logfile even when suppressed (for final flush)
+        # Always write to logfile
+        self.logfile.write(message)
 
     def flush(self):
         # This flush method is needed for python 3 compatibility.
@@ -30,9 +30,53 @@ class Logger:
     def enable_output(self):
         """Enable output to console and log file."""
         self.suppress_output = False
+    
+    def force_print(self, message):
+        """Force print to both terminal and log, bypassing suppression."""
+        self.terminal.write(message + '\n')
+        self.terminal.flush()
+        self.logfile.write(message + '\n')
+        self.logfile.flush()
 
     def close(self):
-        self.logfile.close()# --- Configuration ---
+        self.logfile.close()
+
+# --- Helper Functions ---
+def make_option_key(ticker, strike, expiration_date):
+    """
+    Generate Yahoo-style option symbol for fast dictionary lookups.
+    Format: TICKER[YY][MM][DD]P[STRIKE*1000 padded to 8 digits]
+    Example: AAPL251219P00160000 = AAPL Dec 19 2025 $160 Put
+    
+    This is faster than tuple hashing because:
+    - Single string hash vs. hashing 3 objects
+    - More memory efficient
+    - Better cache locality
+    """
+    try:
+        # Parse expiration date (format: YYYY-MM-DD)
+        if isinstance(expiration_date, str):
+            exp_parts = expiration_date.split('-')
+            yy = exp_parts[0][2:]  # Last 2 digits of year
+            mm = exp_parts[1]
+            dd = exp_parts[2]
+        else:
+            # Handle date object
+            yy = str(expiration_date.year)[2:]
+            mm = f"{expiration_date.month:02d}"
+            dd = f"{expiration_date.day:02d}"
+        
+        # Format strike as 8-digit integer (price * 1000)
+        strike_int = int(float(strike) * 1000)
+        strike_str = f"{strike_int:08d}"
+        
+        # Return compact option symbol
+        return f"{ticker}{yy}{mm}{dd}P{strike_str}"
+    except:
+        # Fallback to tuple if formatting fails
+        return (ticker, strike, expiration_date)
+
+# --- Configuration ---
 RULES_FILE_PATH = "rules.json"
 JSON_FILE_PATH = "stock_history.json"
 TARGET_TICKER = "SPY" # Retained for context, but the script processes ALL tickers.
@@ -600,11 +644,15 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     total_dates_processed = 0
     total_investable_entries_processed = 0
     
-    # Set for quick checking of active positions (Ticker, Strike, Expiration)
-    active_position_keys = set()
+    # Dictionary for fast position lookups: {unique_key: trade_dict}
+    # This replaces the need to iterate through open_trades_log
+    open_positions_dict = {}
     
     # Variable to hold last day's ORATS data for final liquidation (if needed)
     last_daily_orats_data = None 
+    
+    # Track last printed month for monthly progress reports
+    last_printed_month = None
     
     for date_str in sorted_unique_dates:
         daily_date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
@@ -1059,7 +1107,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     # Update trackers
                     positions_to_remove.append(i)
                     open_puts_tracker[trade['ticker']] -= 1 
-                    active_position_keys.remove(trade['unique_key'])
+                    
+                    # Remove from fast lookup dictionary
+                    if trade['unique_key'] in open_positions_dict:
+                        del open_positions_dict[trade['unique_key']]
             
             # --- Monthly and Yearly P&L Aggregation (Start of Day P&L aggregation) ---
             month_key = (daily_date_obj.year, daily_date_obj.month)
@@ -1385,8 +1436,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                 continue 
                             
                             # 2. Check for duplicate position
-                            unique_key = (ticker_check, contract['strike'], contract['expiration_date'])
-                            if unique_key not in active_position_keys:
+                            unique_key = make_option_key(ticker_check, contract['strike'], contract['expiration_date'])
+                            if unique_key not in open_positions_dict:
                                 
                                 # --- QUANTITY CALCULATION (PREMIUM-BASED) ---
                                 
@@ -1526,14 +1577,14 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             'premium_received': bid_at_entry, 
                             'quantity': trade_quantity,
                             'entry_adj_close': entry_adj_close_value,
-                            'unique_key': (ticker_to_enter, best_contract['strike'], best_contract['expiration_date']),
+                            'unique_key': make_option_key(ticker_to_enter, best_contract['strike'], best_contract['expiration_date']),
                             'last_known_ask': ask_at_entry_float,  # Store initial ask price
                             'last_ask_date': date_str  # Store date of last known ask price
                         }
                         open_trades_log.append(trade_entry)
                         
-                        # 7. Update the quick-check set
-                        active_position_keys.add(trade_entry['unique_key'])
+                        # 7. Add to fast lookup dictionary
+                        open_positions_dict[trade_entry['unique_key']] = trade_entry
                         
                         # 8. Print the consolidated portfolio summary
                         print_daily_portfolio_summary(open_puts_tracker)
@@ -1680,6 +1731,31 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             current_spy_close = monthly_spy_prices.get(month_key, 0.0)
             monthly_pnl_log[month_key] = (current_pnl, total_account_value, current_spy_close)
             
+            # Monthly Progress Report - print once per month (bypasses minimal mode)
+            if last_printed_month != month_key:
+                # Calculate runtime in hh:mm:ss format
+                elapsed_seconds = int(time.perf_counter() - _sim_start_time)
+                hours = elapsed_seconds // 3600
+                minutes = (elapsed_seconds % 3600) // 60
+                seconds = elapsed_seconds % 60
+                runtime_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                
+                if hasattr(sys.stdout, 'force_print'):
+                    sys.stdout.force_print(f"\n{'='*80}")
+                    sys.stdout.force_print(f"📅 MONTHLY PROGRESS - {daily_date_obj.strftime('%B %Y')}")
+                    sys.stdout.force_print(f"   Date: {daily_date_obj}")
+                    sys.stdout.force_print(f"   Total Account Value: ${total_account_value:,.2f}")
+                    sys.stdout.force_print(f"   RunTime: {runtime_str}")
+                    sys.stdout.force_print(f"{'='*80}\n")
+                else:
+                    print(f"\n{'='*80}")
+                    print(f"📅 MONTHLY PROGRESS - {daily_date_obj.strftime('%B %Y')}")
+                    print(f"   Date: {daily_date_obj}")
+                    print(f"   Total Account Value: ${total_account_value:,.2f}")
+                    print(f"   RunTime: {runtime_str}")
+                    print(f"{'='*80}\n")
+                last_printed_month = month_key
+            
             # Print Account Value breakdown (Corrected for Accuracy and Transparency)
             print(f"💵 **DAILY ACCOUNT VALUE (EOD - NAV):** ${total_account_value:,.2f}")            
             print(f"  > **Cash Balance:** ${cash_balance:,.2f}")
@@ -1741,7 +1817,6 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
             # Compare with NAV (total_account_value). If mismatch, print and quit.
             try:
-                import sys
                 # Allow a tiny numerical tolerance (1 cent)
                 if abs(cash_plus_total_pnl - float(total_account_value)) <= 0.01:
                     print("✅ Total is the same as cash+gain")
