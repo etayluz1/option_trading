@@ -1,0 +1,429 @@
+
+=== TRADING RULES SUMMARY ===
+
+📊 Account Simulation Rules
+|----------------------------|----------------|
+| Parameter                  | Value          |
+|----------------------------|----------------|
+| Start Date                 | 01/01/20       |
+| Initial Cash               | $ 1,000,000.00 |
+| Max Puts/Account           |             72 |
+| Max Puts/Stock             |              7 |
+| Max Puts/Day               |              1 |
+|----------------------------|----------------|
+
+🧩 Underlying Stock Rules
+|----------------------------|----------------|
+| Parameter                  | Value          |
+|----------------------------|----------------|
+| Min 5-Day Rise             |          -5.0% |
+| Min Above Avg              |           0.1% |
+| Max Above Avg              |          40.0% |
+| Min 10-Day Avg Slope       |           0.2% |
+| Min Stock Price            | $        14.00 |
+|----------------------------|----------------|
+
+📈 Entry Put Position Rules
+|----------------------------|----------------|
+| Parameter                  | Value          |
+|----------------------------|----------------|
+| Min DTE                    |              1 |
+| Max DTE                    |            275 |
+| Min Put Bid Price          | $         3.50 |
+| Min Put Delta              |         -25.0% |
+| Max Put Delta              |          -0.1% |
+| Max Bid-Ask Spread         |          25.0% |
+| Min Avg Above Strike       |           8.0% |
+| Min Risk/Reward Ratio      |          -11.0 |
+| Min Annual Risk            |          -9.0% |
+| Min Expected Profit        |          -9.0% |
+| Use Risk/Reward Ratio      |            Yes |
+| Use Annual Risk            |             No |
+| Use Expected Profit        |             No |
+|----------------------------|----------------|
+
+📉 Exit Put Position Rules
+|----------------------------|----------------|
+| Parameter                  | Value          |
+|----------------------------|----------------|
+| Position Stop Loss         |        9999.0% |
+| Stock Below SMA150         |          15.0% |
+| Stock Min Above Strike     |       -9999.0% |
+| Stock Max Below Entry      |          25.0% |
+| Min Gain to Take Profit    |          50.0% |
+|----------------------------|----------------|
+
+💰 Trading Parameters
+|----------------------------|----------------|
+| Parameter                  | Value          |
+|----------------------------|----------------|
+| Commission/Contract        | $         0.67 |
+| Max Premium/Trade          | $     13888.89 |
+|----------------------------|----------------|
+
+Loading stock_history.json
+✅ Trackers initialized for 697 tickers.
+--------------------------------------------------
+--- Starting Global Chronological Simulation from 2020-01-01 ---
+
+2020-01-02
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-03
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-06
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-07
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-08
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-09
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-10
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-13
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-14
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-15
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-16
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-17
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-21
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-22
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-23
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-24
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-27
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-28
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-29
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-30
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-01-31
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-02-03
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-02-04
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-02-05
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-02-06
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-02-07
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-02-10
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-02-11
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-02-12
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-02-13
+📈 Max Premium per Trade (today, NAV/72): $13,888.89
+❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).
+💵 **DAILY ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+  > **Cash Balance:** $1,000,000.00
+🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** $0.00 (Computed using Ask Price)
+  > **Total accumulated Premium on Open Puts:** +$0.00
+  > **Net Unrealized P&L:** $0.00
+  > **Current Drawdown:** 0.00% (vs peak $1,000,000.00)
+💵 **TOTAL ACCOUNT VALUE (EOD - NAV):** $1,000,000.00
+-----------------------------------
+
+2020-02-14

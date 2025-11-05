@@ -39,44 +39,7 @@ class Logger:
         self.logfile.flush()
 
     def close(self):
-        self.logfile.close()
-
-# --- Helper Functions ---
-def make_option_key(ticker, strike, expiration_date):
-    """
-    Generate Yahoo-style option symbol for fast dictionary lookups.
-    Format: TICKER[YY][MM][DD]P[STRIKE*1000 padded to 8 digits]
-    Example: AAPL251219P00160000 = AAPL Dec 19 2025 $160 Put
-    
-    This is faster than tuple hashing because:
-    - Single string hash vs. hashing 3 objects
-    - More memory efficient
-    - Better cache locality
-    """
-    try:
-        # Parse expiration date (format: YYYY-MM-DD)
-        if isinstance(expiration_date, str):
-            exp_parts = expiration_date.split('-')
-            yy = exp_parts[0][2:]  # Last 2 digits of year
-            mm = exp_parts[1]
-            dd = exp_parts[2]
-        else:
-            # Handle date object
-            yy = str(expiration_date.year)[2:]
-            mm = f"{expiration_date.month:02d}"
-            dd = f"{expiration_date.day:02d}"
-        
-        # Format strike as 8-digit integer (price * 1000)
-        strike_int = int(float(strike) * 1000)
-        strike_str = f"{strike_int:08d}"
-        
-        # Return compact option symbol
-        return f"{ticker}{yy}{mm}{dd}P{strike_str}"
-    except:
-        # Fallback to tuple if formatting fails
-        return (ticker, strike, expiration_date)
-
-# --- Configuration ---
+        self.logfile.close()# --- Configuration ---
 RULES_FILE_PATH = "rules.json"
 JSON_FILE_PATH = "stock_history.json"
 TARGET_TICKER = "SPY" # Retained for context, but the script processes ALL tickers.
@@ -644,9 +607,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     total_dates_processed = 0
     total_investable_entries_processed = 0
     
-    # Dictionary for fast position lookups: {unique_key: trade_dict}
-    # This replaces the need to iterate through open_trades_log
-    open_positions_dict = {}
+    # Set for quick checking of active positions (Ticker, Strike, Expiration)
+    active_position_keys = set()
     
     # Variable to hold last day's ORATS data for final liquidation (if needed)
     last_daily_orats_data = None 
@@ -1107,10 +1069,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     # Update trackers
                     positions_to_remove.append(i)
                     open_puts_tracker[trade['ticker']] -= 1 
-                    
-                    # Remove from fast lookup dictionary
-                    if trade['unique_key'] in open_positions_dict:
-                        del open_positions_dict[trade['unique_key']]
+                    active_position_keys.remove(trade['unique_key'])
             
             # --- Monthly and Yearly P&L Aggregation (Start of Day P&L aggregation) ---
             month_key = (daily_date_obj.year, daily_date_obj.month)
@@ -1436,8 +1395,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                 continue 
                             
                             # 2. Check for duplicate position
-                            unique_key = make_option_key(ticker_check, contract['strike'], contract['expiration_date'])
-                            if unique_key not in open_positions_dict:
+                            unique_key = (ticker_check, contract['strike'], contract['expiration_date'])
+                            if unique_key not in active_position_keys:
                                 
                                 # --- QUANTITY CALCULATION (PREMIUM-BASED) ---
                                 
@@ -1577,14 +1536,14 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             'premium_received': bid_at_entry, 
                             'quantity': trade_quantity,
                             'entry_adj_close': entry_adj_close_value,
-                            'unique_key': make_option_key(ticker_to_enter, best_contract['strike'], best_contract['expiration_date']),
+                            'unique_key': (ticker_to_enter, best_contract['strike'], best_contract['expiration_date']),
                             'last_known_ask': ask_at_entry_float,  # Store initial ask price
                             'last_ask_date': date_str  # Store date of last known ask price
                         }
                         open_trades_log.append(trade_entry)
                         
-                        # 7. Add to fast lookup dictionary
-                        open_positions_dict[trade_entry['unique_key']] = trade_entry
+                        # 7. Update the quick-check set
+                        active_position_keys.add(trade_entry['unique_key'])
                         
                         # 8. Print the consolidated portfolio summary
                         print_daily_portfolio_summary(open_puts_tracker)
