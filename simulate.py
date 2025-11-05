@@ -898,7 +898,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         exit_details['AmountOut'] = cost_to_close_gross # Gross cost to close
                         exit_details['ReasonWhyClosed'] = reason
                     else:
-                        # Cannot determine exit price for stop-loss, skip for now 
+                        # Cannot determine exit price for stop-loss, log the failure and skip for now
+                        print(f"⚠️ **EXIT FAILED - NO PRICE DATA:** {daily_date_obj}")
+                        print(f"    Symbol: {trade['ticker']}")
+                        print(f"    Strike: ${trade['strike']:.2f}")
+                        print(f"    Expiration: {trade['expiration_date']}")
+                        print(f"    Reason: {reason if 'reason' in locals() else 'Stop Loss or Take Profit'}")
+                        print(f"    Current Ask price: None (Unable to get exit price)")
                         continue 
                     
                     # FINAL EXIT EVENT COUNT: Increment by 1 for every unique trade closed
