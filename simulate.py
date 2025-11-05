@@ -1700,19 +1700,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 runtime_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
                 
                 if hasattr(sys.stdout, 'force_print'):
-                    sys.stdout.force_print(f"\n{'='*80}")
-                    sys.stdout.force_print(f"📅 MONTHLY PROGRESS - {daily_date_obj.strftime('%B %Y')}")
-                    sys.stdout.force_print(f"   Date: {daily_date_obj}")
-                    sys.stdout.force_print(f"   Total Account Value: ${total_account_value:,.2f}")
-                    sys.stdout.force_print(f"   RunTime: {runtime_str}")
-                    sys.stdout.force_print(f"{'='*80}\n")
+                    sys.stdout.force_print(f"📅 {daily_date_obj}   Account Value: ${total_account_value:12,.2f}   RunTime: {runtime_str}")
                 else:
-                    print(f"\n{'='*80}")
-                    print(f"📅 MONTHLY PROGRESS - {daily_date_obj.strftime('%B %Y')}")
-                    print(f"   Date: {daily_date_obj}")
-                    print(f"   Total Account Value: ${total_account_value:,.2f}")
-                    print(f"   RunTime: {runtime_str}")
-                    print(f"{'='*80}\n")
+                    print(f"📅 {daily_date_obj}   Account Value: ${total_account_value:12,.2f}   RunTime: {runtime_str}")
                 last_printed_month = month_key
             
             # Print Account Value breakdown (Corrected for Accuracy and Transparency)
