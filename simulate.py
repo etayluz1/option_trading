@@ -1,4 +1,4 @@
-import json
+import orjson
 import os
 from datetime import datetime
 import math
@@ -8,24 +8,31 @@ import time
 # --- Logger Class ---
 class Logger:
     """Redirects print statements to both the console and a log file."""
-    def __init__(self, filepath):
+    def __init__(self, filepath, minimal_mode=False):
         self.terminal = sys.stdout
         self.logfile = open(filepath, 'w', encoding='utf-8')
+        self.minimal_mode = minimal_mode
+        self.suppress_output = minimal_mode  # Start suppressed if minimal mode
 
     def write(self, message):
-        self.terminal.write(message)
-        self.logfile.write(message)
+        if not self.suppress_output:
+            self.terminal.write(message)
+            self.logfile.write(message)
+        # Always buffer to logfile even when suppressed (for final flush)
 
     def flush(self):
         # This flush method is needed for python 3 compatibility.
         # This handles the flush command, which is called by print().
-        self.terminal.flush()
+        if not self.suppress_output:
+            self.terminal.flush()
         self.logfile.flush()
+    
+    def enable_output(self):
+        """Enable output to console and log file."""
+        self.suppress_output = False
 
     def close(self):
-        self.logfile.close()
-
-# --- Configuration ---
+        self.logfile.close()# --- Configuration ---
 RULES_FILE_PATH = "rules.json"
 JSON_FILE_PATH = "stock_history.json"
 TARGET_TICKER = "SPY" # Retained for context, but the script processes ALL tickers.
@@ -195,6 +202,14 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     """
 
     # --- LOGGING SETUP ---
+    # Preload rules to check minimal_mode setting
+    try:
+        with open(rules_file_path, 'rb') as f:
+            rules_preview = orjson.loads(f.read())
+            minimal_mode = bool(rules_preview.get("account_simulation", {}).get("Minimal_Print_Out", False))
+    except:
+        minimal_mode = False
+    
     LOG_DIR = "logs"
     if not os.path.exists(LOG_DIR):
         os.makedirs(LOG_DIR)
@@ -206,7 +221,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     log_file_path = os.path.join(LOG_DIR, f"{log_file_number}.log")
     
     original_stdout = sys.stdout
-    logger = Logger(log_file_path)
+    logger = Logger(log_file_path, minimal_mode=minimal_mode)
     sys.stdout = logger
 
     try:
@@ -223,14 +238,15 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     
     # 1. Load and parse ALL rules from rules.json
     try:
-        with open(rules_file_path, 'r') as f:
-            rules = json.load(f)
+        with open(rules_file_path, 'rb') as f:
+            rules = orjson.loads(f.read())
             
             # --- ACCOUNT LIMITS ---
             INITIAL_CASH = float(rules["account_simulation"]["initial_cash"].replace('$', '').replace(',', '').strip())
             MAX_PUTS_PER_ACCOUNT = int(rules["account_simulation"]["max_puts_per_account"])
             MAX_PUTS_PER_STOCK = int(rules["account_simulation"]["max_puts_per_stock"])
             MAX_PUTS_PER_DAY = int(rules["account_simulation"]["max_puts_per_day"])
+            MINIMAL_PRINT_OUT = bool(rules["account_simulation"].get("Minimal_Print_Out", False))
             
             # --- RISK MANAGEMENT RULE (Stock Price Stop Loss) ---
             STOCK_MAX_BELOW_AVG_PCT = abs(safe_percentage_to_float(rules["exit_put_position"]["stock_max_below_avg"]))
@@ -432,12 +448,12 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     # 2. Load the main ticker data from stock_history.json
     print("Loading stock_history.json")
     try:
-        with open(json_file_path, 'r') as f:
-            stock_history_dict = json.load(f)
+        with open(json_file_path, 'rb') as f:
+            stock_history_dict = orjson.loads(f.read())
     except FileNotFoundError:
         print(f"❌ Error: The data file '{json_file_path}' was was not found.")
         return
-    except json.JSONDecodeError:
+    except orjson.JSONDecodeError:
         print(f"❌ Error: Could could decode JSON from '{json_file_path}'. Check file integrity.")
         return
 
@@ -623,10 +639,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             orats_file_path = os.path.join(ORATS_FOLDER, f"{date_str}.json")
             daily_orats_data = None
             try:
-                with open(orats_file_path, 'r') as f:
-                    daily_orats_data = json.load(f)
+                with open(orats_file_path, 'rb') as f:
+                    daily_orats_data = orjson.loads(f.read())
                     last_daily_orats_data = daily_orats_data # Store the latest successful load
-            except (FileNotFoundError, json.JSONDecodeError):
+            except (FileNotFoundError, orjson.JSONDecodeError):
                 pass
             
             current_account_put_positions = sum(open_puts_tracker.values())
@@ -1783,6 +1799,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # --- END DAILY PROCESSING ---
     
     # 6. Final Liquidation and Performance Summary (Runs after all trading days are processed)
+    
+    # Enable output if minimal mode was active
+    if hasattr(sys.stdout, 'enable_output'):
+        sys.stdout.enable_output()
     
     # --- Liquidation Preparation ---
     total_liquidation_pnl = 0.0
