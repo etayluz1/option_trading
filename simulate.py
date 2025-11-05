@@ -32,7 +32,7 @@ TARGET_TICKER = "SPY" # Retained for context, but the script processes ALL ticke
 DEBUG_VERBOSE = False # Set to True to see individual ticker details (Total Viable Options / Details by DTE)
 
 # Commission Fee
-COMMISSION_PER_CONTRACT = 0 # 0.67
+COMMISSION_PER_CONTRACT = 0.67
 FINAL_COMMISSION_PER_CONTRACT = COMMISSION_PER_CONTRACT # Commission for closing trades
 
 # Maximum premium to collect per single trade entry
@@ -184,7 +184,7 @@ def get_contract_bid_price(orats_data, ticker, expiration_date_str, strike):
             return pbidpx if pbidpx > 0 else None
 
     return None
-    
+
 
 def load_and_run_simulation(rules_file_path, json_file_path):
     """
@@ -831,39 +831,63 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         # --- CRITICAL FIX FOR OTM/ITM ASSIGNMENT ---
                         
                         if current_adj_close is None:
-                            continue 
+                            # CRITICAL BUG FIX: Don't silently skip expired positions!
+                            # If we can't get stock price, we must still close the position
+                            # and record it with a warning
+                            print(f"⚠️ **EXPIRED POSITION - NO STOCK PRICE:** {daily_date_obj}")
+                            print(f"    Symbol: {trade['ticker']}")
+                            print(f"    Strike: ${trade['strike']:.2f}")
+                            print(f"    Expiration: {trade['expiration_date']}")
+                            print(f"    WARNING: Missing adj_close data - assuming OTM expiration")
                             
-                        is_itm = current_adj_close < trade['strike']
-                        
-                        if is_itm:
-                            # ITM/ASSIGNMENT SCENARIO (Loss)
-                            assignment_loss_gross = (trade['strike'] - current_adj_close) * qty * 100.0 + entry_commission + exit_commission 
-                            net_profit = premium_collected_gross  - assignment_loss_gross - exit_commission
-                            
-                            # Count exit EVENTS (not contracts)
-                            expired_itm_count += 1
-                            expired_itm_gain += net_profit
-                            expired_itm_premium_collected += premium_collected_gross
-                            
-                            exit_details['PriceOut'] = current_adj_close # Stock price at assignment
-                            exit_details['AmountOut'] = assignment_loss_gross # Gross assignment loss
-                            exit_details['ReasonWhyClosed'] = "Expiration (ITM/Assigned)"
-                            cost_to_close_gross = assignment_loss_gross
-                            
-                        else:
-                            # OTM/MAX PROFIT SCENARIO
+                            # Treat as OTM expiration (conservative assumption)
                             cost_to_close_gross = 0.0 
                             exit_commission = 0.0
-                            net_profit = premium_collected_gross- entry_commission - exit_commission
+                            net_profit = premium_collected_gross - entry_commission - exit_commission
                             
-                            # Count exit EVENTS (not contracts)
                             expired_otm_count += 1
                             expired_otm_gain += net_profit
                             expired_otm_premium_collected += premium_collected_gross
                             
-                            exit_details['PriceOut'] = 0.0 # Option price at expiration
-                            exit_details['AmountOut'] = 0.0 # Gross cost to close
-                            exit_details['ReasonWhyClosed'] = "Expiration (OTM/Max Profit)"
+                            exit_details['PriceOut'] = 0.0
+                            exit_details['AmountOut'] = 0.0
+                            exit_details['ReasonWhyClosed'] = "Expiration (OTM/No Price Data)"
+                            
+                            # Continue with the exit flow instead of skipping
+                            # (The rest of the exit code will handle logging and removal)
+                        else:
+                            # We have stock price data - proceed with normal ITM/OTM logic
+                            is_itm = current_adj_close < trade['strike']
+                            
+                            if is_itm:
+                                # ITM/ASSIGNMENT SCENARIO (Loss)
+                                assignment_loss_gross = (trade['strike'] - current_adj_close) * qty * 100.0 + entry_commission + exit_commission 
+                                net_profit = premium_collected_gross  - assignment_loss_gross - exit_commission
+                                
+                                # Count exit EVENTS (not contracts)
+                                expired_itm_count += 1
+                                expired_itm_gain += net_profit
+                                expired_itm_premium_collected += premium_collected_gross
+                                
+                                exit_details['PriceOut'] = current_adj_close # Stock price at assignment
+                                exit_details['AmountOut'] = assignment_loss_gross # Gross assignment loss
+                                exit_details['ReasonWhyClosed'] = "Expiration (ITM/Assigned)"
+                                cost_to_close_gross = assignment_loss_gross
+                                
+                            else:
+                                # OTM/MAX PROFIT SCENARIO
+                                cost_to_close_gross = 0.0 
+                                exit_commission = 0.0
+                                net_profit = premium_collected_gross- entry_commission - exit_commission
+                                
+                                # Count exit EVENTS (not contracts)
+                                expired_otm_count += 1
+                                expired_otm_gain += net_profit
+                                expired_otm_premium_collected += premium_collected_gross
+                                
+                                exit_details['PriceOut'] = 0.0 # Option price at expiration
+                                exit_details['AmountOut'] = 0.0 # Gross cost to close
+                                exit_details['ReasonWhyClosed'] = "Expiration (OTM/Max Profit)"
                             
                         # --- END CRITICAL FIX --- 
                         
@@ -897,14 +921,58 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         exit_details['PriceOut'] = current_ask_price # Option Ask Price at Exit
                         exit_details['AmountOut'] = cost_to_close_gross # Gross cost to close
                         exit_details['ReasonWhyClosed'] = reason
+                        
+                    elif (stop_loss_triggered or take_profit_triggered) and current_ask_price is None:
+                        # FALLBACK: Exit triggered but no current price - use stored last_known_ask
+                        fallback_price = trade.get('last_known_ask')
+                        fallback_date = trade.get('last_ask_date', 'unknown')
+                        
+                        if fallback_price is not None:
+                            # Use the stored historical price to close the position
+                            cost_to_close_gross = fallback_price * qty * 100.0 + exit_commission
+                            net_profit = premium_collected_gross - cost_to_close_gross - exit_commission
+                            
+                            # Determine base reason
+                            if take_profit_triggered:
+                                base_reason = "TakeProfit"
+                                take_profit_gain += net_profit
+                                take_profit_premium_collected += premium_collected_gross
+                            else:
+                                if 'position_stop_loss_triggered' in locals() and position_stop_loss_triggered:
+                                    base_reason = "StopLoss Bid above entry threshold"
+                                elif strike_buffer_stop_triggered:
+                                    base_reason = "StopLoss Stk below Strike Threshold"
+                                elif entry_drop_stop_triggered:
+                                    base_reason = "StopLoss Stk Below Entry Threshold)"
+                                else:
+                                    base_reason = "StopLoss Stk Below SMA150"
+                                
+                                stop_loss_count += 1
+                                stop_loss_gain += net_profit
+                                stop_loss_premium_collected += premium_collected_gross
+                            
+                            reason = f"{base_reason} (Price from {fallback_date})"
+                            exit_details['PriceOut'] = fallback_price
+                            exit_details['AmountOut'] = cost_to_close_gross
+                            exit_details['ReasonWhyClosed'] = reason
+                            
+                            # Log the fallback usage
+                            print(f"📊 **EXIT WITH STORED PRICE:** {base_reason}")
+                            print(f"    {trade['ticker']} Strike ${trade['strike']:.2f}, Exp {trade['expiration_date']}, Qty {qty}")
+                            print(f"    Using stored ask price ${fallback_price:.2f} from {fallback_date} (current date {date_str} has no price data)")
+                        else:
+                            # No stored price available - this should be very rare
+                            print(f"⚠️ **EXIT FAILED - NO PRICE DATA:** {daily_date_obj}")
+                            print(f"    Symbol: {trade['ticker']}")
+                            print(f"    Strike: ${trade['strike']:.2f}")
+                            print(f"    Expiration: {trade['expiration_date']}")
+                            print(f"    Reason: {reason if 'reason' in locals() else 'Stop Loss or Take Profit'}")
+                            print(f"    Current Ask price: None")
+                            print(f"    Stored last_known_ask: None")
+                            continue
+                            
                     else:
-                        # Cannot determine exit price for stop-loss, log the failure and skip for now
-                        print(f"⚠️ **EXIT FAILED - NO PRICE DATA:** {daily_date_obj}")
-                        print(f"    Symbol: {trade['ticker']}")
-                        print(f"    Strike: ${trade['strike']:.2f}")
-                        print(f"    Expiration: {trade['expiration_date']}")
-                        print(f"    Reason: {reason if 'reason' in locals() else 'Stop Loss or Take Profit'}")
-                        print(f"    Current Ask price: None (Unable to get exit price)")
+                        # No exit condition met - skip
                         continue 
                     
                     # FINAL EXIT EVENT COUNT: Increment by 1 for every unique trade closed
@@ -967,6 +1035,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         'PriceIn': trade['premium_received'], # Option Bid Price in
                         'Qty': qty,
                         'AmountIn': premium_collected_gross, # Gross premium collected
+                        'unique_key': trade['unique_key'], # Add unique_key for validation
                         **exit_details # Merge in all exit details
                     }
                     closed_trades_log.append(trade_to_log)
@@ -1033,17 +1102,44 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         'PriceIn': trade['premium_received'],
                         'Qty': trade['quantity'],
                         'AmountIn': trade['premium_received'] * trade['quantity'] * 100.0,
+                        'unique_key': trade['unique_key'], # Add unique_key for validation
                         **exit_details
                     }
                     closed_trades_log.append(trade_to_log)
                     total_exit_events += 1  # Count recovered exits
                     
                     # Update tracker
-                    open_puts_tracker[trade['ticker']] = max(0, open_puts_tracker.get(trade['ticker'], 0) - trade['quantity'])
+                    # NOTE: open_puts_tracker counts open POSITIONS (one per entry),
+                    # while 'quantity' is number of contracts per position.
+                    # Previously we subtracted `trade['quantity']` here which mixed
+                    # the two semantics and could incorrectly reduce the printed
+                    # per-ticker counts (making positions appear to 'disappear').
+                    prev_count = open_puts_tracker.get(trade['ticker'], 0)
+                    open_puts_tracker[trade['ticker']] = max(0, prev_count - 1)
+                    # Debug log to surface unexpected large deltas
+                    if prev_count - open_puts_tracker[trade['ticker']] > 1:
+                        print(f"⚠️ **DEBUG:** Adjusted open_puts_tracker for {trade['ticker']} by {prev_count - open_puts_tracker[trade['ticker']]} (prev {prev_count} -> now {open_puts_tracker[trade['ticker']]})")
             
             # Update peak open positions after processing exits and recoveries
             if current_account_put_positions > peak_open_positions:
                 peak_open_positions = current_account_put_positions
+
+            # --- DIAGNOSTIC CHECK: Verify open_trades_log matches open_puts_tracker ---
+            open_trades_count = len(open_trades_log)
+            open_puts_tracker_sum = sum(open_puts_tracker.values())
+            priceable_positions = len(daily_liability_itemization) if 'daily_liability_itemization' in locals() else 0
+            
+            if open_trades_count != open_puts_tracker_sum:
+                print(f"⚠️ **[DIAGNOSTIC] Mismatch after reconciliation on {date_str}:**")
+                print(f"    open_trades_log count: {open_trades_count}")
+                print(f"    open_puts_tracker sum: {open_puts_tracker_sum}")
+                print(f"    priceable positions (in liability): {priceable_positions}")
+                # Print per-ticker details
+                tracker_counts = {k: v for k, v in open_puts_tracker.items() if v > 0}
+                print(f"    open_puts_tracker details: {tracker_counts}")
+                # List unique_keys still open
+                open_keys = [(t['ticker'], t['strike'], t['expiration_date']) for t in open_trades_log]
+                print(f"    open_trades_log positions ({len(open_keys)}): {open_keys}")
 
             # --- DYNAMIC RISK SIZING: Recalculate Max Premium Per Trade for THIS DAY ---
             # Compute conservative NAV before new entries: Cash minus cost to close current open puts
@@ -1414,7 +1510,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             'premium_received': bid_at_entry, 
                             'quantity': trade_quantity,
                             'entry_adj_close': entry_adj_close_value,
-                            'unique_key': (ticker_to_enter, best_contract['strike'], best_contract['expiration_date'])
+                            'unique_key': (ticker_to_enter, best_contract['strike'], best_contract['expiration_date']),
+                            'last_known_ask': ask_at_entry_float,  # Store initial ask price
+                            'last_ask_date': date_str  # Store date of last known ask price
                         }
                         open_trades_log.append(trade_entry)
                         
@@ -1463,7 +1561,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             unrealized_pnl = 0.0 
             total_put_liability = 0.0 
             total_open_premium_collected = 0.0 
-            daily_liability_itemization = [] 
+            daily_liability_itemization = []
+            unpriceable_positions = []  # Track positions that can't be priced
 
             for trade in open_trades_log:
                 # Use the conservative exit price (Ask price) for valuation
@@ -1473,6 +1572,16 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     trade['expiration_date'], 
                     trade['strike']
                 )
+                
+                # Update last_known_ask if we got a valid price today
+                if current_price is not None:
+                    trade['last_known_ask'] = current_price
+                    trade['last_ask_date'] = date_str
+                    price_source_date = date_str
+                else:
+                    # Use the stored last known ask price
+                    current_price = trade.get('last_known_ask')
+                    price_source_date = trade.get('last_ask_date', 'unknown')
                 
                 if current_price is not None:
                     premium_collected_trade = trade['premium_received'] * trade['quantity'] * 100.0
@@ -1489,16 +1598,58 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     unrealized_pnl += pnl_one_position
                     
                     # 4. Itemization for Printout
-                    item_detail = (
-                        f"  > **{trade['ticker']}** (Qty {trade['quantity']}, Strike ${trade['strike']:.2f}, Exp {trade['expiration_date']}): "
-                        f"Ask=${current_price:.2f}, Cost to Close=${put_cost_to_close:,.2f}"
-                    )
+                    if price_source_date != date_str:
+                        # Using historical price - note it in the itemization
+                        item_detail = (
+                            f"  > **{trade['ticker']}** (Qty {trade['quantity']}, Strike ${trade['strike']:.2f}, Exp {trade['expiration_date']}): "
+                            f"Ask=${current_price:.2f} (from {price_source_date}), Cost to Close=${put_cost_to_close:,.2f}"
+                        )
+                    else:
+                        item_detail = (
+                            f"  > **{trade['ticker']}** (Qty {trade['quantity']}, Strike ${trade['strike']:.2f}, Exp {trade['expiration_date']}): "
+                            f"Ask=${current_price:.2f}, Cost to Close=${put_cost_to_close:,.2f}"
+                        )
                     daily_liability_itemization.append(item_detail)
                     
                 else:
-                    # Log the skipped contract for debugging the data source
-                    if DEBUG_VERBOSE:
-                        print(f"⚠️ **WARNING:** Cannot price contract {trade['ticker']} Strike ${trade['strike']:.2f}, Exp {trade['expiration_date']} for liability calculation on {date_str}. Skipping this position for today's MTM.")
+                    # CRITICAL: Track unpriceable positions for diagnostic reporting
+                    # This should rarely happen now since we store last_known_ask
+                    unpriceable_positions.append({
+                        'ticker': trade['ticker'],
+                        'strike': trade['strike'],
+                        'expiration': trade['expiration_date'],
+                        'quantity': trade['quantity']
+                    })
+                    # Always log unpriceable contracts (not just in DEBUG_VERBOSE mode)
+                    print(f"⚠️ **UNPRICEABLE POSITION (No ask price ever recorded):** {trade['ticker']} Strike ${trade['strike']:.2f}, Exp {trade['expiration_date']}, Qty {trade['quantity']} - Position still open but excluded from today's liability/NAV calculation")
+
+            # Report unpriceable positions summary if any exist
+            if unpriceable_positions:
+                print(f"⚠️ **WARNING: {len(unpriceable_positions)} position(s) could not be priced today and are excluded from liability calculation**")
+                print(f"    IMPACT: Today's Total Account Value (NAV) and Unrealized P&L calculations may be inaccurate.")
+                print(f"    REASON: ORATS data file for {date_str} is missing ask prices for these contracts.")
+
+            # --- DIAGNOSTIC CHECK: Verify position counts match ---
+            open_trades_count = len(open_trades_log)
+            priceable_count = len(daily_liability_itemization)
+            unpriceable_count = len(unpriceable_positions)
+            open_puts_tracker_sum = sum(open_puts_tracker.values())
+            
+            # The sum should equal: priceable + unpriceable = open_trades_count = open_puts_tracker_sum
+            if priceable_count + unpriceable_count != open_trades_count:
+                print(f"⚠️ **[DIAGNOSTIC] Position count mismatch on {date_str}:**")
+                print(f"    open_trades_log: {open_trades_count}")
+                print(f"    priceable (in liability): {priceable_count}")
+                print(f"    unpriceable (no ask): {unpriceable_count}")
+                print(f"    priceable + unpriceable: {priceable_count + unpriceable_count}")
+                print(f"    EXPECTED: All three should equal {open_trades_count}")
+            
+            if open_trades_count != open_puts_tracker_sum:
+                print(f"⚠️ **[DIAGNOSTIC] Tracker mismatch on {date_str}:**")
+                print(f"    open_trades_log: {open_trades_count}")
+                print(f"    open_puts_tracker sum: {open_puts_tracker_sum}")
+                tracker_counts = {k: v for k, v in open_puts_tracker.items() if v > 0}
+                print(f"    open_puts_tracker: {tracker_counts}")
 
             # Total Account Value (Net Asset Value)
             # CRITICAL FIX: NAV = Cash Balance - Total Cost to Close (Liability)
@@ -1665,71 +1816,84 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 trade['expiration_date'], 
                 trade['strike']
             )
+
+            # Fallbacks: use stored last_known_ask, then force $0.00 as a last resort
+            fallback_note = ""
+            if closing_ask is None:
+                stored_price = trade.get('last_known_ask')
+                stored_date = trade.get('last_ask_date', 'unknown')
+                if stored_price is not None:
+                    closing_ask = stored_price
+                    fallback_note = f" (Price from {stored_date})"
+                else:
+                    closing_ask = 0.0
+                    fallback_note = " (No price data; forced at $0.00)"
             
             qty = trade['quantity']
             
-            if closing_ask is not None:
-                
-                premium_collected_per_contract = trade['premium_received']
-                
-                # Financials (based on last known market price)
-                exit_commission = qty * FINAL_COMMISSION_PER_CONTRACT
-                premium_collected_gross = premium_collected_per_contract * qty * 100.0 - qty * FINAL_COMMISSION_PER_CONTRACT
-                cost_to_close_gross = closing_ask * qty * 100.0 + exit_commission
-                
-                
-                # P&L Calculation: (Initial Premium) - (Cost to Close) - (Exit Commission)
-                position_net_gain = premium_collected_gross - cost_to_close_gross 
-                
-                total_liquidation_pnl += position_net_gain
-                
-                # Accumulate gain for the Liquidation row in attribution table
-                liquidation_gain += position_net_gain
-                liquidation_premium_collected += premium_collected_gross
-                
-                # Adjust cash balance: Cash balance already holds the premium. Now we pay the cost to close.
-                # Total Debit Outflow = Cost to Close + Commission
-                total_debit_outflow = cost_to_close_gross # INCLUDES commission already
-                
-                cash_balance -= total_debit_outflow 
-                # Yuda: I don;t like this cash_balance += premium_collected_gross
-                
-                # Calculate percentage gain relative to max risk
-                max_risk_per_contract = (trade['strike'] * 100.0) - premium_collected_per_contract
-                if max_risk_per_contract > 0:
-                    position_gain_percent = (position_net_gain / (max_risk_per_contract * qty)) * 100.0
-                else:
-                    position_gain_percent = 0.0
+            premium_collected_per_contract = trade['premium_received']
+            
+            # Financials (based on last known/available market price)
+            exit_commission = qty * FINAL_COMMISSION_PER_CONTRACT
+            premium_collected_gross = premium_collected_per_contract * qty * 100.0 - qty * FINAL_COMMISSION_PER_CONTRACT
+            cost_to_close_gross = closing_ask * qty * 100.0 + exit_commission
+            
+            # P&L Calculation: (Initial Premium) - (Cost to Close) - (Exit Commission)
+            position_net_gain = premium_collected_gross - cost_to_close_gross 
+            
+            total_liquidation_pnl += position_net_gain
+            
+            # Accumulate gain for the Liquidation row in attribution table
+            liquidation_gain += position_net_gain
+            liquidation_premium_collected += premium_collected_gross
+            
+            # Adjust cash balance: Cash balance already holds the premium. Now we pay the cost to close.
+            # Total Debit Outflow = Cost to Close + Commission
+            total_debit_outflow = cost_to_close_gross # INCLUDES commission already
+            
+            cash_balance -= total_debit_outflow 
+            # Yuda: I don;t like this cash_balance += premium_collected_gross
+            
+            # Calculate percentage gain relative to max risk
+            max_risk_per_contract = (trade['strike'] * 100.0) - premium_collected_per_contract
+            if max_risk_per_contract > 0:
+                position_gain_percent = (position_net_gain / (max_risk_per_contract * qty)) * 100.0
+            else:
+                position_gain_percent = 0.0
 
-                # --- CAPTURE COMPLETE TRADE LOG (Liquidation) ---
-                # FINAL EXIT EVENT COUNT: Increment by 1 for every unique trade closed during liquidation
-                total_exit_events += 1
-                
-                trade_to_log = {
-                    'Ticker': trade['ticker'],
-                    'Strike': trade['strike'],
-                    'ExpDate': trade['expiration_date'],
-                    'DayIn': trade['entry_date'],
-                    'PriceIn': trade['premium_received'], # Option Bid Price in
-                    'Qty': qty,
-                    'AmountIn': premium_collected_gross, # Gross premium collected
-                    'DayOut': sim_end_date.strftime('%Y-%m-%d'),
-                    'PriceOut': closing_ask, # Option Ask Price at liquidation
-                    'QtyOut': qty,
-                    'AmountOut': cost_to_close_gross, # Gross cost to close
-                    'ReasonWhyClosed': "Last day liquidation",
-                    'Gain$': position_net_gain,
-                    'Gain%': position_gain_percent,
-                }
-                closed_trades_log.append(trade_to_log)
-                
-                # FIX 3 (Final Data Format): Split the $ sign and the number into separate fields to align the pipes perfectly.
-                # Data widths used: Strike(6.2f), Premium(11,.2f), Ask(10.2f), Cost(12,.2f), Commission(13.2f), Net(11.2f)
-                print(
-                    f"| {trade['ticker']:<6} | {qty:3} | $ {trade['strike']:>6.2f} | $ {premium_collected_gross:>11,.2f} | "
-                    f"$ {closing_ask:>10.2f} | $ {cost_to_close_gross:>12,.2f} | $ {exit_commission:>13.2f} | "
-                    f"$ {position_net_gain:>11.2f} |"
-                )
+            # --- CAPTURE COMPLETE TRADE LOG (Liquidation) ---
+            # FINAL EXIT EVENT COUNT: Increment by 1 for every unique trade closed during liquidation
+            total_exit_events += 1
+            
+            reason_str = "Last day liquidation" + (fallback_note if fallback_note else "")
+            trade_to_log = {
+                'Ticker': trade['ticker'],
+                'Strike': trade['strike'],
+                'ExpDate': trade['expiration_date'],
+                'DayIn': trade['entry_date'],
+                'PriceIn': trade['premium_received'], # Option Bid Price in
+                'Qty': qty,
+                'AmountIn': premium_collected_gross, # Gross premium collected
+                'DayOut': sim_end_date.strftime('%Y-%m-%d'),
+                'PriceOut': closing_ask, # Option Ask Price at liquidation
+                'QtyOut': qty,
+                'AmountOut': cost_to_close_gross, # Gross cost to close
+                'ReasonWhyClosed': reason_str,
+                'Gain$': position_net_gain,
+                'Gain%': position_gain_percent,
+                'unique_key': trade['unique_key'], # Add unique_key for validation
+            }
+            closed_trades_log.append(trade_to_log)
+            
+            # FIX 3 (Final Data Format): Split the $ sign and the number into separate fields to align the pipes perfectly.
+            # Data widths used: Strike(6.2f), Premium(11,.2f), Ask(10.2f), Cost(12,.2f), Commission(13.2f), Net(11.2f)
+            print(
+                f"| {trade['ticker']:<6} | {qty:3} | $ {trade['strike']:>6.2f} | $ {premium_collected_gross:>11,.2f} | "
+                f"$ {closing_ask:>10.2f} | $ {cost_to_close_gross:>12,.2f} | $ {exit_commission:>13.2f} | "
+                f"$ {position_net_gain:>11.2f} |"
+            )
+            if fallback_note:
+                print(f"  ↳ Using fallback price{fallback_note}")
         
         # FINAL REALIZED P&L for Performance Metrics
         final_realized_profit = cumulative_realized_pnl + total_liquidation_pnl
@@ -2020,6 +2184,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("|-------------------------------|-------------------|--------------------|-------------------|------------|")    
     # Text length: "Total Entry Events" is 18 characters. Padding needed: 30 - 18 = 12 spaces.
     print(f"| Total Entry Events{' ':12}| {total_entry_events:>16,}  | {'N/A':>18} | {'N/A':>17} | {'N/A':>10} |")
+    
+    # Row 7: Open Trades Remaining (sanity check)
+    remaining_open = max(0, (total_entry_events or 0) - (total_closed_events or 0))
+    print(f"| Open Trades Remaining         | {remaining_open:>16,}  | {'N/A':>18} | {'N/A':>17} | {'N/A':>10} |")
     
     
     # 10. NEW: Detailed Closed Trade Log
