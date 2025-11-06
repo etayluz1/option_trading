@@ -277,26 +277,29 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             MAX_SPREAD_DECIMAL = safe_percentage_to_float(rules["entry_put_position"]["max_ask_above_bid_pct"])
             
             # Strike Price Safety Margin Rule
-            MIN_AVG_ABOVE_STRIKE_PCT = safe_percentage_to_float(rules["entry_put_position"]["min_avg_above_strike"])
+            MIN_AVG_ABOVE_STRIKE_PCT = safe_percentage_to_float(rules["entry_put_position"]["min_avg_above_strike"])            
             REQUIRED_SMA_STRIKE_RATIO = 1.0 + MIN_AVG_ABOVE_STRIKE_PCT
             
             # Risk/Reward Ratio Rule
             MIN_RISK_REWARD_RATIO = float(rules["entry_put_position"]["min_risk_reward_ratio"])
-            # Additional selection flags and thresholds
-            USE_RR_SELECTOR = bool(rules['entry_put_position'].get('select_by_risk_reward_ratio', False))
-            USE_ANNUAL_SELECTOR = bool(rules['entry_put_position'].get('select_by_annual_risk', False))
-            USE_EXPECTED_SELECTOR = bool(rules['entry_put_position'].get('select_by_expected_profit', False))
+            # Ranking flags (renamed from select_by to rank_by for clarity)
+            RANK_BY_RR = bool(rules['entry_put_position'].get('rank_by_risk_reward_ratio', False))
+            RANK_BY_ANNUAL = bool(rules['entry_put_position'].get('rank_by_annual_risk', False))            
+            RANK_BY_EXPECTED = bool(rules['entry_put_position'].get('rank_by_expected_profit', False))
 
-            # Parse the additional numeric thresholds
-            MIN_ANNUAL_RISK = safe_percentage_to_float(rules['entry_put_position'].get('min_annual_risk', None))
-            MIN_EXPECTED_PROFIT = safe_percentage_to_float(rules['entry_put_position'].get('min_expected_profit', None))
-
-            # Validate that only one selector is enabled at a time
-            selectors_enabled = sum([1 if USE_RR_SELECTOR else 0,
-                                     1 if USE_ANNUAL_SELECTOR else 0,
-                                     1 if USE_EXPECTED_SELECTOR else 0])
-            if selectors_enabled > 1:
-                print("❌ Rule error: More than one entry-selection method is enabled in rules.json. Please enable only one of select_by_risk_reward_ratio, select_by_annual_risk, select_by_expected_profit.")
+            MIN_ANNUAL_RISK = float(rules['entry_put_position']['min_annual_risk_reward_ratio'])
+            
+            MIN_EXPECTED_PROFIT = safe_percentage_to_float(rules['entry_put_position']['min_expected_profit'])
+            
+            # Validate that only one ranking method is enabled at a time
+            rankers_enabled = sum([1 if RANK_BY_RR else 0,
+                                   1 if RANK_BY_ANNUAL else 0,
+                                   1 if RANK_BY_EXPECTED else 0])
+            if rankers_enabled > 1:
+                print("❌ Rule error: More than one ranking method is enabled in rules.json. Please enable only one of rank_by_risk_reward_ratio, rank_by_annual_risk, rank_by_expected_profit.")
+                return
+            if rankers_enabled == 0:
+                print("❌ Rule error: No ranking method is enabled in rules.json. Please enable one of rank_by_risk_reward_ratio, rank_by_annual_risk, rank_by_expected_profit.")
                 return
             
             # Derive the per-trade premium budget from initial cash and account-level max positions
@@ -410,11 +413,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(f"| Max Bid-Ask Spread         | {MAX_SPREAD_DECIMAL*100:>13.1f}% |")
             print(f"| Min Avg Above Strike       | {MIN_AVG_ABOVE_STRIKE_PCT*100:>13.1f}% |")
             print(f"| Min Risk/Reward Ratio      | {MIN_RISK_REWARD_RATIO:>14.1f} |")
-            print(f"| Min Annual Risk            | {safe_percentage_to_float(rules['entry_put_position']['min_annual_risk'])*100:>13.1f}% |")
-            print(f"| Min Expected Profit        | {safe_percentage_to_float(rules['entry_put_position']['min_expected_profit'])*100:>13.1f}% |")
-            print(f"| Use Risk/Reward Ratio      | {('Yes' if rules['entry_put_position']['select_by_risk_reward_ratio'] else 'No'):>14} |")
-            print(f"| Use Annual Risk            | {('Yes' if rules['entry_put_position']['select_by_annual_risk'] else 'No'):>14} |")
-            print(f"| Use Expected Profit        | {('Yes' if rules['entry_put_position']['select_by_expected_profit'] else 'No'):>14} |")
+            print(f"| Min Annual Risk            | {MIN_ANNUAL_RISK:>14.1f} |")
+            print(f"| Min Expected Profit        | {MIN_EXPECTED_PROFIT*100:>13.1f}% |")
+            print(f"| Rank By Risk/Reward Ratio  | {('Yes' if RANK_BY_RR else 'No'):>14} |")
+            print(f"| Rank By Annual Risk        | {('Yes' if RANK_BY_ANNUAL else 'No'):>14} |")
+            print(f"| Rank By Expected Profit    | {('Yes' if RANK_BY_EXPECTED else 'No'):>14} |")
             print(f"|----------------------------|----------------|")
             print()
 
@@ -616,7 +619,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     # Track last printed month for monthly progress reports
     last_printed_month = None
     
-    for date_str in sorted_unique_dates:
+    # Convert sorted_unique_dates to a list for index-based lookups
+    sorted_dates_list = [d for d in sorted_unique_dates if datetime.strptime(d, '%Y-%m-%d').date() >= start_date_obj]
+    
+    for idx, date_str in enumerate(sorted_unique_dates):
         daily_date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
         
         if daily_date_obj >= start_date_obj:
@@ -1291,7 +1297,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                             # --- Check 5: Risk/Reward Ratio ---
                                             passes_metric = False
                                             risk_reward_ratio = None
-                                            annual_rr = None
+                                            annual_risk = None
                                             expected_profit = None
                                             
                                             if pbidpx_value > 0 and strike_value > pbidpx_value:
@@ -1299,42 +1305,37 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                                 risk_reward_ratio = calculate_risk_reward_ratio(strike_value, pbidpx_value)
                                                 # Compute annualized R/R (if DTE available)
                                                 try:
-                                                    if risk_reward_ratio is not None and isinstance(dte, int) and dte > 0:
-                                                        annual_rr = risk_reward_ratio * (365.0 / float(dte))
+                                                    if risk_reward_ratio is not None and isinstance(dte, int) and dte > 0:                                                                                                                
+                                                        annual_risk = risk_reward_ratio * (365.0 / float(dte))
                                                 except Exception:
-                                                    annual_rr = None
+                                                    annual_risk = None
 
                                                 # Compute expected profit metric when Delta is available
                                                 try:
                                                     if put_delta_value is not None:
-                                                        # put_delta_value is a decimal (e.g., -0.2)
+                                                        # put_delta_value is a decimal (e.g., -0.3)
                                                         expected_profit = (pbidpx_value * (1.0 + put_delta_value) + (strike_value - pbidpx_value) * put_delta_value) / pbidpx_value
                                                 except Exception:
                                                     expected_profit = None
 
-                                                # Choose which metric to apply as the filter based on rules
-                                                if USE_ANNUAL_SELECTOR:
-                                                    if annual_rr is not None and MIN_ANNUAL_RISK is not None:
-                                                        passes_metric = annual_rr > MIN_ANNUAL_RISK
-                                                elif USE_EXPECTED_SELECTOR:
-                                                    if expected_profit is not None and MIN_EXPECTED_PROFIT is not None:
-                                                        passes_metric = expected_profit > MIN_EXPECTED_PROFIT
-                                                else:
-                                                    # Default or USE_RR_SELECTOR
-                                                    if risk_reward_ratio is not None:
-                                                        passes_metric = risk_reward_ratio > MIN_RISK_REWARD_RATIO
+                                                # Apply ALL three filters as minimum requirements
+                                                passes_rr = risk_reward_ratio is not None and risk_reward_ratio > MIN_RISK_REWARD_RATIO
+                                                passes_annual = annual_risk is not None and annual_risk > MIN_ANNUAL_RISK
+                                                passes_expected = expected_profit is not None and expected_profit > MIN_EXPECTED_PROFIT
+                                                
+                                                passes_metric = passes_rr and passes_annual and passes_expected
                                             
                                             if passes_metric:
                                                 # Store computed metrics and Adj. Close on the option for easy access
                                                 option['calculated_rr_ratio'] = risk_reward_ratio
-                                                option['annual_rr'] = annual_rr
+                                                option['annual_risk'] = annual_risk
                                                 option['expected_profit'] = expected_profit
                                                 option['adj_close'] = current_adj_close 
                                                 filtered_options.append(option)
                                                 
                                         # Only record the chain if it has at least one option that passed all filters
                                         if filtered_options:
-                                            # Sort the options within the chain (highest R/R first)
+                                            # Sort the options within the chain by the selected ranking metric
                                             filtered_options.sort(key=lambda x: x['calculated_rr_ratio'], reverse=True)
 
                                             filtered_chains_summary.append({
@@ -1374,13 +1375,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     bid_at_entry = 0.0
 
                     if daily_trade_candidates:
-                        # Sort the ENTIRE list of candidates globally by the selected metric
-                        if USE_ANNUAL_SELECTOR:
-                            sort_key = lambda x: x.get('annual_rr', -float('inf'))
-                        elif USE_EXPECTED_SELECTOR:
+                        # Sort the ENTIRE list of candidates globally by the selected ranking metric
+                        if RANK_BY_ANNUAL:
+                            sort_key = lambda x: x.get('annual_risk', -float('inf'))
+                        elif RANK_BY_EXPECTED:
                             sort_key = lambda x: x.get('expected_profit', -float('inf'))
                         else:
-                            # Default: risk/reward ratio (also used when USE_RR_SELECTOR is True)
+                            # Default: risk/reward ratio (also used when RANK_BY_RR is True)
                             sort_key = lambda x: x.get('calculated_rr_ratio', -float('inf'))
 
                         daily_trade_candidates.sort(key=sort_key, reverse=True)
@@ -1455,12 +1456,31 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             # Entry number for today (1, 2, 3, etc.)
                             entry_number_today = daily_entries_count + 1
                             
+                            # Safely extract and convert all numeric fields
+                            ticker = best_contract['ticker']
+                            strike = float(best_contract['strike'])
+                            dte = int(best_contract['dte'])
+                            rr_ratio = float(best_contract['calculated_rr_ratio'])
+                            bid_px = float(best_contract['pBidPx'])
+                            
+                            # Extract delta
+                            delta_raw = best_contract.get('putDelta')
+                            delta_val = safe_percentage_to_float(delta_raw) if isinstance(delta_raw, str) else delta_raw
+                            delta_display = delta_val if delta_val is not None else 0.0
+                            
+                            exp_profit_raw = best_contract.get('expected_profit', 0.0)
+                            exp_profit_val = safe_percentage_to_float(exp_profit_raw) if isinstance(exp_profit_raw, str) else exp_profit_raw
+                            exp_profit_pct = (exp_profit_val * 100) if exp_profit_val is not None else 0.0
+                            
                             best_info = (
-                                f"  {entry_number_today}. **{best_contract['ticker']}:** Qty={trade_quantity}, "
+                                f"  {entry_number_today}. **{ticker}:** Qty={trade_quantity}, "
                                 f"Total Premium Collected=${total_premium_collected:,.2f}, "
-                                f"Strike=${best_contract['strike']:.2f}, "
-                                f"DTE={best_contract['dte']}, "
-                                f"R/R={best_contract['calculated_rr_ratio']:.2f}"
+                                f"Bid=${bid_px:.2f}, "
+                                f"Strike=${strike:.2f}, "
+                                f"DTE={dte}, "
+                                f"Delta={delta_display:.4f}, "
+                                f"R/R={rr_ratio:.2f}, "                             
+                                f"ExpProfit={exp_profit_pct:.2f}%"
                             )
                             print(best_info)
                             
@@ -1690,8 +1710,19 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             current_spy_close = monthly_spy_prices.get(month_key, 0.0)
             monthly_pnl_log[month_key] = (current_pnl, total_account_value, current_spy_close)
             
-            # Monthly Progress Report - print once per month (bypasses minimal mode)
-            if last_printed_month != month_key:
+            # Monthly Progress Report - print on the LAST trading day of each month (bypasses minimal mode)
+            # Check if next day is in a different month or if this is the last day in the simulation
+            is_last_day_of_month = False
+            if idx + 1 < len(sorted_dates_list):
+                next_date_str = sorted_dates_list[idx + 1]
+                next_date_obj = datetime.strptime(next_date_str, '%Y-%m-%d').date()
+                next_month_key = (next_date_obj.year, next_date_obj.month)
+                is_last_day_of_month = (next_month_key != month_key)
+            else:
+                # This is the last day in the entire simulation
+                is_last_day_of_month = True
+            
+            if is_last_day_of_month and last_printed_month != month_key:
                 # Calculate runtime in hh:mm:ss format
                 elapsed_seconds = int(time.perf_counter() - _sim_start_time)
                 hours = elapsed_seconds // 3600
@@ -1929,15 +1960,12 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             }
             closed_trades_log.append(trade_to_log)
             
-            # FIX 3 (Final Data Format): Split the $ sign and the number into separate fields to align the pipes perfectly.
-            # Data widths used: Strike(6.2f), Premium(11,.2f), Ask(10.2f), Cost(12,.2f), Commission(13.2f), Net(11.2f)
+            use_older_ask = " using older ask price" if fallback_note else ""
             print(
                 f"| {trade['ticker']:<6} | {qty:3} | $ {trade['strike']:>6.2f} | $ {premium_collected_gross:>11,.2f} | "
                 f"$ {closing_ask:>10.2f} | $ {cost_to_close_gross:>12,.2f} | $ {exit_commission:>13.2f} | "
-                f"$ {position_net_gain:>11.2f} |"
-            )
-            if fallback_note:
-                print(f"  ↳ Using fallback price{fallback_note}")
+                f"$ {position_net_gain:>11.2f} | {use_older_ask}"
+            )            
         
         # FINAL REALIZED P&L for Performance Metrics
         final_realized_profit = cumulative_realized_pnl + total_liquidation_pnl
@@ -2062,23 +2090,23 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("")
     print("\n--- MONTHLY PORTFOLIO GAIN ---")
     # NEW COLUMN: % SPY Gain
-    print("| Month   | Total Value EOD  | $ Gain       |  % Gain  | % SPY Gain |")
-    print("|---------|------------------|--------------|----------|------------|") 
+    print("| Month   | Total Value EOD  | $ Gain          |  % Gain | % SPY Gain |")
+    print("|---------|------------------|-----------------|---------|------------|") 
     
     for (year, month), data in monthly_performance.items():
         month_label = datetime(year, month, 1).strftime('%Y-%m')
         
         # Data widths used: End Value (11,.2f), $ Gain (9,.2f), % Gain (6.2f), % SPY Gain (8.2f)
         print(
-            f"| {month_label:^5} | $ {data['end_value']:>12,.2f}   | $ {data['gain_abs']:>11,.2f} | "
-            f"{data['gain_pct']:>7.2f}% | {data['spy_gain_pct']:>9.2f}% |"
+            f"| {month_label:^5} | $ {data['end_value']:>12,.2f}   | $ {data['gain_abs']:>13,.2f} | "
+            f"{data['gain_pct']:>6.2f}% | {data['spy_gain_pct']:>9.2f}% |"
         )
 
     # Cumulative monthly $ Gain total
     try:
         total_monthly_gain_abs = sum(d.get('gain_abs', 0.0) for d in monthly_performance.values())
-        print("|-------------------------|------------------|--------------|----------|------------|")
-        print(f"| {'TOTAL (Months)':<9} | {'':18} | $ {total_monthly_gain_abs:>11,.2f} | {'':8} | {'':10} |")
+        print("|---------|------------------|-----------------|---------|------------|")
+        print(f"| {'TOTAL (Months)':<9} {'':10} | $ {total_monthly_gain_abs:>12,.2f} |")
     except Exception:
         pass
 
@@ -2086,8 +2114,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("")
     print("\n--- YEARLY PORTFOLIO GAIN ---")
     # NEW COLUMN: % SPY Gain
-    print("| Year    | Total Value EOD  | $ Gain        | % Gain   | % SPY Gain |")
-    print("|---------|------------------|---------------|----------|------------|") 
+    print("| Year    | Total Value EOD  | $ Gain          | % Gain  | % SPY Gain |")
+    print("|---------|------------------|-----------------|---------|------------|") 
     
     for year in sorted(yearly_performance.keys()):
         data = yearly_performance[year]
@@ -2106,15 +2134,15 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
         # Data widths used: End Value (11,.2f), $ Gain (9,.2f), % Gain (6.2f), % SPY Gain (8.2f)
         print(
-            f"| {year:^5}   | $ {year_end_value:>12,.2f}   | $ {yearly_gain_abs:>12,.2f} | "
+            f"| {year:^5}   | $ {year_end_value:>12,.2f}   | $ {yearly_gain_abs:>14,.2f} | "
             f"{yearly_gain_pct:>6.2f}% | {spy_yearly_return:>9.2f}% |"
         )
 
     # Cumulative yearly $ Gain total
     try:
-        total_yearly_gain_abs = sum((data.get('end_value', 0.0) - data.get('start_value', 0.0)) for data in yearly_performance.values())
-        print("|---------|------------------|---------------|----------|------------|")
-        print(f"| {'TOTAL (Years)':<9} | {'':18} | $ {total_yearly_gain_abs:>12,.2f} | {'':8} | {'':10} |")
+        total_yearly_gain_abs = sum((data.get('end_value', 0.0) - data.get('start_value', 0.0)) for data in yearly_performance.values())        
+        print("|---------|------------------|-----------------|---------|------------|")
+        print(f"| {'TOTAL (Years)':<9} {'':12} | $ {total_yearly_gain_abs:>13,.2f} | ")
     except Exception:
         pass
 
@@ -2219,19 +2247,12 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         )
     
     # Separator and Total
-    print("|--------------------------------------|--------------|-------------|-------------------|------------|")    
-    print(f"| **Total Exit Trades Closed**         | {total_closed_events:>12,} | {100.0:>10.2f}% | "
+    print(f"|--------------------------------------|--------------|-------------|-------------------|------------|")    
+    print(f"| Total Exit Trades Closed             | {total_closed_events:>12,} | {100.0:>10.2f}% | "
           f"${TOTAL_GAIN:>16,.2f} | {'N/A':>10} |"
     )
-    
-    # Row 6: Total Entry Events (For direct comparison)
-    print("|-------------------------------|-------------------|--------------------|-------------------|------------|")    
-    # Text length: "Total Entry Events" is 18 characters. Padding needed: 30 - 18 = 12 spaces.
-    print(f"| Total Entry Events{' ':12}| {total_entry_events:>16,}  | {'N/A':>18} | {'N/A':>17} | {'N/A':>10} |")
-    
-    # Row 7: Open Trades Remaining (sanity check)
-    remaining_open = max(0, (total_entry_events or 0) - (total_closed_events or 0))
-    print(f"| Open Trades Remaining         | {remaining_open:>16,}  | {'N/A':>18} | {'N/A':>17} | {'N/A':>10} |")
+    print(f"|--------------------------------------|--------------|-------------|-------------------|------------|")     
+    print(f"| Total Entry Events{' ':19}| {total_entry_events:>13,}  |")
     
     
     # 10. NEW: Detailed Closed Trade Log
@@ -2330,12 +2351,12 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Max Put Delta              | {MAX_DELTA*100:>13.1f}% |")
     print(f"| Max Bid-Ask Spread         | {MAX_SPREAD_DECIMAL*100:>13.1f}% |")
     print(f"| Min Avg Above Strike       | {MIN_AVG_ABOVE_STRIKE_PCT*100:>13.1f}% |")
-    print(f"| Min Risk/Reward Ratio      | {MIN_RISK_REWARD_RATIO:>14.1f} |")
-    print(f"| Min Annual Risk            | {safe_percentage_to_float(rules['entry_put_position']['min_annual_risk'])*100:>13.1f}% |")
-    print(f"| Min Expected Profit        | {safe_percentage_to_float(rules['entry_put_position']['min_expected_profit'])*100:>13.1f}% |")
-    print(f"| Use Risk/Reward Ratio      | {('Yes' if rules['entry_put_position']['select_by_risk_reward_ratio'] else 'No'):>14} |")
-    print(f"| Use Annual Risk            | {('Yes' if rules['entry_put_position']['select_by_annual_risk'] else 'No'):>14} |")
-    print(f"| Use Expected Profit        | {('Yes' if rules['entry_put_position']['select_by_expected_profit'] else 'No'):>14} |")
+    print(f"| Min Risk/Reward Ratio      | {MIN_RISK_REWARD_RATIO:>14.1f} |")    
+    print(f"| Min Annual Risk            | {MIN_ANNUAL_RISK:>14.1f} |")
+    print(f"| Min Expected Profit        | {MIN_EXPECTED_PROFIT*100:>13.1f}% |")
+    print(f"| Rank By Risk/Reward Ratio  | {('Yes' if RANK_BY_RR else 'No'):>14} |")
+    print(f"| Rank By Annual Risk        | {('Yes' if RANK_BY_ANNUAL else 'No'):>14} |")
+    print(f"| Rank By Expected Profit    | {('Yes' if RANK_BY_EXPECTED else 'No'):>14} |")
     print(f"|----------------------------|----------------|")
     print()
 
@@ -2381,7 +2402,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Total Gain                 | ${TOTAL_GAIN:>13,.2f} |")
     print(f"| Run Time                   | {runtime_str:>14} |")
     print(f"| Peak Open Positions        | {peak_open_positions:>14} |")
-    print(f"| Total Entry Events         | {total_entry_events:>14} |")
+    print(f"| Total Entry Events         | {total_entry_events:>15} |")
     
     # Worst drawdown across all simulated dates
     try:
