@@ -618,11 +618,12 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     
     # Track last printed month for monthly progress reports
     last_printed_month = None
+    last_monthly_summary_msg = None
     
-    # Convert sorted_unique_dates to a list for index-based lookups
-    sorted_dates_list = [d for d in sorted_unique_dates if datetime.strptime(d, '%Y-%m-%d').date() >= start_date_obj]
+    # Convert to list and filter for dates >= start_date
+    all_dates_list = list(sorted_unique_dates)
     
-    for idx, date_str in enumerate(sorted_unique_dates):
+    for idx, date_str in enumerate(all_dates_list):
         daily_date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
         
         if daily_date_obj >= start_date_obj:
@@ -1710,31 +1711,25 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             current_spy_close = monthly_spy_prices.get(month_key, 0.0)
             monthly_pnl_log[month_key] = (current_pnl, total_account_value, current_spy_close)
             
-            # Monthly Progress Report - print on the LAST trading day of each month (bypasses minimal mode)
-            # Check if next day is in a different month or if this is the last day in the simulation
-            is_last_day_of_month = False
-            if idx + 1 < len(sorted_dates_list):
-                next_date_str = sorted_dates_list[idx + 1]
-                next_date_obj = datetime.strptime(next_date_str, '%Y-%m-%d').date()
-                next_month_key = (next_date_obj.year, next_date_obj.month)
-                is_last_day_of_month = (next_month_key != month_key)
-            else:
-                # This is the last day in the entire simulation
-                is_last_day_of_month = True
+            # Prepare monthly summary message every day (efficient: no lookahead needed)
+            elapsed_seconds = int(time.perf_counter() - _sim_start_time)
+            hours = elapsed_seconds // 3600
+            minutes = (elapsed_seconds % 3600) // 60
+            seconds = elapsed_seconds % 60
+            runtime_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            monthly_summary_msg = f"📅 {daily_date_obj}   Account Value: ${total_account_value:12,.2f}   RunTime: {runtime_str}"
             
-            if is_last_day_of_month and last_printed_month != month_key:
-                # Calculate runtime in hh:mm:ss format
-                elapsed_seconds = int(time.perf_counter() - _sim_start_time)
-                hours = elapsed_seconds // 3600
-                minutes = (elapsed_seconds % 3600) // 60
-                seconds = elapsed_seconds % 60
-                runtime_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-                
+            # Print the prepared message when month changes (i.e., on first day of new month, print last month's final values)
+            if last_printed_month is not None and last_printed_month != month_key:
+                # Month changed - print the last message we prepared (from previous month's last day)
                 if hasattr(sys.stdout, 'force_print'):
-                    sys.stdout.force_print(f"📅 {daily_date_obj}   Account Value: ${total_account_value:12,.2f}   RunTime: {runtime_str}")
+                    sys.stdout.force_print(last_monthly_summary_msg)
                 else:
-                    print(f"📅 {daily_date_obj}   Account Value: ${total_account_value:12,.2f}   RunTime: {runtime_str}")
-                last_printed_month = month_key
+                    print(last_monthly_summary_msg)
+            
+            # Store this message for potential printing when month changes
+            last_monthly_summary_msg = monthly_summary_msg
+            last_printed_month = month_key
             
             # Print Account Value breakdown (Corrected for Accuracy and Transparency)
             print(f"💵 **DAILY ACCOUNT VALUE (EOD - NAV):** ${total_account_value:,.2f}")            
@@ -1852,6 +1847,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                          print(f"  |   > Details: None Found")
                          
             # --- END DAILY PROCESSING ---
+    
+    # Print the final month's summary (last month we processed)
+    if last_monthly_summary_msg is not None:
+        if hasattr(sys.stdout, 'force_print'):
+            sys.stdout.force_print(last_monthly_summary_msg)
+        else:
+            print(last_monthly_summary_msg)
     
     # 6. Final Liquidation and Performance Summary (Runs after all trading days are processed)
     
@@ -2106,7 +2108,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     try:
         total_monthly_gain_abs = sum(d.get('gain_abs', 0.0) for d in monthly_performance.values())
         print("|---------|------------------|-----------------|---------|------------|")
-        print(f"| {'TOTAL (Months)':<9} {'':10} | $ {total_monthly_gain_abs:>12,.2f} |")
+        print(f"| {'TOTAL (Months)':<9} {' ':11} | $ {total_monthly_gain_abs:>13,.2f} |")
     except Exception:
         pass
 
@@ -2114,8 +2116,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("")
     print("\n--- YEARLY PORTFOLIO GAIN ---")
     # NEW COLUMN: % SPY Gain
-    print("| Year    | Total Value EOD  | $ Gain          | % Gain  | % SPY Gain |")
-    print("|---------|------------------|-----------------|---------|------------|") 
+    print("| Year    | Total Value EOD  | $ Gain             | % Gain  | % SPY Gain |")
+    print("|---------|------------------|--------------------|---------|------------|") 
     
     for year in sorted(yearly_performance.keys()):
         data = yearly_performance[year]
@@ -2134,15 +2136,15 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
         # Data widths used: End Value (11,.2f), $ Gain (9,.2f), % Gain (6.2f), % SPY Gain (8.2f)
         print(
-            f"| {year:^5}   | $ {year_end_value:>12,.2f}   | $ {yearly_gain_abs:>14,.2f} | "
+            f"| {year:^5}   | $ {year_end_value:>12,.2f}   | $ {yearly_gain_abs:>16,.2f} | "
             f"{yearly_gain_pct:>6.2f}% | {spy_yearly_return:>9.2f}% |"
         )
 
     # Cumulative yearly $ Gain total
     try:
         total_yearly_gain_abs = sum((data.get('end_value', 0.0) - data.get('start_value', 0.0)) for data in yearly_performance.values())        
-        print("|---------|------------------|-----------------|---------|------------|")
-        print(f"| {'TOTAL (Years)':<9} {'':12} | $ {total_yearly_gain_abs:>13,.2f} | ")
+        print(f"|---------|------------------|--------------------|---------|------------|")
+        print(f"| {'TOTAL (Years)':<9} {' ':12} | $ {total_yearly_gain_abs:>16,.2f} | ")
     except Exception:
         pass
 
@@ -2252,7 +2254,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
           f"${TOTAL_GAIN:>16,.2f} | {'N/A':>10} |"
     )
     print(f"|--------------------------------------|--------------|-------------|-------------------|------------|")     
-    print(f"| Total Entry Events{' ':19}| {total_entry_events:>13,}  |")
+    print(f"| Total Entry Events{' ':19}| {total_entry_events:>12,} |")
     
     
     # 10. NEW: Detailed Closed Trade Log
@@ -2402,7 +2404,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Total Gain                 | ${TOTAL_GAIN:>13,.2f} |")
     print(f"| Run Time                   | {runtime_str:>14} |")
     print(f"| Peak Open Positions        | {peak_open_positions:>14} |")
-    print(f"| Total Entry Events         | {total_entry_events:>15} |")
+    print(f"| Total Entry Events         | {total_entry_events:>14} |")
     
     # Worst drawdown across all simulated dates
     try:
