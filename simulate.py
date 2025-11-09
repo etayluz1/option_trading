@@ -1511,8 +1511,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         print(f"❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (No contract passed filters).")
                         # Print portfolio summary on days with no viable contracts
                         total_positions = sum(open_puts_tracker.values())
-                        if total_positions > 0:
-                            print(f"\n**OPEN PORTFOLIO SUMMARY ({total_positions} Total Positions):**")
+                        print(f"\n**OPEN PORTFOLIO SUMMARY ({total_positions} Total Positions):**")
+                        if total_positions > 0:                            
                             print_daily_portfolio_summary(open_puts_tracker)
                     
                     
@@ -1695,7 +1695,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             open_trades_count = len(open_trades_log)
             priceable_count = len(daily_liability_itemization)
             unpriceable_count = len(unpriceable_positions)
-            open_puts_tracker_sum = sum(open_puts_tracker.values())
+            open_puts_tracker_sum = sum(open_puts_tracker.values())  # Yuda
+            print(f"  Open Puts: {open_puts_tracker_sum:,.2f}")
             
             # The sum should equal: priceable + unpriceable = open_trades_count = open_puts_tracker_sum
             if priceable_count + unpriceable_count != open_trades_count:
@@ -1750,8 +1751,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(f"💵 **DAILY ACCOUNT VALUE (EOD - NAV):** ${total_account_value:,.2f}")            
             print(f"  > **Cash Balance:** ${cash_balance:,.2f}")
             print(f" SPY current price: {spy_current_price}")
+            open_puts_tracker_sum = sum(open_puts_tracker.values())  # Yuda
+            print(f"  Open Puts: {open_puts_tracker_sum:,.2f}")
             # --- PROMOTED LIABILITY PRINT (This is the cumulative value) ---
-            print(f"🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** ${total_put_liability:,.2f} (Computed using Ask Price)")
+            print(f"🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** ${total_put_liability:,.2f} (Computed using Ask Price)") # Yuda
             
             # Print Itemized Liability Breakdown
             if daily_liability_itemization:

@@ -1,10 +1,10 @@
 { 
     "account_simulation": {
-        "start_date": "01/01/20",
+        "start_date": "01/01/2007",
         "initial_cash": "1000000",       
         "max_puts_per_account": "35",
-        "max_puts_per_stock": "7",
-        "max_puts_per_day": "4",
+        "max_puts_per_stock": "8",
+        "max_puts_per_day": "5",
         "Minimal_Print_Out": true
     },
     "underlying_stock": {
@@ -33,7 +33,7 @@
         "position_stop_loss_pct": "9999%",        
         "stock_max_below_avg":  "18%",  
         "stock_min_above_strike": "-9999%",
-        "stock_max_below_entry": "25%",
+        "stock_max_below_entry": "28%",
         "min_gain_to_take_profit": "9999%"
     }
 }
