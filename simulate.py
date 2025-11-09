@@ -1477,6 +1477,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             dte = int(best_contract['dte'])
                             rr_ratio = float(best_contract['calculated_rr_ratio'])
                             bid_px = float(best_contract['pBidPx'])
+                            expiration_date = best_contract['expiration_date']
                             
                             # Extract delta
                             delta_raw = best_contract.get('putDelta')
@@ -1493,15 +1494,15 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                 f"Bid=${bid_px:.2f}, "
                                 f"Strike=${strike:.2f}, "
                                 f"DTE={dte}, "
+                                f"Expiration Date={expiration_date}, "
                                 f"Delta={delta_display:.4f}, "
-                                f"R/R={rr_ratio:.2f}, "                             
-                                f"ExpProfit={exp_profit_pct:.2f}%"
+                                f"R/R={rr_ratio:.2f}, "       
+                                f"Annual Risk={best_contract['annual_risk']:.2f}, "                      
+                                f"ExpProfit={exp_profit_pct:.2f}%, "
+                                f"AdjClose=${adj_close:.2f}, "                                
+                                f"Strike/AdjClose Ratio={strike_adj_close_ratio:.2f}%"
                             )
                             print(best_info)
-                            
-                            # Print Strike/AdjClose ratio
-                            if strike_adj_close_ratio is not None:
-                                print(f"     Strike/AdjClose Ratio: {strike_adj_close_ratio:.2f}%")
                             
                         else:
                             print("❌ **ABSOLUTE BEST CONTRACT TODAY:** None found across all tickers (All candidates failed limits/duplication checks or resulted in Qty=0).")
