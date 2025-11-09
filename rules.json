@@ -2,9 +2,9 @@
     "account_simulation": {
         "start_date": "01/01/20",
         "initial_cash": "1000000",       
-        "max_puts_per_account": "100",
+        "max_puts_per_account": "35",
         "max_puts_per_stock": "7",
-        "max_puts_per_day": "2",
+        "max_puts_per_day": "4",
         "Minimal_Print_Out": true
     },
     "underlying_stock": {
@@ -20,11 +20,11 @@
         "min_put_bid_price": "3.80",
         "min_put_delta": "-25%",
         "max_put_delta": "-1%",
-        "max_ask_above_bid_pct": "50.0%",
-        "min_avg_above_strike": "4.0%",
+        "max_ask_above_bid_pct": "60.0%",
+        "min_avg_above_strike": "8.0%",
         "min_risk_reward_ratio": "-10",
-        "min_annual_risk_reward_ratio": "-20",
-        "min_expected_profit": "-99999%",
+        "min_annual_risk_reward_ratio": "-16",
+        "min_expected_profit": "-100%",
         "rank_by_risk_reward_ratio": false,
         "rank_by_annual_risk": true,
         "rank_by_expected_profit": false

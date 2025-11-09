@@ -2202,6 +2202,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         exit_reason_stats[reason]['count'] += 1
         exit_reason_stats[reason]['gain'] += trade.get('Gain$', 0.0)
     
+    # Ensure ITM expiration row is always shown, even if zero events occurred
+    if 'Expiration (ITM/Assigned)' not in exit_reason_stats:
+        exit_reason_stats['Expiration (ITM/Assigned)'] = {'count': 0, 'gain': 0.0}
+    
     # Total Closed Trades
     total_closed_events = len(closed_trades_log)
 
