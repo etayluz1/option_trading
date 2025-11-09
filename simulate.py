@@ -221,11 +221,15 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     if not os.path.exists(LOG_DIR):
         os.makedirs(LOG_DIR)
 
-    log_file_number = 1
-    while os.path.exists(os.path.join(LOG_DIR, f"{log_file_number}.log")):
-        log_file_number += 1
-    
-    log_file_path = os.path.join(LOG_DIR, f"{log_file_number}.log")
+    # Timestamped log filename: yyyy-mm-dd hh-mm.log (Windows-safe: ':' not allowed)
+    timestamp = datetime.now().strftime("%Y-%m-%d %H-%M")
+    base_name = f"{timestamp}.log"
+    log_file_path = os.path.join(LOG_DIR, base_name)
+    # Ensure uniqueness if multiple runs occur within the same minute
+    suffix = 1
+    while os.path.exists(log_file_path):
+        suffix += 1
+        log_file_path = os.path.join(LOG_DIR, f"{timestamp}_{suffix}.log")
     
     original_stdout = sys.stdout
     logger = Logger(log_file_path, minimal_mode=minimal_mode)
@@ -494,6 +498,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     total_exit_events = 0
     # Total contracts entered (sum of Qty) - kept for internal consistency check
     total_contracts_opened_qty = 0 
+
+    # NEW: Win ratio counters (avoid end-of-run scan)
+    winning_trades_count = 0
+    closed_trades_count = 0
 
     # NEW: SPY tracking for monthly/yearly
     monthly_spy_prices = {} 
@@ -1072,6 +1080,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         **exit_details # Merge in all exit details
                     }
                     closed_trades_log.append(trade_to_log)
+                    # Update win/loss counters
+                    closed_trades_count += 1
+                    if net_profit > 0:
+                        winning_trades_count += 1
                     
                     # Update trackers
                     positions_to_remove.append(i)
@@ -1139,6 +1151,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         **exit_details
                     }
                     closed_trades_log.append(trade_to_log)
+                    # Update counters for recovered close (Gain$ is 0.0)
+                    closed_trades_count += 1
                     total_exit_events += 1  # Count recovered exits
                     
                     # Update tracker
@@ -1961,6 +1975,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 'unique_key': trade['unique_key'], # Add unique_key for validation
             }
             closed_trades_log.append(trade_to_log)
+            # Update win/loss counters for liquidation closes
+            closed_trades_count += 1
+            if position_net_gain > 0:
+                winning_trades_count += 1
             
             use_older_ask = " using older ask price" if fallback_note else ""
             print(
@@ -2092,23 +2110,23 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("")
     print("\n--- MONTHLY PORTFOLIO GAIN ---")
     # NEW COLUMN: % SPY Gain
-    print("| Month   | Total Value EOD  | $ Gain          |  % Gain | % SPY Gain |")
-    print("|---------|------------------|-----------------|---------|------------|") 
+    print("| Month   | Total Value EOD    | $ Gain            |  % Gain | % SPY Gain |")
+    print("|---------|--------------------|-------------------|---------|------------|") 
     
     for (year, month), data in monthly_performance.items():
         month_label = datetime(year, month, 1).strftime('%Y-%m')
         
         # Data widths used: End Value (11,.2f), $ Gain (9,.2f), % Gain (6.2f), % SPY Gain (8.2f)
         print(
-            f"| {month_label:^5} | $ {data['end_value']:>12,.2f}   | $ {data['gain_abs']:>13,.2f} | "
+            f"| {month_label:^5} | $ {data['end_value']:>14,.2f}   | $ {data['gain_abs']:>15,.2f} | "
             f"{data['gain_pct']:>6.2f}% | {data['spy_gain_pct']:>9.2f}% |"
         )
 
     # Cumulative monthly $ Gain total
     try:
         total_monthly_gain_abs = sum(d.get('gain_abs', 0.0) for d in monthly_performance.values())
-        print("|---------|------------------|-----------------|---------|------------|")
-        print(f"| {'TOTAL (Months)':<9} {' ':11} | $ {total_monthly_gain_abs:>13,.2f} |")
+        print("|---------|--------------------|-------------------|---------|------------|")
+        print(f"| {'TOTAL (Months)':<9} {' ':13} | $ {total_monthly_gain_abs:>15,.2f} |")
     except Exception:
         pass
 
@@ -2116,8 +2134,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("")
     print("\n--- YEARLY PORTFOLIO GAIN ---")
     # NEW COLUMN: % SPY Gain
-    print("| Year    | Total Value EOD  | $ Gain             | % Gain  | % SPY Gain |")
-    print("|---------|------------------|--------------------|---------|------------|") 
+    print("| Year    | Total Value EOD    | $ Gain               | % Gain  | % SPY Gain |")
+    print("|---------|--------------------|----------------------|---------|------------|") 
     
     for year in sorted(yearly_performance.keys()):
         data = yearly_performance[year]
@@ -2136,15 +2154,15 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
         # Data widths used: End Value (11,.2f), $ Gain (9,.2f), % Gain (6.2f), % SPY Gain (8.2f)
         print(
-            f"| {year:^5}   | $ {year_end_value:>12,.2f}   | $ {yearly_gain_abs:>16,.2f} | "
+            f"| {year:^5}   | $ {year_end_value:>14,.2f}   | $ {yearly_gain_abs:>18,.2f} | "
             f"{yearly_gain_pct:>6.2f}% | {spy_yearly_return:>9.2f}% |"
         )
 
     # Cumulative yearly $ Gain total
     try:
         total_yearly_gain_abs = sum((data.get('end_value', 0.0) - data.get('start_value', 0.0)) for data in yearly_performance.values())        
-        print(f"|---------|------------------|--------------------|---------|------------|")
-        print(f"| {'TOTAL (Years)':<9} {' ':12} | $ {total_yearly_gain_abs:>16,.2f} | ")
+        print(f"|---------|--------------------|----------------------|---------|------------|")
+        print(f"| {'TOTAL (Years)':<9} {' ':14} | $ {total_yearly_gain_abs:>18,.2f} | ")
     except Exception:
         pass
 
@@ -2399,24 +2417,41 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     except Exception:
         runtime_str = "N/A"
 
+    # Calculate Win Ratio (using incremental counters)
+    win_ratio_pct = (winning_trades_count / closed_trades_count * 100.0) if closed_trades_count > 0 else 0.0
+    
     # Performance Summary
     print("📊 Final Performance")
-    print(f"|----------------------------|----------------|") 
-    print(f"| Parameter                  |  Value         |")
-    print(f"|----------------------------|----------------|")
-    print(f"| Annualized Gain            | {annualized_gain:>13.2f}% |")
-    print(f"| Total Gain                 | ${TOTAL_GAIN:>13,.2f} |")
-    print(f"| Run Time                   | {runtime_str:>14} |")
-    print(f"| Peak Open Positions        | {peak_open_positions:>14} |")
-    print(f"| Total Entry Events         | {total_entry_events:>14} |")
+    print(f"|----------------------------|----------------------|") 
+    print(f"| Parameter                  |  Value               |")
+    print(f"|----------------------------|----------------------|")
+    print(f"| Current Date/Time          | {datetime.now().strftime('%Y-%m-%d %H:%M'):>20} |")
+    print(f"| Annualized Gain            | {annualized_gain:>19.2f}% |")
+    print(f"| Total Gain                 | ${TOTAL_GAIN:>19,.2f} |")    
+    print(f"| Run Time                   | {runtime_str:>20} |")
+    print(f"| Peak Open Positions        | {peak_open_positions:>20} |")
+    print(f"| Total Entry Events         | {total_entry_events:>20} |")
+    print(f"| Win Ratio                  | {win_ratio_pct:>19.2f}% |")
+    
+    # Print current log file name (row ~2418 request)
+    try:
+        current_log_path = getattr(sys.stdout, 'logfile', None)
+        if current_log_path and hasattr(current_log_path, 'name'):
+            log_filename_only = os.path.basename(current_log_path.name)
+            print(f"| Log File                   | {log_filename_only:>20} |")
+        else:
+            # Fallback if stdout has been restored or structure changed
+            print(f"| Log File                   | {'N/A':>20} |")
+    except Exception:
+        print(f"| Log File                   | {'ERR':>20} |")
     
     # Worst drawdown across all simulated dates
     try:
-        print(f"| Worst Drawdown             | {worst_drawdown_pct:>13.2f}% |")
+        print(f"| Worst Drawdown             | {worst_drawdown_pct:>19.2f}% |")
     except Exception:
         # If for any reason the metric isn't available, skip gracefully
         pass
-    print(f"|----------------------------|----------------|")
+    print(f"|----------------------------|----------------------|")
     print()    
     
 # Execute the main function

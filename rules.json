@@ -8,11 +8,11 @@
         "Minimal_Print_Out": true
     },
     "underlying_stock": {
-        "min_5_day_rise_pct": "-5%",
-        "min_above_avg_pct": "0.1%",
+        "min_5_day_rise_pct": "-20%",
+        "min_above_avg_pct": "-5%",
         "max_above_avg_pct": "40.0%",
-        "min_avg_up_slope_pct": "-5.0%",
-        "min_stock_price": "$18.00"       
+        "min_avg_up_slope_pct": "0.0%",
+        "min_stock_price": "$25.00"       
     },
     "entry_put_position": {
         "min_days_for_expiration": "1",
