@@ -1749,6 +1749,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # Print Account Value breakdown (Corrected for Accuracy and Transparency)
             print(f"💵 **DAILY ACCOUNT VALUE (EOD - NAV):** ${total_account_value:,.2f}")            
             print(f"  > **Cash Balance:** ${cash_balance:,.2f}")
+            print(f" SPY current price: {spy_current_price}")
             # --- PROMOTED LIABILITY PRINT (This is the cumulative value) ---
             print(f"🛑 **TOTAL PORTFOLIO LIABILITY (Cost to Close):** ${total_put_liability:,.2f} (Computed using Ask Price)")
             
@@ -1804,6 +1805,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             cash_plus_total_pnl = INITIAL_CASH + (cumulative_realized_pnl + unrealized_pnl)
             print(f"🧾 **INITIAL_CASH + TOTAL P&L (Cash Basis):** ${cash_plus_total_pnl:,.2f}")
             print(f"💵 **DAILY ACCOUNT VALUE (EOD - NAV):** ${total_account_value:,.2f}")   
+            print(f" SPY current price: {spy_current_price}")
 
             # Compare with NAV (total_account_value). If mismatch, print and quit.
             try:
