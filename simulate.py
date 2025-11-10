@@ -262,9 +262,27 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # --- RISK MANAGEMENT RULE (Stock Price Stop Loss) ---
             STOCK_MAX_BELOW_AVG_PCT = abs(safe_percentage_to_float(rules["exit_put_position"]["stock_max_below_avg"]))
             
-            # Start Date
+            # Start/End Dates
             start_date_str = rules["account_simulation"]["start_date"]
-            start_date_obj = datetime.strptime(start_date_str, '%m/%d/%y').date()
+            # Allow both mm/dd/yy and mm/dd/yyyy
+            try:
+                start_date_obj = datetime.strptime(start_date_str, '%m/%d/%y').date()
+            except ValueError:
+                try:
+                    start_date_obj = datetime.strptime(start_date_str, '%m/%d/%Y').date()
+                except ValueError as e:
+                    raise ValueError(f"Invalid start_date format: '{start_date_str}'. Use mm/dd/yy or mm/dd/yyyy.") from e
+            end_date_str = rules["account_simulation"].get("end_date")
+            end_date_obj = None
+            if end_date_str:
+                # Support both 2-digit and 4-digit year formats
+                try:
+                    end_date_obj = datetime.strptime(end_date_str, '%m/%d/%y').date()
+                except ValueError:
+                    try:
+                        end_date_obj = datetime.strptime(end_date_str, '%m/%d/%Y').date()
+                    except ValueError:
+                        end_date_obj = None
             
             # DTE Rules
             MIN_DTE = int(rules["entry_put_position"]["min_days_for_expiration"])
@@ -633,6 +651,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     
     for idx, date_str in enumerate(all_dates_list):
         daily_date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+        # Early liquidation: stop processing beyond configured end_date
+        if 'end_date_obj' in locals() and end_date_obj is not None and daily_date_obj > end_date_obj:
+            break
         
         if daily_date_obj >= start_date_obj:
             
@@ -2349,6 +2370,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Parameter                  | Value          |")
     print(f"|----------------------------|----------------|")
     print(f"| Start Date                 | {start_date_str:<14} |")
+    print(f"| End Date (Early Exit)      | {(end_date_str if end_date_str else 'None'):<14} |")
     print(f"| Initial Cash               | ${float(rules['account_simulation']['initial_cash']):>13,.2f} |")
     print(f"| Max Puts/Account           | {MAX_PUTS_PER_ACCOUNT:>14} |")
     print(f"| Max Puts/Stock             | {MAX_PUTS_PER_STOCK:>14} |")
