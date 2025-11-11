@@ -4,21 +4,22 @@ import csv
 import io # Used to read text from zip file contents (in memory)
 
 # --- Configuration ---
-extract_to = "ORATS_csv"
+folder_path = "D:\ORATS_zip"  # Input folder with zip files
+extract_to = "D:\ORATS_csv"   # Output folder for extracted data
 columns_to_keep = [
-    "ticker", "expirDate", "strike", "pVolu", "pOi", 
-    "pBidPx", "pAskPx", "pMidIv", "delta"
+    "ticker", "expirDate", "strike", 
+    "pBidPx", "pAskPx", "delta"
 ]
 # ---------------------
 
 
 def extract_and_filter_zip():
     """
-    Extracts zip files from 'ORATS_zip', reads the contained CSV files, 
+    Extracts zip files from the configured folder_path, reads the contained CSV files, 
     filters them to keep only specified columns AND exclude rows where
-    pBidPx is 0, and writes the filtered CSV to the 'ORATS_csv' directory.
+    both pBidPx and pAskPx are 0, and writes the filtered CSV to the 'ORATS_csv' directory.
     """
-    folder_path = "ORATS_zip"
+    # folder_path is now defined in the configuration section above
     
     # 1. Check if the input folder exists
     if not os.path.exists(folder_path):
@@ -83,26 +84,24 @@ def extract_and_filter_zip():
                             writer.writeheader()
                             
                             rows_written = 0
-                            rows_skipped_zero_bid = 0
+                            rows_skipped_zero_bid_or_ask = 0
                             
                             for row in reader:
-                                # --- NEW FILTERING LOGIC ---
-                                # Check if 'pBidPx' exists and if its value (converted to float) is NOT 0
-                                # Use a try-except block for robust handling of missing or non-numeric values
+                                # Keep records that have either valid bid OR ask prices
                                 try:
                                     bid_price = float(row.get('pBidPx', 0))
-                                    if bid_price != 0.0:
-                                        # The DictWriter automatically filters the columns
+                                    ask_price = float(row.get('pAskPx', 0))
+                                    # Keep if either price is valid (non-zero)
+                                    if bid_price != 0.0 or ask_price != 0.0:
                                         writer.writerow(row)
                                         rows_written += 1
                                     else:
-                                        rows_skipped_zero_bid += 1
+                                        rows_skipped_zero_bid_or_ask += 1
                                 except (ValueError, TypeError):
-                                    # Handle cases where pBidPx is non-numeric or malformed
-                                    rows_skipped_zero_bid += 1 # Treat as a skipped row
-                                # ---------------------------
+                                    # Skip only if prices are unparseable
+                                    rows_skipped_zero_bid_or_ask += 1
 
-                print(f"✅ Extracted and Filtered: '{csv_in_zip_name}' from '{filename}' ({rows_written} rows written, {rows_skipped_zero_bid} skipped due to zero/invalid bid).")
+                print(f"✅ Extracted and Filtered: '{csv_in_zip_name}' from '{filename}' ({rows_written} rows written, {rows_skipped_zero_bid_or_ask} skipped due to zero bid or ask).")
                 files_processed += 1
                 
             except zipfile.BadZipFile:

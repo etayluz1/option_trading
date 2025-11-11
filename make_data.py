@@ -1,10 +1,12 @@
 import os, csv, re, json
 from datetime import datetime
 
-# --- Configuration (Copied from User Input) ---
-extract_to = "ORATS_csv"
-columns_to_keep = ["expirDate", "strike", "pVolu", "pOi", "pBidPx", "pAskPx", "pMidIv", "delta"]
-processed_folder_json = "ORATS_json"    # New JSON folder
+# Run make_data.py (It will read ORATS_csv and generate c:\option_trading\ORATS_json)
+
+# Configuration (Copied from User Input) ---
+csv_folder = "D:\\ORATS_csv"
+json_folder = "c:\\option_trading\\ORATS_json"    # New JSON folder
+columns_to_keep = ["expirDate", "strike", "pBidPx", "pAskPx", "delta"]
 
 sp500_file = "SP500_history.csv"
 sp500_dict = {}
@@ -58,15 +60,7 @@ def load_sp500_data():
                     continue
             sp500_dict[date_obj] = set(t.strip() for t in tickers if t.strip())
 
-import os, csv, re, json
-from datetime import datetime
-
-# --- Configuration (Copied from User Input) ---
-extract_to = "ORATS_csv"
-# 'delta' is kept here because it's required for calculation, even if its value is 
-# transformed for the putDelta field.
-columns_to_keep = ["expirDate", "strike", "pVolu", "pOi", "pBidPx", "pAskPx", "pMidIv", "delta"]
-processed_folder_json = "ORATS_json"    # New JSON folder
+# Note: Configuration is set at the top of the file
 
 sp500_file = "SP500_history.csv"
 sp500_dict = {}
@@ -124,27 +118,41 @@ def process_csv(stop_after_first=False):
     calculates putDelta as a percentage string rounded to 8 decimal places,
     and outputs a single JSON file per day, overriding existing ones.
     """
+    print("\n=== Starting CSV Processing ===")
+    print(f"CSV Folder: {csv_folder}")
+    print(f"JSON Folder: {json_folder}")
+    print(f"Looking for SP500 file: {sp500_file}")
+
+    if not os.path.exists(csv_folder):
+        print(f"ERROR: CSV folder not found at {csv_folder}")
+        return
 
     load_sp500_data()
-    os.makedirs(processed_folder_json, exist_ok=True)
+    print(f"Loaded SP500 data: {len(sp500_dict)} dates found")
+    
+    os.makedirs(json_folder, exist_ok=True)
+    print(f"Created/verified JSON folder: {json_folder}")
     
     # option_fields_to_keep ensures the raw data is kept, excluding the date/ticker fields
     option_fields_to_keep = [col for col in columns_to_keep if col not in ["expirDate", "ticker"]]
     
-    # Recursively discover CSV files inside the extract_to directory and
+    # Recursively discover CSV files inside the csv_folder directory and
     # keep relative paths so nested files can be processed and their
     # filenames (used for date extraction) remain available.
     files_to_process = []
-    for root, _, files in os.walk(extract_to):
+    print("\nScanning for CSV files...")
+    for root, _, files in os.walk(csv_folder):
         for fname in files:
             if fname.lower().endswith(".csv"):
-                rel_path = os.path.relpath(os.path.join(root, fname), extract_to)
+                rel_path = os.path.relpath(os.path.join(root, fname), csv_folder)
                 files_to_process.append(rel_path)
+                print(f"Found CSV: {rel_path}")
     files_to_process = sorted(files_to_process)
+    print(f"\nTotal CSV files found: {len(files_to_process)}")
     processed_count = 0
 
     for file in files_to_process:
-        input_path = os.path.join(extract_to, file)
+        input_path = os.path.join(csv_folder, file)
 
         match = re.search(r"(\d{8})", file)
         if not match:
@@ -155,7 +163,7 @@ def process_csv(stop_after_first=False):
         file_date_dt = datetime.strptime(file_date_str_yyyymmdd, "%Y%m%d").date()
         
         output_filename = f"{file_date_dt.strftime('%Y-%m-%d')}.json"
-        output_path = os.path.join(processed_folder_json, output_filename)
+        output_path = os.path.join(json_folder, output_filename)
 
         
         # --- NEW: If the JSON already exists, skip processing to avoid overwriting ---
@@ -163,8 +171,13 @@ def process_csv(stop_after_first=False):
             print(f"⏩ Skipping {file}: Output JSON '{output_path}' already exists. Not overriding.")
             continue
 
+        print(f"\n=== Processing file: {file} ===")
+        print(f"Input path: {input_path}")
+        print(f"Output path: {output_path}")
+        
         sp500_dates = sorted(sp500_dict.keys())
         relevant_date = max((d for d in sp500_dates if d <= file_date_dt), default=None)
+        print(f"File date: {file_date_dt}, Relevant SP500 date: {relevant_date}")
         
         if relevant_date is None and sp500_dict:
              print(f"Skipping file {file}: No relevant S&P 500 list found for {file_date_dt} (before or on file date).")
@@ -181,6 +194,9 @@ def process_csv(stop_after_first=False):
                 reader = csv.DictReader(infile)
                 
                 ticker_field = reader.fieldnames[0] if reader.fieldnames else None
+                print(f"CSV Headers found: {reader.fieldnames}")
+                print(f"Using ticker field: {ticker_field}")
+                
                 if not ticker_field:
                     print(f"Skipping file {file}: Could not determine ticker field.")
                     continue
@@ -247,12 +263,18 @@ def process_csv(stop_after_first=False):
                         # Append the option record
                         daily_options_data[symbol][expir_date_str]["options"].append(option_record)
 
+            print(f"\nProcessed data summary:")
+            print(f"Total symbols processed: {len(daily_options_data)}")
+            for symbol in daily_options_data:
+                print(f"- {symbol}: {sum(len(exp['options']) for exp in daily_options_data[symbol].values())} options")
+            
             # Write the aggregated data to the JSON file
             with open(output_path, 'w', encoding='utf-8') as outfile:
                 json.dump(daily_options_data, outfile, indent=4)
 
-            print(f"✅ Successfully processed and SAVED/OVERRODE JSON file to: {output_path}")        
+            print(f"✅ Successfully processed and SAVED/OVERRODE JSON file to: {output_path}")
             processed_count += 1
+            print(f"Total files processed so far: {processed_count}")
             
             if stop_after_first:
                 print("Stopping after processing the first file (stop_after_first=True).")
