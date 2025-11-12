@@ -1,0 +1,2 @@
+{"annualized_gain_pct":null,"final_score":null,"logfile":"c:\\option_trading\\logs\\2025-11-12 11-59.log","param":null,"timestamp":"2025-11-12T11:59:15.175416","type":"baseline","value":"35","worst_drawdown_pct":null}
+{"annualized_gain_pct":null,"final_score":null,"logfile":"c:\\option_trading\\logs\\2025-11-12 12-08.log","param":null,"timestamp":"2025-11-12T12:08:41.553542","type":"baseline","value":"35","worst_drawdown_pct":null}
