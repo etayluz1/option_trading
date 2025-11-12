@@ -4,9 +4,10 @@ from datetime import datetime
 # Run make_data.py (It will read ORATS_csv and generate c:\option_trading\ORATS_json)
 
 # Configuration (Copied from User Input) ---
-csv_folder = "D:\\ORATS_csv"
+csv_folder = "C:\\option_trading\\ORATS_csv"
 json_folder = "c:\\option_trading\\ORATS_json"    # New JSON folder
-columns_to_keep = ["expirDate", "strike", "pBidPx", "pAskPx", "delta"]
+columns_to_keep = ["expirDate", "strike", "pBidPx", "pAskPx"]
+compact_json = True  # Write compact JSON (no pretty spaces) to reduce file size
 
 sp500_file = "SP500_history.csv"
 sp500_dict = {}
@@ -221,6 +222,10 @@ def process_csv(stop_after_first=False):
 
                         days_interval = (expir_date_dt - file_date_dt).days
                         
+                        # Exclude contracts with less than 45 days to expiration
+                        if days_interval < 45:
+                            continue
+                        
                         # Create the filtered option record with raw data
                         option_record = {col: row.get(col) for col in option_fields_to_keep}
                         
@@ -270,7 +275,12 @@ def process_csv(stop_after_first=False):
             
             # Write the aggregated data to the JSON file
             with open(output_path, 'w', encoding='utf-8') as outfile:
-                json.dump(daily_options_data, outfile, indent=4)
+                if compact_json:
+                    # Compact form: no spaces, much smaller files
+                    json.dump(daily_options_data, outfile, separators=(',', ':'), ensure_ascii=False)
+                else:
+                    # Pretty form: human readable but larger files
+                    json.dump(daily_options_data, outfile, indent=4, ensure_ascii=False)
 
             print(f"✅ Successfully processed and SAVED/OVERRODE JSON file to: {output_path}")
             processed_count += 1

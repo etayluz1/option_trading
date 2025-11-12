@@ -8,7 +8,7 @@ SETUP
    pip install yfinance
    git config --global user.email "etayluz@gmail.com"
    git config --global user.name "Etay Luz"
-git config --global user.name "Etay Luz"
+
 7. Run yahoo.py (download csv files from Yahoo.com to c:\option_trading\ticker_data\AAPL.csv)
 8. Run get_stock_history.py (ticker_data\ --> c:\option_trading\stock_history.json)
 9. Check visually the rules in rules.json, validate that you are happy

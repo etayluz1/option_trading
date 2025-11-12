@@ -1,23 +1,23 @@
 { 
     "account_simulation": {
-        "start_date": "01/01/20",
+        "start_date": "01/01/2020",
         "end_date": "10/28/2025",
         "initial_cash": "1000000",       
-        "max_puts_per_account": "42",
+        "max_puts_per_account": "35",
         "max_puts_per_stock": "8",
         "max_puts_per_day": "5",
         "Minimal_Print_Out": true
     },
     "underlying_stock": {
-        "min_5_day_rise_pct": "-15%",
+        "min_5_day_rise_pct": "-18%",
         "min_above_avg_pct": "-5%",
         "max_above_avg_pct": "40%",
-        "min_avg_up_slope_pct": "0%",
+        "min_avg_up_slope_pct": "-0.05%",
         "min_stock_price": "$18.00"       
     },
     "entry_put_position": {
         "min_days_for_expiration": "50",
-        "max_days_for_expiration": "270",
+        "max_days_for_expiration": "260",
         "min_put_bid_price": "3.60",
         "min_put_delta": "-25%",
         "max_put_delta": "-1%",
@@ -26,8 +26,8 @@
         "min_risk_reward_ratio": "-9.5",
         "min_annual_risk_reward_ratio": "-15",
         "min_expected_profit": "-100%",
-        "rank_by_risk_reward_ratio": true,
-        "rank_by_annual_risk": false,
+        "rank_by_risk_reward_ratio": false,
+        "rank_by_annual_risk": true,
         "rank_by_expected_profit": false
     },
     "exit_put_position": {
