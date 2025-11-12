@@ -207,6 +207,7 @@ def load_and_run_simulation(rules_file_path, json_file_path):
     Implements exit logic, calculates daily P&L and account value, respects 
     portfolio limits, and sells the optimal quantity based on premium collected.
     """
+    print(f"Start Simulation: Loading rules from '{rules_file_path}' and data from '{json_file_path}'")
 
     # --- LOGGING SETUP ---
     # Preload rules to check minimal_mode setting
@@ -2450,36 +2451,36 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     
     # Performance Summary
     print("📊 Final Performance")
-    print(f"|----------------------------|----------------------|") 
-    print(f"| Parameter                  |  Value               |")
-    print(f"|----------------------------|----------------------|")
-    print(f"| Current Date/Time          | {datetime.now().strftime('%Y-%m-%d %H:%M'):>20} |")
-    print(f"| Annualized Gain            | {annualized_gain:>19.2f}% |")
-    print(f"| Total Gain                 | ${TOTAL_GAIN:>19,.2f} |")    
-    print(f"| Run Time                   | {runtime_str:>20} |")
-    print(f"| Peak Open Positions        | {peak_open_positions:>20} |")
-    print(f"| Total Entry Events         | {total_entry_events:>20} |")
-    print(f"| Win Ratio                  | {win_ratio_pct:>19.2f}% |")
+    print(f"|----------------------------|-----------------------|") 
+    print(f"| Parameter                  |  Value                |")
+    print(f"|----------------------------|-----------------------|")
+    print(f"| Current Date/Time          | {datetime.now().strftime('%Y-%m-%d %H:%M'):>21} |")
+    print(f"| Annualized Gain            | {annualized_gain:>20.2f}% |")
+    print(f"| Total Gain                 | ${TOTAL_GAIN:>20,.2f} |")    
+    print(f"| Run Time                   | {runtime_str:>21} |")
+    print(f"| Peak Open Positions        | {peak_open_positions:>21} |")
+    print(f"| Total Entry Events         | {total_entry_events:>21} |")
+    print(f"| Win Ratio                  | {win_ratio_pct:>20.2f}% |")
     
     # Print current log file name (row ~2418 request)
     try:
         current_log_path = getattr(sys.stdout, 'logfile', None)
         if current_log_path and hasattr(current_log_path, 'name'):
             log_filename_only = os.path.basename(current_log_path.name)
-            print(f"| Log File                   | {log_filename_only:>20} |")
+            print(f"| Log File                   | {log_filename_only:>21} |")
         else:
             # Fallback if stdout has been restored or structure changed
-            print(f"| Log File                   | {'N/A':>20} |")
+            print(f"| Log File                   | {'N/A':>21} |")
     except Exception:
-        print(f"| Log File                   | {'ERR':>20} |")
+        print(f"| Log File                   | {'ERR':>21} |")
     
     # Worst drawdown across all simulated dates
     try:
-        print(f"| Worst Drawdown             | {worst_drawdown_pct:>19.2f}% |")
+        print(f"| Worst Drawdown             | {worst_drawdown_pct:>20.2f}% |")
     except Exception:
         # If for any reason the metric isn't available, skip gracefully
         pass
-    print(f"|----------------------------|----------------------|")
+    print(f"|----------------------------|-----------------------|")
     print()    
     
 # Execute the main function
