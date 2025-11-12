@@ -66,25 +66,6 @@ def safe_percentage_to_float(value):
             pass
     return None
 
-def to_percent_number(value):
-    """
-    Normalize a percentage rule value to 'percent-number' units.
-    Examples:
-    - '5%' -> 5.0
-    - 0.05 -> 5.0
-    - 5 or 5.0 -> 5.0
-    Returns None if the value can't be parsed.
-    """
-    if value is None:
-        return None
-    if isinstance(value, str):
-        dec = safe_percentage_to_float(value)
-        return dec * 100.0 if dec is not None else None
-    if isinstance(value, (int, float)):
-        v = float(value)
-        return v * 100.0 if abs(v) <= 1.0 else v
-    return None
-
 def calculate_risk_reward_ratio(strike, pBidPx):
     """
     Calculates the Risk/Reward Ratio: -(Risk / Reward) = -(Strike - pBidPx) / pBidPx.
@@ -600,12 +581,18 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             adj_close = daily_data.get('adj_close')
 
             # Parse rules and convert to comparable units (percent values as raw numbers)
-            min_5_day_rise_pct = to_percent_number(rules['underlying_stock']['min_5_day_rise_pct'])
+            min_5_day_rise_pct = safe_percentage_to_float(rules['underlying_stock']['min_5_day_rise_pct'])
+            min_5_day_rise_pct = min_5_day_rise_pct * 100.0 if min_5_day_rise_pct is not None else None
 
-            min_above_avg_pct = to_percent_number(rules['underlying_stock']['min_above_avg_pct'])
-            max_above_avg_pct = to_percent_number(rules['underlying_stock']['max_above_avg_pct'])
+            min_above_avg_pct = safe_percentage_to_float(rules['underlying_stock']['min_above_avg_pct'])
+            max_above_avg_pct = safe_percentage_to_float(rules['underlying_stock']['max_above_avg_pct'])
+            if min_above_avg_pct is not None:
+                min_above_avg_pct *= 100.0
+            if max_above_avg_pct is not None:
+                max_above_avg_pct *= 100.0
 
-            min_avg_up_slope_pct = to_percent_number(rules['underlying_stock']['min_avg_up_slope_pct'])
+            min_avg_up_slope_pct = safe_percentage_to_float(rules['underlying_stock']['min_avg_up_slope_pct'])
+            min_avg_up_slope_pct = min_avg_up_slope_pct * 100.0 if min_avg_up_slope_pct is not None else None
 
             # Price rule (strip $)
             min_stock_price_rule = None

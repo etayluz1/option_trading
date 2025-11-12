@@ -7,3 +7,4 @@ stock_history.json
 ticker_data/
 under_stock.json
 logs/
+__pycache__/
