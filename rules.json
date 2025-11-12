@@ -16,8 +16,8 @@
         "min_stock_price": "$18.00"       
     },
     "entry_put_position": {
-        "min_days_for_expiration": "25",
-        "max_days_for_expiration": "260",
+        "min_days_for_expiration": "50",
+        "max_days_for_expiration": "270",
         "min_put_bid_price": "3.60",
         "min_put_delta": "-25%",
         "max_put_delta": "-1%",

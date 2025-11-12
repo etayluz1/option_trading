@@ -2451,36 +2451,36 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     
     # Performance Summary
     print("📊 Final Performance")
-    print(f"|----------------------------|-----------------------|") 
-    print(f"| Parameter                  |  Value                |")
-    print(f"|----------------------------|-----------------------|")
-    print(f"| Current Date/Time          | {datetime.now().strftime('%Y-%m-%d %H:%M'):>21} |")
-    print(f"| Annualized Gain            | {annualized_gain:>20.2f}% |")
-    print(f"| Total Gain                 | ${TOTAL_GAIN:>20,.2f} |")    
-    print(f"| Run Time                   | {runtime_str:>21} |")
-    print(f"| Peak Open Positions        | {peak_open_positions:>21} |")
-    print(f"| Total Entry Events         | {total_entry_events:>21} |")
-    print(f"| Win Ratio                  | {win_ratio_pct:>20.2f}% |")
+    print(f"|----------------------------|-------------------------|") 
+    print(f"| Parameter                  |  Value                  |")
+    print(f"|----------------------------|-------------------------|")
+    print(f"| Current Date/Time          | {datetime.now().strftime('%Y-%m-%d %H:%M'):>23} |")
+    print(f"| Annualized Gain            | {annualized_gain:>22.2f}% |")
+    print(f"| Total Gain                 | ${TOTAL_GAIN:>22,.2f} |")    
+    print(f"| Run Time                   | {runtime_str:>23} |")
+    print(f"| Peak Open Positions        | {peak_open_positions:>23} |")
+    print(f"| Total Entry Events         | {total_entry_events:>23} |")
+    print(f"| Win Ratio                  | {win_ratio_pct:>22.2f}% |")
     
     # Print current log file name (row ~2418 request)
     try:
         current_log_path = getattr(sys.stdout, 'logfile', None)
         if current_log_path and hasattr(current_log_path, 'name'):
             log_filename_only = os.path.basename(current_log_path.name)
-            print(f"| Log File                   | {log_filename_only:>21} |")
+            print(f"| Log File                   | {log_filename_only:>23} |")
         else:
             # Fallback if stdout has been restored or structure changed
-            print(f"| Log File                   | {'N/A':>21} |")
+            print(f"| Log File                   | {'N/A':>23} |")
     except Exception:
-        print(f"| Log File                   | {'ERR':>21} |")
+        print(f"| Log File                   | {'ERR':>23} |")
     
     # Worst drawdown across all simulated dates
     try:
-        print(f"| Worst Drawdown             | {worst_drawdown_pct:>20.2f}% |")
+        print(f"| Worst Drawdown             | {worst_drawdown_pct:>22.2f}% |")
     except Exception:
         # If for any reason the metric isn't available, skip gracefully
         pass
-    print(f"|----------------------------|-----------------------|")
+    print(f"|----------------------------|-------------------------|")
     print()    
     
 # Execute the main function
