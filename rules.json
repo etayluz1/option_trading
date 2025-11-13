@@ -23,7 +23,7 @@
         "max_put_delta": "-1%",
         "max_ask_above_bid_pct": "63%",
         "min_avg_above_strike": "-4%",
-        "min_risk_reward_ratio": "-9.5",
+        "min_risk_reward_ratio": "-10.0",
         "min_annual_risk_reward_ratio": "-15",
         "min_expected_profit": "-100%",
         "rank_by_risk_reward_ratio": false,

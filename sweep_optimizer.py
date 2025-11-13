@@ -7,6 +7,7 @@ import subprocess
 import re
 import argparse
 from datetime import datetime
+from simulation_engine import run_simulation_in_memory, safe_percentage_to_float
 
 # sweep_optimizer: one-factor-at-a-time sweeps over selected rules in rules.json,
 # runs simulate.py for each modified rules file, parses the resulting log to extract
@@ -18,6 +19,8 @@ RULES_PATH = os.path.join(ROOT, "rules.json")
 SIMULATE_SCRIPT = os.path.join(ROOT, "simulate.py")
 LOGS_DIR = os.path.join(ROOT, "logs")
 RESULTS_FILE = os.path.join(ROOT, "sweep_results.txt")
+STOCK_HISTORY_PATH = os.path.join(ROOT, "stock_history.json")
+ORATS_DIR = os.path.join(ROOT, "ORATS_json")
 
 # Define which rule keys to sweep and their value kind. Path is a list of keys into rules dict.
 # kind: 'int','float','dollar','pct' (percentage string like "5%")
@@ -116,10 +119,85 @@ def format_value(val, kind):
     return val
 
 
-def run_simulation():
-    """Run simulate.py and return (stdout, stderr, returncode)."""
-    proc = subprocess.run([sys.executable, SIMULATE_SCRIPT], cwd=ROOT, capture_output=True, text=True)
-    return proc.stdout, proc.stderr, proc.returncode
+def load_data_cache():
+    """Load stock history and prepare lazy-loading cache for ORATS data."""
+    print("Loading stock history into memory cache...")
+    cache = {
+        "stock_history": None,
+        "orats_data": {},  # Will be populated on-demand
+        "_orats_loaded": set(),  # Track which dates have been loaded
+        "_available_dates": []  # List of all available ORATS dates
+    }
+
+    # Load stock history
+    if os.path.exists(STOCK_HISTORY_PATH):
+        with open(STOCK_HISTORY_PATH, 'rb') as f:
+            cache["stock_history"] = orjson.loads(f.read())
+        print(f"Loaded stock history for {len(cache['stock_history'])} tickers.")
+    else:
+        print(f"Warning: stock_history.json not found at {STOCK_HISTORY_PATH}")
+        return None
+
+    # Get list of available ORATS dates without loading the files
+    if not os.path.isdir(ORATS_DIR):
+        print(f"Warning: ORATS_json directory not found at {ORATS_DIR}")
+        return None
+    
+    json_files = sorted([f for f in os.listdir(ORATS_DIR) if f.endswith('.json')])
+    cache["_available_dates"] = [f.split('.')[0] for f in json_files]
+    print(f"Found {len(cache['_available_dates'])} ORATS files. Data will be loaded on-demand.")
+    
+    print("Data loading complete.")
+    return cache
+
+
+def lazy_load_orats_date(data_cache, date_str):
+    """Load ORATS data for a specific date if not already loaded."""
+    if date_str in data_cache["_orats_loaded"]:
+        return  # Already loaded
+    
+    filepath = os.path.join(ORATS_DIR, f"{date_str}.json")
+    if os.path.exists(filepath):
+        with open(filepath, 'rb') as f:
+            data_cache["orats_data"][date_str] = orjson.loads(f.read())
+        data_cache["_orats_loaded"].add(date_str)
+    else:
+        # Mark as loaded even if file doesn't exist to avoid repeated checks
+        data_cache["_orats_loaded"].add(date_str)
+
+
+def run_simulation_and_get_metrics(rules, data_cache):
+    """Run simulation in-memory and return key metrics."""
+    if not data_cache:
+        print("Error: Data cache is not loaded.")
+        return None, None, None, None, None
+
+    # The engine now handles lazy loading internally
+    # Pass the orats_data cache and the folder path
+    summary = run_simulation_in_memory(
+        rules, 
+        data_cache["stock_history"], 
+        all_orats_data=data_cache["orats_data"],
+        orats_folder=ORATS_DIR
+    )
+
+    if not summary:
+        return None, None, None, None, None
+
+    # Extract metrics from the returned summary dictionary
+    # Use correct keys that match what run_simulation_in_memory actually returns
+    annual_gain = summary.get("annualized_gain_pct")
+    worst_drawdown = summary.get("worst_drawdown_pct")
+    final_nav = summary.get("final_nav")
+
+    # The log file path might not be relevant anymore if not saved, but we can keep it for consistency
+    log_path = summary.get("log_path", None)
+
+    score = None
+    if annual_gain is not None and worst_drawdown is not None and worst_drawdown != 0:
+        score = annual_gain / worst_drawdown
+
+    return annual_gain, worst_drawdown, score, final_nav, log_path
 
 
 def find_logfile_from_stdout(stdout):
@@ -151,7 +229,89 @@ def parse_metrics_from_log(logpath):
         m1 = re.search(r"\|\s*\*\*Annualized Gain \(%\)\*\*\s*\|\s*([+-]?\d+\.?\d*)%", text)
     annual = float(m1.group(1)) if m1 else None
     worst = float(m2.group(1)) if m2 else None
+
+    # Fallback computation if summary not present: derive from daily logs
+    if annual is None or worst is None:
+        try:
+            # Extract dates
+            dates = re.findall(r"\n(\d{4}-\d{2}-\d{2})\n", text)
+            if dates:
+                from datetime import datetime as _dt
+                first = _dt.strptime(dates[0], "%Y-%m-%d")
+                last = _dt.strptime(dates[-1], "%Y-%m-%d")
+                days = max(1, (last - first).days)
+            else:
+                days = None
+
+            # Extract NAV values from cash-basis line
+            navs = [float(v.replace(',', '')) for v in re.findall(r"INITIAL_CASH \+ TOTAL P&L \(Cash Basis\)\D+\$([0-9,]+\.[0-9]{2})", text)]
+            if navs:
+                initial_nav = navs[0]
+                final_nav = navs[-1]
+                if days and days > 0:
+                    growth = final_nav / initial_nav if initial_nav > 0 else 1.0
+                    annual_calc = (growth ** (365.0 / days) - 1.0) * 100.0
+                    if annual is None:
+                        annual = annual_calc
+
+            # Extract worst drawdown as the minimum of Current Drawdown values (absolute percent)
+            dd_vals = [float(m) for m in re.findall(r"Current Drawdown[\s\*:]*\s*([+-]?\d+\.?\d*)%", text)]
+            if dd_vals:
+                worst_dd = min(dd_vals)  # most negative
+                if worst is None:
+                    worst = abs(worst_dd)
+        except Exception:
+            pass
+
     return annual, worst
+
+
+def extract_final_nav(logpath):
+    """Return the last reported 'INITIAL_CASH + TOTAL P&L (Cash Basis): $X' value as float, or None."""
+    if not logpath or not os.path.exists(logpath):
+        return None
+    try:
+        text = open(logpath, 'r', encoding='utf-8', errors='ignore').read()
+        navs = [float(v.replace(',', '')) for v in re.findall(r"INITIAL_CASH \+ TOTAL P&L \(Cash Basis\)\D+\$([0-9,]+\.[0-9]{2})", text)]
+        if navs:
+            return navs[-1]
+    except Exception:
+        return None
+    return None
+
+
+def _truncate(s, width=20):
+    s = '' if s is None else str(s)
+    return s if len(s) <= width else s[:max(0, width-1)] + '…'
+
+
+def format_5cols_100(s1, s2, s3, s4, s5):
+    """Return a single string of exactly 100 chars with five left-aligned fields
+    starting at columns 1,21,41,61,81 (width 20 each).
+    """
+    w = 20
+    s1 = _truncate(s1, w)
+    s2 = _truncate(s2, w)
+    s3 = _truncate(s3, w)
+    s4 = _truncate(s4, w)
+    s5 = _truncate(s5, w)
+    line = f"{s1:<20}{s2:<20}{s3:<20}{s4:<20}{s5:<20}"
+    return line[:100]
+
+
+def print_run_line(label, param, value, final_nav, annual, worst, score):
+    label_cap = (label or '').capitalize()
+    ann_str = f"{annual:.2f}" if isinstance(annual, (int, float)) else "N/A"
+    dd_str = f"{worst:.2f}" if isinstance(worst, (int, float)) else "N/A"
+    sc_str = f"{score:.2f}" if isinstance(score, (int, float)) else "N/A"
+    val_str = f"${final_nav:,.0f}" if isinstance(final_nav, (int, float)) else "N/A"
+    print(format_5cols_100(
+        f"{label_cap}:",
+        f"Val={val_str}",
+        f"Ann:{ann_str}%",
+        f"DD:{dd_str}%",
+        f"Score={sc_str}"
+    ))
 
 
 def append_result(record):
@@ -178,7 +338,7 @@ def adjust_value(orig_val, kind, pct_change):
     return orig_val * (1.0 + pct_change)
 
 
-def optimize_param_hill(path_keys, kind, rules_path, initial_step=0.05, expand_step=0.10, continue_step=0.05, max_iters=50, opt_start=None, opt_end=None):
+def optimize_param_hill(path_keys, kind, rules_path, data_cache, initial_step=0.05, expand_step=0.10, continue_step=0.05, max_iters=50, opt_start=None, opt_end=None):
     """
     Hill-climb optimizer for a single parameter.
     - Run baseline
@@ -201,7 +361,6 @@ def optimize_param_hill(path_keys, kind, rules_path, initial_step=0.05, expand_s
 
     # Baseline
     print("Running baseline simulation with original rules...")
-    # If date overrides are provided, write a temp rules file reflecting them before baseline
     rules_mod = load_rules(backup_path)
     if opt_start or opt_end:
         acct = rules_mod.setdefault('account_simulation', {})
@@ -209,28 +368,23 @@ def optimize_param_hill(path_keys, kind, rules_path, initial_step=0.05, expand_s
             acct['start_date'] = opt_start
         if opt_end:
             acct['end_date'] = opt_end
-        save_rules(rules_path, rules_mod)
-    else:
-        # Ensure we start from original rules
-        shutil.copy2(backup_path, rules_path)
-    stdout, stderr, rc = run_simulation()
-    logpath = find_logfile_from_stdout(stdout)
-    annual, worst = parse_metrics_from_log(logpath)
-    final_score = None
-    if annual is not None and worst is not None and worst != 0:
-        final_score = annual / worst
+    
+    annual, worst, final_score, final_nav, logpath = run_simulation_and_get_metrics(rules_mod, data_cache)
+
     best_score = final_score if final_score is not None else -float('inf')
+    baseline_value_disp = format_value(orig_val, kind)
     best_record = {
         'timestamp': datetime.now().isoformat(),
-        'param': None,
-        'value': orig_raw,
+        'param': '.'.join(path_keys),
+        'value': baseline_value_disp,
         'logfile': logpath,
         'annualized_gain_pct': annual,
         'worst_drawdown_pct': worst,
-        'final_score': final_score
+        'final_score': final_score,
+        'final_nav': final_nav
     }
     append_result({'type': 'baseline', **best_record})
-    print("Baseline:", best_record)
+    print_run_line('baseline', best_record['param'], best_record['value'], final_nav, annual, worst, final_score)
 
     # Initial exploration: +5% and -5%
     def _run_with(val):
@@ -242,25 +396,21 @@ def optimize_param_hill(path_keys, kind, rules_path, initial_step=0.05, expand_s
                 acct['start_date'] = opt_start
             if opt_end:
                 acct['end_date'] = opt_end
-        save_rules(rules_path, rules_mod)
+        
         print(f"Running simulation for {'.'.join(path_keys)} = {format_value(val, kind)}...")
-        stdout, stderr, rc = run_simulation()
-        lp = find_logfile_from_stdout(stdout)
-        a, w = parse_metrics_from_log(lp)
-        sc = None
-        if a is not None and w is not None and w != 0:
-            sc = a / w
-        return a, w, sc, lp
+        a, w, sc, nav, lp = run_simulation_and_get_metrics(rules_mod, data_cache)
+        return a, w, sc, nav, lp
 
     candidates = []
     for sign in (+1, -1):
         new_val = adjust_value(orig_val, kind, sign * initial_step)
-        a, w, sc, lp = _run_with(new_val)
-        candidates.append((sign, new_val, a, w, sc, lp))
+        a, w, sc, nav, lp = _run_with(new_val)
+        candidates.append((sign, new_val, a, w, sc, nav, lp))
+        print_run_line('+' if sign > 0 else '-', '.'.join(path_keys), format_value(new_val, kind), nav, a, w, sc)
 
     # Pick best among baseline and the two neighbors
     direction = 0
-    for sign, new_val, a, w, sc, lp in candidates:
+    for sign, new_val, a, w, sc, nav, lp in candidates:
         if sc is not None and best_score is not None and sc > best_score:
             best_score = sc
             best_record = {
@@ -270,7 +420,8 @@ def optimize_param_hill(path_keys, kind, rules_path, initial_step=0.05, expand_s
                 'logfile': lp,
                 'annualized_gain_pct': a,
                 'worst_drawdown_pct': w,
-                'final_score': sc
+                'final_score': sc,
+                'final_nav': nav
             }
             append_result({'type': 'improvement', **best_record})
             print("New best after initial step:", best_record)
@@ -285,10 +436,13 @@ def optimize_param_hill(path_keys, kind, rules_path, initial_step=0.05, expand_s
     # Try a larger step in the improving direction
     iter_count = 0
     curr_val = parse_value(best_record['value'], kind)
-    a, w, sc, lp = _run_with(adjust_value(orig_val, kind, direction * expand_step))
+    
+    exp_val = adjust_value(orig_val, kind, direction * expand_step)
+    a, w, sc, nav, lp = _run_with(exp_val)
+    print_run_line('expand', '.'.join(path_keys), format_value(exp_val, kind), nav, a, w, sc)
     if sc is not None and sc > best_score:
         best_score = sc
-        curr_val = adjust_value(orig_val, kind, direction * expand_step)
+        curr_val = exp_val
         best_record = {
             'timestamp': datetime.now().isoformat(),
             'param': '.'.join(path_keys),
@@ -296,7 +450,8 @@ def optimize_param_hill(path_keys, kind, rules_path, initial_step=0.05, expand_s
             'logfile': lp,
             'annualized_gain_pct': a,
             'worst_drawdown_pct': w,
-            'final_score': sc
+            'final_score': sc,
+            'final_nav': nav
         }
         append_result({'type': 'improvement', **best_record})
         print("Improved on expand step:", best_record)
@@ -305,7 +460,8 @@ def optimize_param_hill(path_keys, kind, rules_path, initial_step=0.05, expand_s
     while iter_count < max_iters:
         iter_count += 1
         next_val = adjust_value(curr_val, kind, direction * continue_step)
-        a, w, sc, lp = _run_with(next_val)
+        a, w, sc, nav, lp = _run_with(next_val)
+        print_run_line('step', '.'.join(path_keys), format_value(next_val, kind), nav, a, w, sc)
         if sc is not None and sc > best_score:
             best_score = sc
             curr_val = next_val
@@ -316,7 +472,8 @@ def optimize_param_hill(path_keys, kind, rules_path, initial_step=0.05, expand_s
                 'logfile': lp,
                 'annualized_gain_pct': a,
                 'worst_drawdown_pct': w,
-                'final_score': sc
+                'final_score': sc,
+                'final_nav': nav
             }
             append_result({'type': 'improvement', **best_record})
             print("Improved:", best_record)
@@ -336,6 +493,7 @@ def main():
     parser.add_argument("--params", type=str, default=None, help="Comma-separated list of rule keys to sweep (e.g., entry_put_position.min_days_for_expiration,exit_put_position.position_stop_loss_pct)")
     parser.add_argument("--rules", type=str, default=None, help="Path to rules.json (defaults to workspace rules.json)")
     parser.add_argument("--hill", action="store_true", help="Use hill-climbing optimization (baseline, +/-5%, then directional climb)")
+    parser.add_argument("--triplet", action="store_true", help="Run exactly three runs for a parameter: -5%, 0%, +5% and report scores")
     parser.add_argument("--initial-step", type=float, default=5.0, help="Initial step size in percent for hill-climb (default 5.0)")
     parser.add_argument("--expand-step", type=float, default=10.0, help="Expand step size in percent when direction found (default 10.0)")
     parser.add_argument("--continue-step", type=float, default=5.0, help="Continue step size in percent for ongoing climb (default 5.0)")
@@ -346,6 +504,126 @@ def main():
     if not os.path.exists(rules_path):
         print(f"rules.json not found at {rules_path}")
         print("Hint: pass --rules C:\\path\\to\\rules.json")
+        return
+
+    # Load all data into memory once at the beginning
+    data_cache = load_data_cache()
+    if not data_cache:
+        print("Failed to load data cache. Exiting.")
+        return
+
+    if args.triplet:
+        # Determine target parameter (default Rule 1)
+        if args.params:
+            wanted = args.params.split(',')[0].strip()
+            key_parts = wanted.split('.') if wanted else ['account_simulation', 'max_puts_per_account']
+        else:
+            key_parts = ['account_simulation', 'max_puts_per_account']
+        # find kind
+        kind = None
+        for keys, k in PARAM_SPECS:
+            if keys == key_parts:
+                kind = k
+                break
+        if kind is None:
+            print(f"Unknown parameter {'.'.join(key_parts)} for triplet. Add it to PARAM_SPECS.")
+            return
+
+        # Backup original
+        backup_path = rules_path + ".bak"
+        shutil.copy2(rules_path, backup_path)
+        print(f"Backed up original rules to {backup_path}")
+
+        def _run_with_value(val):
+            rules_mod = load_rules(backup_path)
+            set_by_path(rules_mod, key_parts, format_value(val, kind))
+            if args.opt_start or args.opt_end:
+                acct = rules_mod.setdefault('account_simulation', {})
+                if args.opt_start:
+                    acct['start_date'] = args.opt_start
+                if args.opt_end:
+                    acct['end_date'] = args.opt_end
+            
+            disp = format_value(val, kind)
+            print(f"Running simulation for {'.'.join(key_parts)} = {disp}...")
+            annual, worst, score, final_nav, logpath = run_simulation_and_get_metrics(rules_mod, data_cache)
+            return disp, logpath, annual, worst, score, final_nav
+
+        # Baseline numeric value
+        rules = load_rules(rules_path)
+        orig_raw = get_by_path(rules, key_parts)
+        orig_val = parse_value(orig_raw, kind)
+
+        # Prepare sequence: -5%, 0%, +5%
+        seq = [(-0.05, 'minus5'), (0.0, 'baseline'), (0.05, 'plus5')]
+        results = []
+        for pct, label in seq:
+            if pct == 0.0:
+                # Use original unmodified
+                disp, logpath, annual, worst, score, final_nav = _run_with_value(orig_val)
+            else:
+                adj = adjust_value(orig_val, kind, pct)
+                disp, logpath, annual, worst, score, final_nav = _run_with_value(adj)
+            rec = {
+                'timestamp': datetime.now().isoformat(),
+                'mode': 'triplet',
+                'label': label,
+                'param': '.'.join(key_parts),
+                'value': disp,
+                'logfile': logpath,
+                'annualized_gain_pct': annual,
+                'worst_drawdown_pct': worst,
+                'final_score': score,
+                'final_nav': final_nav
+            }
+            append_result(rec)
+            results.append(rec)
+
+        # Restore original rules
+        shutil.copy2(backup_path, rules_path)
+        print("Restored original rules.json from backup.")
+
+        # Pretty print concise report with requested format
+        print("\n" + format_5cols_100("=== Triplet Results", "(-5%, 0%, +5%)", "", "", ""))
+        best_rec = None
+        baseline_rec = None
+        for rec in results:
+            label = str(rec.get('label', ''))
+            label_cap = label.capitalize() if label else ''
+            ann = rec.get('annualized_gain_pct')
+            dd = rec.get('worst_drawdown_pct')
+            ann_str = f"{ann:.2f}" if isinstance(ann, (int, float)) else "N/A"
+            dd_str = f"{dd:.2f}" if isinstance(dd, (int, float)) else "N/A"
+            final_nav = rec.get('final_nav')
+            val_str = f"${final_nav:,.0f}" if isinstance(final_nav, (int, float)) else "N/A"
+            sc = rec.get('final_score')
+            sc_str = f"{sc:.2f}" if isinstance(sc, (int, float)) else "N/A"
+            print(format_5cols_100(
+                f"{label_cap}:",
+                f"Val={val_str}",
+                f"Ann:{ann_str}%",
+                f"DD:{dd_str}%",
+                f"Score={sc_str}"
+            ))
+            # Track best by score (higher is better)
+            if label == 'baseline':
+                baseline_rec = rec
+            if isinstance(sc, (int, float)):
+                if best_rec is None or sc > best_rec.get('final_score', float('-inf')):
+                    best_rec = rec
+        # Print recommendation if improvement over baseline
+        if best_rec and baseline_rec:
+            bsc = baseline_rec.get('final_score')
+            if isinstance(best_rec.get('final_score'), (int, float)) and isinstance(bsc, (int, float)) and best_rec['final_score'] > bsc:
+                print(format_5cols_100(
+                    "Best:",
+                    f"{best_rec['label'].capitalize()} improved",
+                    f"New={best_rec['param']}",
+                    f"Val={best_rec['value']}",
+                    f"Score={best_rec['final_score']:.3f}"
+                ))
+            else:
+                print(format_5cols_100("Best:", "No improvement", "over baseline", "in this triplet.", ""))
         return
 
     if args.hill:
@@ -370,6 +648,7 @@ def main():
             key_parts,
             kind,
             rules_path,
+            data_cache,
             initial_step=args.initial_step / 100.0,
             expand_step=args.expand_step / 100.0,
             continue_step=args.continue_step / 100.0,
@@ -388,12 +667,7 @@ def main():
 
     # Baseline run (original rules)
     print("Running baseline simulation with original rules...")
-    stdout, stderr, rc = run_simulation()
-    logpath = find_logfile_from_stdout(stdout)
-    annual, worst = parse_metrics_from_log(logpath)
-    final_score = None
-    if annual is not None and worst is not None and worst != 0:
-        final_score = annual / worst
+    annual, worst, final_score, final_nav, logpath = run_simulation_and_get_metrics(rules, data_cache)
 
     best_score = final_score if final_score is not None else -float('inf')
     best_record = {
@@ -403,10 +677,11 @@ def main():
         'logfile': logpath,
         'annualized_gain_pct': annual,
         'worst_drawdown_pct': worst,
-        'final_score': final_score
+        'final_score': final_score,
+        'final_nav': final_nav
     }
-    print("Baseline result:", best_record)
     append_result({'type': 'baseline', **best_record})
+    print_run_line('baseline', '', '', final_nav, annual, worst, final_score)
 
     # Exit early if baseline-only requested
     if args.baseline_only:
@@ -468,12 +743,7 @@ def main():
             save_rules(rules_path, rules_mod)
 
             print(f"Running simulation for {'.'.join(path_keys)} = {formatted}...")
-            stdout, stderr, rc = run_simulation()
-            logpath = find_logfile_from_stdout(stdout)
-            annual, worst = parse_metrics_from_log(logpath)
-            final_score = None
-            if annual is not None and worst is not None and worst != 0:
-                final_score = annual / worst
+            annual, worst, final_score, final_nav, logpath = run_simulation_and_get_metrics(rules_mod, data_cache)
 
             rec = {
                 'timestamp': datetime.now().isoformat(),
@@ -482,10 +752,11 @@ def main():
                 'logfile': logpath,
                 'annualized_gain_pct': annual,
                 'worst_drawdown_pct': worst,
-                'final_score': final_score
+                'final_score': final_score,
+                'final_nav': final_nav
             }
 
-            print('Result:', rec)
+            print_run_line('result', rec['param'], rec['value'], final_nav, annual, worst, final_score)
 
             # If better than best (higher final_score), append to results file and update best
             try:
