@@ -5,9 +5,10 @@ import re
 import subprocess
 import sys
 import time
+from datetime import datetime
 from copy import deepcopy
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 ROOT_DIR = Path(__file__).resolve().parent
 SIMULATOR_PATH = ROOT_DIR / "simulate_new.py"
@@ -221,9 +222,9 @@ def _run_simulation_once(run_id: int) -> dict:
     }
 
 
-def _print_summary(rows: list[dict], param_name: str) -> None:
+def _print_summary(rows: list[dict], param_name: str, emit: Callable[[str], None]) -> None:
     if not rows:
-        print(f"No simulation results to display for {param_name}.")
+        emit(f"No simulation results to display for {param_name}.")
         return
 
     headers = [
@@ -262,11 +263,11 @@ def _print_summary(rows: list[dict], param_name: str) -> None:
     ]
 
     def _print_line(columns: list[str]) -> None:
-        print(" | ".join(col.ljust(widths[idx]) for idx, col in enumerate(columns)))
+        emit(" | ".join(col.ljust(widths[idx]) for idx, col in enumerate(columns)))
 
-    print("Simulation summary:")
+    emit("Simulation summary:")
     _print_line(headers)
-    print("-+-".join("-" * width for width in widths))
+    emit("-+-".join("-" * width for width in widths))
     for data in table_rows:
         _print_line(data)
 
@@ -372,8 +373,33 @@ def main() -> None:
     original_rules = json.loads(original_rules_text)
     current_rules = deepcopy(original_rules)
 
+    timestamp = datetime.now().strftime("%Y_%d_%m %H_%M")
+    optimize_log_path = ROOT_DIR / "logs" / f"optimize {timestamp}.log"
+    optimize_log_path.parent.mkdir(parents=True, exist_ok=True)
+    with optimize_log_path.open("w", encoding="utf-8") as log_file:
+        log_file.write(f"LOG FILE: {optimize_log_path.name}\n")
+        log_file.write("=== ORIGINAL RULES ===\n")
+        log_file.write(original_rules_text)
+        log_file.write("\n")
+
+    def log(message: str) -> None:
+        if log.first:
+            print(f"LOG FILE: {optimize_log_path.name}")
+            log.first = False
+        print(message)
+        with optimize_log_path.open("a", encoding="utf-8") as log_file:
+            log_file.write(message + "\n")
+    log.first = True
+
     def write_rules_file() -> None:
-        RULES_PATH.write_text(json.dumps(current_rules, indent=4) + "\n", encoding="utf-8")
+        serialized = json.dumps(current_rules, indent=4) + "\n"
+        RULES_PATH.write_text(serialized, encoding="utf-8")
+
+    def log_rules_snapshot(header: str) -> None:
+        with optimize_log_path.open("a", encoding="utf-8") as log_file:
+            log_file.write(f"{header}\n")
+            log_file.write(json.dumps(current_rules, indent=4))
+            log_file.write("\n\n")
 
     try:
         param_specs = [
@@ -429,7 +455,7 @@ def main() -> None:
                 serialized_value = serialize_value(value, param_type)
                 current_rules[section][key] = serialized_value
                 write_rules_file()
-                print(f"Starting run {run_id} with {label}={serialized_value}...")
+                log(f"Starting run {run_id} with {label}={serialized_value}...")
                 run_result = _run_simulation_once(run_id)
                 run_result["param_value"] = value
                 run_result["param_display"] = serialized_value
@@ -439,10 +465,15 @@ def main() -> None:
             best_serialized = serialize_value(best_value, param_type)
             current_rules[section][key] = best_serialized
             write_rules_file()
-            print(f"Applied best {label}={best_serialized} based on score.")
+            log(f"Applied best {label}={best_serialized} based on score.")
+            # Always log rules.json after every triplet of runs (after each parameter sweep), but only once per sweep
+            if idx == 0:
+                log_rules_snapshot(f"--- rules.json after first sweep ({label}) ---")
+            else:
+                log_rules_snapshot(f"--- rules.json after sweep {idx+1} ({label}) ---")
 
-            print()
-            _print_summary(results, label)
+            log("")
+            _print_summary(results, label, log)
 
             if param_type == "percent":
                 baseline_matched = math.isclose(best_value, base_value, abs_tol=1e-9)
@@ -450,12 +481,18 @@ def main() -> None:
                 baseline_matched = best_value == base_value
 
             if baseline_matched and idx < len(param_specs) - 1:
-                print()
-                print(f"Best configuration matched baseline; optimizing {param_specs[idx + 1]['label']}...")
+                log("")
+                log(f"Best configuration matched baseline; optimizing {param_specs[idx + 1]['label']}...")
 
     except Exception:
         RULES_PATH.write_text(original_rules_text, encoding="utf-8")
         raise
+
+    with optimize_log_path.open("a", encoding="utf-8") as log_file:
+        log_file.write("=== FINAL RULES ===\n")
+        log_file.write(RULES_PATH.read_text(encoding="utf-8"))
+        log_file.write("\n")
+        log_file.write(f"LOG FILE: {optimize_log_path.name}\n")
 
 
 if __name__ == "__main__":
