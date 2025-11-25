@@ -11,11 +11,11 @@ from pathlib import Path
 from typing import Callable, Iterable, Optional
 
 ROOT_DIR = Path(__file__).resolve().parent
-SIMULATOR_PATH = ROOT_DIR / "simulate_new.py"
+SIMULATOR_PATH = ROOT_DIR / "simulate_yuda.py"
 LOGS_DIR = ROOT_DIR / "logs"
 RULES_PATH = ROOT_DIR / "rules.json"
 
-# Match the console line emitted by simulate_new.py with the generated log path.
+# Match the console line emitted by simulate_yuda.py with the generated log path.
 LOG_LINE_RE = re.compile(r"Simulation complete\. Log saved to:\s*(.+)")
 # Capture the final NAV line, allowing for both "FINAL REALIZED CASH VALUE" and
 # the older double-word variant "FINAL ACCOUNT ACCOUNT VALUE (CASH)".
@@ -200,7 +200,7 @@ def _run_simulation_once(run_id: int) -> dict:
 
     if result.returncode != 0:
         raise RuntimeError(
-            f"simulate_new.py run {run_id} failed with exit code {result.returncode}.\n"
+            f"simulate_yuda.py run {run_id} failed with exit code {result.returncode}.\n"
             f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
         )
 
