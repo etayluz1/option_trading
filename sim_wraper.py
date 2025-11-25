@@ -306,16 +306,28 @@ def serialize_value(value: float, param_type: str) -> str:
 
 
 def compute_variants(base_value: float, param_type: str) -> tuple[float, float]:
+    # Read wrapper_sweep_pct from rules.json (account_simulation section)
+    try:
+        with open(RULES_PATH, encoding="utf-8") as f:
+            rules = json.load(f)
+        sweep_str = rules.get("account_simulation", {}).get("wrapper_sweep_pct", "5%")
+        if isinstance(sweep_str, str) and sweep_str.endswith("%"):
+            wrapper_sweep_pct = float(sweep_str.rstrip("%")) / 100.0
+        else:
+            wrapper_sweep_pct = float(sweep_str)
+    except Exception:
+        wrapper_sweep_pct = 0.05
+
     if param_type == "int":
-        plus = max(1, math.ceil(base_value * 1.05))
+        plus = max(1, math.ceil(base_value * (1 + wrapper_sweep_pct)))    # +5% adjustment
         if math.isclose(plus, base_value, abs_tol=1e-9):
             plus = base_value + 1
-        minus = max(1, math.floor(base_value * 0.95))
+        minus = max(1, math.floor(base_value * (1 - wrapper_sweep_pct)))  # -5% adjustment
         if math.isclose(minus, base_value, abs_tol=1e-9):
             minus = max(1, base_value - 1)
         return plus, minus
 
-    if param_type == "percent":
+    elif param_type == "percent":
         precision = 3
         delta = 0.001
     elif param_type == "currency":
@@ -325,8 +337,8 @@ def compute_variants(base_value: float, param_type: str) -> tuple[float, float]:
         precision = 4
         delta = 0.0001
 
-    plus = round(base_value * 1.05, precision)
-    minus = round(base_value * 0.95, precision)
+    plus = round(base_value * (1 + wrapper_sweep_pct), precision)  # +5% adjustment
+    minus = round(base_value * (1 - wrapper_sweep_pct), precision) # -5% adjustment
 
     tol = 10 ** (-precision - 2)
     if math.isclose(plus, base_value, abs_tol=tol):

@@ -47,6 +47,7 @@ DEBUG_VERBOSE = False # Set to True to see individual ticker details (Total Viab
 
 # Commission Fee
 COMMISSION_PER_CONTRACT = 0.67
+commission_per_contract_str = f"{COMMISSION_PER_CONTRACT:>13.2f}"
 FINAL_COMMISSION_PER_CONTRACT = COMMISSION_PER_CONTRACT # Commission for closing trades
 
 # Maximum premium to collect per single trade entry
@@ -258,10 +259,14 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             MAX_PUTS_PER_ACCOUNT = int(rules["account_simulation"]["max_puts_per_account"])
             MAX_PUTS_PER_STOCK = int(rules["account_simulation"]["max_puts_per_stock"])
             MAX_PUTS_PER_DAY = int(rules["account_simulation"]["max_puts_per_day"])
+            wrapper_sweep_pct_val = rules["account_simulation"].get("wrapper_sweep_pct", "5%")
+            wrapper_sweep_pct_float = float(wrapper_sweep_pct_val.rstrip("%"))
+            wrapper_sweep_pct_str = f"{wrapper_sweep_pct_float:>13.2f}%"
             MINIMAL_PRINT_OUT = bool(rules["account_simulation"].get("Minimal_Print_Out", False))
             
             # --- RISK MANAGEMENT RULE (Stock Price Stop Loss) ---
             STOCK_MAX_BELOW_AVG_PCT = abs(safe_percentage_to_float(rules["exit_put_position"]["stock_max_below_avg"]))
+            stock_max_below_avg_str = f"{STOCK_MAX_BELOW_AVG_PCT*100:>13.2f}%"
             
             # Start/End Dates
             start_date_str = rules["account_simulation"]["start_date"]
@@ -291,28 +296,39 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             
             # Bid Price Rule
             MIN_BID_PRICE = float(rules["entry_put_position"]["min_put_bid_price"].replace('$', '').strip())
+            min_bid_price_str = f"$ {MIN_BID_PRICE:>12.2f}"
+                                  
             
             # Put Delta Rules
             MIN_DELTA = safe_percentage_to_float(rules["entry_put_position"]["min_put_delta"])
             MAX_DELTA = safe_percentage_to_float(rules["entry_put_position"]["max_put_delta"])
+            min_delta_str = f"{MIN_DELTA*100:>13.2f}%"
+            max_delta_str = f"{MAX_DELTA*100:>13.2f}%"           
             
             # Max Bid-Ask Spread Rule
             MAX_SPREAD_DECIMAL = safe_percentage_to_float(rules["entry_put_position"]["max_ask_above_bid_pct"])
-            
+            max_spread_str= f"{MAX_SPREAD_DECIMAL*100:>13.2f}%"                               
+
             # Strike Price Safety Margin Rule
-            MIN_AVG_ABOVE_STRIKE_PCT = safe_percentage_to_float(rules["entry_put_position"]["min_avg_above_strike"])            
+            MIN_AVG_ABOVE_STRIKE_PCT = safe_percentage_to_float(rules["entry_put_position"]["min_avg_above_strike"])
+            max_avg_above_strike_str = f"{MIN_AVG_ABOVE_STRIKE_PCT*100:>13.2f}%"
+
             REQUIRED_SMA_STRIKE_RATIO = 1.0 + MIN_AVG_ABOVE_STRIKE_PCT
             
             # Risk/Reward Ratio Rule
             MIN_RISK_REWARD_RATIO = float(rules["entry_put_position"]["min_risk_reward_ratio"])
+            min_risk_reward_str = f"{MIN_RISK_REWARD_RATIO:>14.3f}"
+
             # Ranking flags (renamed from select_by to rank_by for clarity)
             RANK_BY_RR = bool(rules['entry_put_position'].get('rank_by_risk_reward_ratio', False))
             RANK_BY_ANNUAL = bool(rules['entry_put_position'].get('rank_by_annual_risk', False))            
             RANK_BY_EXPECTED = bool(rules['entry_put_position'].get('rank_by_expected_profit', False))
 
             MIN_ANNUAL_RISK = float(rules['entry_put_position']['min_annual_risk_reward_ratio'])
+            min_annual_risk_str = f"{MIN_ANNUAL_RISK:>14.3f}"
             
             MIN_EXPECTED_PROFIT = safe_percentage_to_float(rules['entry_put_position']['min_expected_profit'])
+            min_expected_profit_str= f"{MIN_EXPECTED_PROFIT*100:>13.2f}%"
             
             # Validate that only one ranking method is enabled at a time
             rankers_enabled = sum([1 if RANK_BY_RR else 0,
@@ -331,6 +347,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             try:
                 if MAX_PUTS_PER_ACCOUNT > 0:
                     MAX_PREMIUM_PER_TRADE = float(INITIAL_CASH) / float(MAX_PUTS_PER_ACCOUNT)
+                    max_premium_per_trade_str = f"{MAX_PREMIUM_PER_TRADE:>13.2f}"
                 else:
                     # Fallback to existing constant if the rules are invalid
                     MAX_PREMIUM_PER_TRADE = MAX_PREMIUM_PER_TRADE
@@ -341,11 +358,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # Define POSITION_STOP_LOSS_PCT first
             _pos_raw = rules.get('exit_put_position', {}).get('position_stop_loss_pct', "0%")
             POSITION_STOP_LOSS_PCT = abs(safe_percentage_to_float(_pos_raw)) if _pos_raw is not None else 0.0
+            position_stop_loss_str = f"{POSITION_STOP_LOSS_PCT*100:>13.2f}%"
 
             # New Exit Rule: Min Gain to Take Profit (percentage profit threshold vs entry bid)
             try:
                 _tp_raw = rules.get('exit_put_position', {}).get('min_gain_to_take_profit', None)
                 TAKE_PROFIT_MIN_GAIN_PCT = safe_percentage_to_float(_tp_raw) if _tp_raw is not None else None
+                take_profit_min_gain_str = f"{TAKE_PROFIT_MIN_GAIN_PCT*100:>12.2f}%"
             except Exception:
                 TAKE_PROFIT_MIN_GAIN_PCT = None
 
@@ -353,6 +372,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             try:
                 _min_above_strike_raw = rules.get('exit_put_position', {}).get('stock_min_above_strike', None)
                 STOCK_MIN_ABOVE_STRIKE_PCT = safe_percentage_to_float(_min_above_strike_raw) if _min_above_strike_raw is not None else None
+                stock_min_above_strike_str = f"{STOCK_MIN_ABOVE_STRIKE_PCT*100:>13.2f}%"
             except Exception:
                 STOCK_MIN_ABOVE_STRIKE_PCT = None
 
@@ -365,13 +385,14 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 elif 'Stock max below entry' in exit_rules:
                     _max_below_entry = exit_rules.get('Stock max below entry')
                 STOCK_MAX_BELOW_ENTRY_PCT = abs(safe_percentage_to_float(_max_below_entry)) if _max_below_entry is not None else None
+                stock_max_below_entry_str = f"{STOCK_MAX_BELOW_ENTRY_PCT*100:>13.2f}%"
             except Exception:
                 STOCK_MAX_BELOW_ENTRY_PCT = None
 
             # Precompute Underlying Stock rules formatted strings (used in multiple tables)
             try:
                 u_rules = rules.get('underlying_stock', {})
-                u_min_rise = safe_percentage_to_float(u_rules.get('min_5_day_rise_pct'))
+                u_min_rise =  safe_percentage_to_float(u_rules.get('min_5_day_rise_pct'))
                 u_min_above = safe_percentage_to_float(u_rules.get('min_above_avg_pct'))
                 u_max_above = safe_percentage_to_float(u_rules.get('max_above_avg_pct'))
                 u_min_slope = safe_percentage_to_float(u_rules.get('min_avg_up_slope_pct'))
@@ -381,17 +402,18 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     u_min_price = None
 
                 # Consistent formatting widths across summaries
-                min_rise_str = f"{u_min_rise*100:>13.1f}%" if u_min_rise is not None else f"{'N/A':>13}"
-                min_above_str = f"{u_min_above*100:>13.1f}%" if u_min_above is not None else f"{'N/A':>13}"
-                max_above_str = f"{u_max_above*100:>13.1f}%" if u_max_above is not None else f"{'N/A':>13}"
-                min_slope_str = f"{u_min_slope*100:>13.1f}%" if u_min_slope is not None else f"{'N/A':>13}"
-                min_price_str = f"$ {u_min_price:>12.2f}" if u_min_price is not None else f"{'N/A':>14}"
+                initial_cash_str = f"${float(rules['account_simulation']['initial_cash']):>13,.2f}"
+                min_rise_str     = f"{u_min_rise*100:>13.2f}%"  if u_min_rise  is not None else f"{'N/A':>14}"
+                min_above_str    = f"{u_min_above*100:>13.2f}%" if u_min_above is not None else f"{'N/A':>14}"
+                max_above_str    = f"{u_max_above*100:>13.2f}%" if u_max_above is not None else f"{'N/A':>14}"
+                min_slope_str    = f"{u_min_slope*100:>13.4f}%" if u_min_slope is not None else f"{'N/A':>14}"
+                min_price_str    = f"$ {u_min_price:>12.2f}"    if u_min_price is not None else f"{'N/A':>14}"
             except Exception:
                 # Provide fallbacks if rules are missing or malformed
-                min_rise_str = f"{'N/A':>13}"
-                min_above_str = f"{'N/A':>13}"
-                max_above_str = f"{'N/A':>13}"
-                min_slope_str = f"{'N/A':>13}"
+                min_rise_str  = f"{'N/A':>14}"
+                min_above_str = f"{'N/A':>14}"
+                max_above_str = f"{'N/A':>14}"
+                min_slope_str = f"{'N/A':>14}"
                 min_price_str = f"{'N/A':>14}"
 
             # Print rules in formatted tables
@@ -404,10 +426,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(f"|----------------------------|----------------|")
             print(f"| Start Date                 | {start_date_str:<14} |")
             print(f"| End Date (Early Exit)      | {end_date_str:<14} |")
-            print(f"| Initial Cash               | ${float(rules['account_simulation']['initial_cash']):>13,.2f} |")
+            print(f"| Initial Cash               | {initial_cash_str} |")
             print(f"| Max Puts/Account           | {MAX_PUTS_PER_ACCOUNT:>14} |")
             print(f"| Max Puts/Stock             | {MAX_PUTS_PER_STOCK:>14} |")
             print(f"| Max Puts/Day               | {MAX_PUTS_PER_DAY:>14} |")
+            print(f"| Wrapper Sweep +/- Step %   | {wrapper_sweep_pct_str:>14} |")
             print(f"|----------------------------|----------------|")
             print()
             
@@ -431,14 +454,14 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(f"|----------------------------|----------------|")
             print(f"| Min DTE                    | {MIN_DTE:>14} |")
             print(f"| Max DTE                    | {MAX_DTE:>14} |")
-            print(f"| Min Put Bid Price          | $ {MIN_BID_PRICE:>12.2f} |")
-            print(f"| Min Put Delta              | {MIN_DELTA*100:>13.1f}% |")
-            print(f"| Max Put Delta              | {MAX_DELTA*100:>13.1f}% |")
-            print(f"| Max Bid-Ask Spread         | {MAX_SPREAD_DECIMAL*100:>13.1f}% |")
-            print(f"| Min Avg Above Strike       | {MIN_AVG_ABOVE_STRIKE_PCT*100:>13.1f}% |")
-            print(f"| Min Risk/Reward Ratio      | {MIN_RISK_REWARD_RATIO:>14.1f} |")
-            print(f"| Min Annual Risk            | {MIN_ANNUAL_RISK:>14.1f} |")
-            print(f"| Min Expected Profit        | {MIN_EXPECTED_PROFIT*100:>13.1f}% |")
+            print(f"| Min Put Bid Price          | {min_bid_price_str} |")
+            print(f"| Min Put Delta              | {min_delta_str} |")
+            print(f"| Max Put Delta              | {max_delta_str} |")
+            print(f"| Max Bid-Ask Spread         | {max_spread_str} |")            
+            print(f"| Min Avg Above Strike       | {max_avg_above_strike_str} |")
+            print(f"| Min Risk/Reward Ratio      | {min_risk_reward_str} |")
+            print(f"| Min Annual Risk            | {min_annual_risk_str} |")
+            print(f"| Min Expected Profit        | {min_expected_profit_str} |")
             print(f"| Rank By Risk/Reward Ratio  | {('Yes' if RANK_BY_RR else 'No'):>14} |")
             print(f"| Rank By Annual Risk        | {('Yes' if RANK_BY_ANNUAL else 'No'):>14} |")
             print(f"| Rank By Expected Profit    | {('Yes' if RANK_BY_EXPECTED else 'No'):>14} |")
@@ -450,11 +473,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(f"|----------------------------|----------------|")
             print(f"| Parameter                  | Value          |")
             print(f"|----------------------------|----------------|")
-            print(f"| Position Stop Loss         | {POSITION_STOP_LOSS_PCT*100:>13.1f}% |")
-            print(f"| Stock Below SMA150         | {STOCK_MAX_BELOW_AVG_PCT*100:>13.1f}% |")
-            print(f"| Stock Min Above Strike     | {STOCK_MIN_ABOVE_STRIKE_PCT*100:>13.1f}% |")   
-            print(f"| Stock Max Below Entry      | {STOCK_MAX_BELOW_ENTRY_PCT*100:>13.1f}% |") 
-            print(f"| Min Gain to Take Profit    | {TAKE_PROFIT_MIN_GAIN_PCT*100:>13.1f}% |")
+            print(f"| Position Stop Loss         | {position_stop_loss_str} |")
+            print(f"| Stock Below SMA150         | {stock_max_below_avg_str} |")
+            print(f"| Stock Min Above Strike     | {stock_min_above_strike_str} |")   
+            print(f"| Stock Max Below Entry      | {stock_max_below_entry_str} |") 
+            print(f"| Min Gain to Take Profit    | {take_profit_min_gain_str}% |")
             print(f"|----------------------------|----------------|")
             print()                        
 
@@ -463,8 +486,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(f"|----------------------------|----------------|")
             print(f"| Parameter                  | Value          |")
             print(f"|----------------------------|----------------|")
-            print(f"| Commission/Contract        | ${COMMISSION_PER_CONTRACT:>13.2f} |")
-            print(f"| Max Premium/Trade          | ${MAX_PREMIUM_PER_TRADE:>13.2f} |")
+            print(f"| Commission/Contract        | ${commission_per_contract_str} |")
+            print(f"| Max Premium/Trade          | ${max_premium_per_trade_str} |")
             print(f"|----------------------------|----------------|")
             print()
             
@@ -1929,10 +1952,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         print("\n--- FINAL PORTFOLIO LIQUIDATION ---")
         
         # Prepare header for liquidation table
-        print("| Ticker | Qty | Strike   | Premium Sold  | Closing Ask  | Cost to Close  | Exit Commission | Net Gain/Loss |")
+        print("| Ticker | Qty  | Strike   | Premium Sold  | Closing Ask  | Cost to Close  | Exit Commission | Net Gain/Loss |")
         
         # CRITICAL FIX 9: Adjust the header separator line based on the visual widths.
-        print("|--------|-----|----------|---------------|--------------|----------------|-----------------|---------------|") 
+        print("|--------|------|----------|---------------|--------------|----------------|-----------------|---------------|") 
         
         # We liquidate all remaining trades
         for trade in positions_to_liquidate:
@@ -2019,7 +2042,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             
             use_older_ask = " using older ask price" if fallback_note else ""
             print(
-                f"| {trade['ticker']:<6} | {qty:3} | $ {trade['strike']:>6.2f} | $ {premium_collected_gross:>11,.2f} | "
+                f"| {trade['ticker']:<6} | {qty:4} | $ {trade['strike']:>6.2f} | $ {premium_collected_gross:>11,.2f} | "
                 f"$ {closing_ask:>10.2f} | $ {cost_to_close_gross:>12,.2f} | $ {exit_commission:>13.2f} | "
                 f"$ {position_net_gain:>11.2f} | {use_older_ask}"
             )            
@@ -2324,8 +2347,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
         # Adjusted separator for new Exit # column
         print("\n\n--- DETAILED CLOSED TRADE LOG (Full History) ---")
-        print("| Exit #  | Ticker |  Qty |   Day In   | Price In   | Amount In   |  Day Out   | Price Out |  Amount Out | Reason Why Closed          |    Gain $  |   Gain % |")
-        print("|---------|--------|------|------------|------------|-------------|------------|-----------|-------------|----------------------------|------------|----------|")
+        print("| Exit #  | Ticker |  Qty |   Day In   | Price In   |   Amount In    |  Day Out   | Price Out |   Amount Out   | Reason Why Closed          |    Gain $  |   Gain % |")
+        print("|---------|--------|------|------------|------------|-------------_--|------------|-----------|----------------|----------------------------|------------|----------|")
         
         for index, trade in enumerate(closed_trades_log):
             
@@ -2336,8 +2359,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             price_in_str = f"${trade['PriceIn']:>9.2f}"
             price_out_str = f"${trade['PriceOut']:>8.2f}" if trade['PriceOut'] is not None else ""
             
-            amount_in_str = f"${trade['AmountIn']:>10,.2f}"
-            amount_out_str = f"${trade['AmountOut']:>10,.2f}"
+            amount_in_str = f"${trade['AmountIn']:>13,.2f}"
+            amount_out_str = f"${trade['AmountOut']:>13,.2f}"
             
             gain_abs_str = f"{trade['Gain$']:>10.2f}"
             gain_pct_str = f"{trade['Gain%']:>7.2f}%"
@@ -2373,7 +2396,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             pass
 
     print("\n=== FINAL TRADING RULES SUMMARY ===\n")
-    
+
     # 1. Account Simulation Rules
     print(f"📊 Account Simulation Rules")
     print(f"|----------------------------|----------------|")
@@ -2381,15 +2404,16 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"|----------------------------|----------------|")
     print(f"| Start Date                 | {start_date_str:<14} |")
     print(f"| End Date (Early Exit)      | {end_date_str:<14} |")
-    print(f"| Initial Cash               | ${float(rules['account_simulation']['initial_cash']):>13,.2f} |")
+    print(f"| Initial Cash               | {initial_cash_str} |")
     print(f"| Max Puts/Account           | {MAX_PUTS_PER_ACCOUNT:>14} |")
     print(f"| Max Puts/Stock             | {MAX_PUTS_PER_STOCK:>14} |")
     print(f"| Max Puts/Day               | {MAX_PUTS_PER_DAY:>14} |")
+    print(f"| Wrapper Sweep +/- Step %   | {wrapper_sweep_pct_str:>14} |")
     print(f"|----------------------------|----------------|")
-    print()   
-
-    # 2. Underlying Stock Rules (Final Summary)
-    print(f"🧩 Underlying Stock Rules")
+    print()
+    
+    # 2.b Underlying Stock Rules (precomputed values)
+    print("🧩 Underlying Stock Rules")
     print(f"|----------------------------|----------------|")
     print(f"| Parameter                  | Value          |")
     print(f"|----------------------------|----------------|")
@@ -2398,7 +2422,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Max Above Avg              | {max_above_str} |")
     print(f"| Min 10-Day Avg Slope       | {min_slope_str} |")
     print(f"| Min Stock Price            | {min_price_str} |")
-    print("|----------------------------|----------------|")
+    print(f"|----------------------------|----------------|")
     print()
 
     # 3. Entry Put Position Rules
@@ -2408,14 +2432,14 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"|----------------------------|----------------|")
     print(f"| Min DTE                    | {MIN_DTE:>14} |")
     print(f"| Max DTE                    | {MAX_DTE:>14} |")
-    print(f"| Min Put Bid Price          | $ {MIN_BID_PRICE:>12.2f} |")
-    print(f"| Min Put Delta              | {MIN_DELTA*100:>13.1f}% |")
-    print(f"| Max Put Delta              | {MAX_DELTA*100:>13.1f}% |")
-    print(f"| Max Bid-Ask Spread         | {MAX_SPREAD_DECIMAL*100:>13.1f}% |")
-    print(f"| Min Avg Above Strike       | {MIN_AVG_ABOVE_STRIKE_PCT*100:>13.1f}% |")
-    print(f"| Min Risk/Reward Ratio      | {MIN_RISK_REWARD_RATIO:>14.1f} |")    
-    print(f"| Min Annual Risk            | {MIN_ANNUAL_RISK:>14.1f} |")
-    print(f"| Min Expected Profit        | {MIN_EXPECTED_PROFIT*100:>13.1f}% |")
+    print(f"| Min Put Bid Price          | {min_bid_price_str} |")
+    print(f"| Min Put Delta              | {min_delta_str} |")
+    print(f"| Max Put Delta              | {max_delta_str} |")
+    print(f"| Max Bid-Ask Spread         | {max_spread_str} |")            
+    print(f"| Min Avg Above Strike       | {max_avg_above_strike_str} |")
+    print(f"| Min Risk/Reward Ratio      | {min_risk_reward_str} |")
+    print(f"| Min Annual Risk            | {min_annual_risk_str} |")
+    print(f"| Min Expected Profit        | {min_expected_profit_str} |")
     print(f"| Rank By Risk/Reward Ratio  | {('Yes' if RANK_BY_RR else 'No'):>14} |")
     print(f"| Rank By Annual Risk        | {('Yes' if RANK_BY_ANNUAL else 'No'):>14} |")
     print(f"| Rank By Expected Profit    | {('Yes' if RANK_BY_EXPECTED else 'No'):>14} |")
@@ -2423,25 +2447,25 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print()
 
     # 4. Exit Put Position Rules
-    print("📉 Exit Put Position Rules")
+    print(f"📉 Exit Put Position Rules")
     print(f"|----------------------------|----------------|")
     print(f"| Parameter                  | Value          |")
     print(f"|----------------------------|----------------|")
-    print(f"| Position Stop Loss         | {POSITION_STOP_LOSS_PCT*100:>13.1f}% |")
-    print(f"| Stock Below SMA150         | {STOCK_MAX_BELOW_AVG_PCT*100:>13.1f}% |")
-    print(f"| Stock Min Above Strike     | {STOCK_MIN_ABOVE_STRIKE_PCT*100:>13.1f}% |")   
-    print(f"| Stock Max Below Entry      | {STOCK_MAX_BELOW_ENTRY_PCT*100:>13.1f}% |") 
-    print(f"| Min Gain to Take Profit    | {TAKE_PROFIT_MIN_GAIN_PCT*100:>13.1f}% |")
+    print(f"| Position Stop Loss         | {position_stop_loss_str} |")
+    print(f"| Stock Below SMA150         | {stock_max_below_avg_str} |")
+    print(f"| Stock Min Above Strike     | {stock_min_above_strike_str} |")   
+    print(f"| Stock Max Below Entry      | {stock_max_below_entry_str} |") 
+    print(f"| Min Gain to Take Profit    | {take_profit_min_gain_str}% |")
     print(f"|----------------------------|----------------|")
-    print()   
+    print()                        
 
-    # 4a. Trading Costs and Limits 
+    # 4a. Trading Costs and Limits
     print("💰 Trading Parameters")
     print(f"|----------------------------|----------------|")
     print(f"| Parameter                  | Value          |")
     print(f"|----------------------------|----------------|")
-    print(f"| Commission/Contract        | ${COMMISSION_PER_CONTRACT:>13.2f} |")
-    print(f"| Max Premium/Trade          | ${MAX_PREMIUM_PER_TRADE:>13.2f} |")
+    print(f"| Commission/Contract        | ${commission_per_contract_str} |")
+    print(f"| Max Premium/Trade          | ${max_premium_per_trade_str} |")
     print(f"|----------------------------|----------------|")
     print()
 
