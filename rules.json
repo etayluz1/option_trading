@@ -6,11 +6,11 @@
         "max_puts_per_account": "38",
         "max_puts_per_stock": "7",
         "max_puts_per_day": "7",
-        "wrapper_sweep_pct": "2.50%",
+        "wrapper_sweep_pct": "10.00%",
         "Minimal_Print_Out": true
     },
     "underlying_stock": {
-        "min_5_day_rise_pct": "-17.955%",
+        "min_5_day_rise_pct": "-19.75%",
         "min_above_avg_pct": "-4.39%",
         "max_above_avg_pct": "41%",
         "min_avg_up_slope_pct": "-0.1%",

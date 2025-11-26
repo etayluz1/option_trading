@@ -1397,8 +1397,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                                 passes_metric = passes_rr and passes_annual and passes_rev_annual and passes_expected
 
                                             if passes_metric:
-                                                # Instead of adding extra fields to the array, wrap in a dict for metadata
-                                                filtered_options.append({
+                                                # Add legacy keys for downstream compatibility
+                                                option_dict = {
                                                     'option': option,
                                                     'calculated_rr_ratio': risk_reward_ratio,
                                                     'annual_risk': annual_risk,
@@ -1406,8 +1406,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                                     'adj_close': current_adj_close,
                                                     'ticker': ticker,
                                                     'dte': dte,
-                                                    'expiration_date': expiration_date
-                                                })
+                                                    'expiration_date': expiration_date,
+                                                    'strike': strike_value,
+                                                    'pBidPx': pbidpx_value,
+                                                    'pAskPx': paskpx_value,
+                                                    'putDelta': put_delta_str
+                                                }
+                                                filtered_options.append(option_dict)
                                                 
                                         # Only record the chain if it has at least one option that passed all filters
                                         if filtered_options:
