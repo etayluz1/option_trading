@@ -3,39 +3,41 @@
         "start_date": "01/01/2020",
         "end_date": "10/28/2025",
         "initial_cash": "1000000",
-        "max_puts_per_account": "36",
+        "max_puts_per_account": "39",
         "max_puts_per_stock": "7",
-        "max_puts_per_day": "5",
-        "wrapper_sweep_pct": "2.5%",
+        "max_puts_per_day": "7",
+        "wrapper_sweep_pct": "2.50%",
         "Minimal_Print_Out": true
     },
     "underlying_stock": {
-        "min_5_day_rise_pct": "-17.1%",
-        "min_above_avg_pct": "-5.121%",
-        "max_above_avg_pct": "42%",
-        "min_avg_up_slope_pct": "-0.095%",
-        "min_stock_price": "$30.00"
+        "min_5_day_rise_pct": "-17.955%",
+        "min_above_avg_pct": "-4.390%",
+        "max_above_avg_pct": "41%",
+        "min_avg_up_slope_pct": "-0.1%",
+        "min_stock_price": "$26.36"
     },
     "entry_put_position": {
         "min_days_for_expiration": "50",
         "max_days_for_expiration": "260",
-        "min_put_bid_price": "3.6",
-        "min_put_delta": "-25%",
-        "max_put_delta": "-1%",
-        "max_ask_above_bid_pct": "61.376%",
-        "min_avg_above_strike": "-3.791%",
+        "min_put_bid_price": "3.08",
+        "min_put_delta": "-25.00%",
+        "max_put_delta": "-1.00%",
+        "max_ask_above_bid_pct": "58.31%",
+        "min_avg_above_strike": "-3.410%",
         "min_risk_reward_ratio": "-11.025",
-        "min_annual_risk_reward_ratio": "-15",
+        "min_annual_risk_reward_ratio": "-15.00",
+        "min_rev_annual_rr_ratio": "-8",
         "min_expected_profit": "-100%",
         "rank_by_risk_reward_ratio": false,
-        "rank_by_annual_risk": true,
+        "rank_by_annual_risk": false,
+        "rank_by_rev_ann_risk": true,
         "rank_by_expected_profit": false
     },
     "exit_put_position": {
         "position_stop_loss_pct": "9999%",
-        "stock_max_below_avg": "18.9%",
+        "stock_max_below_avg": "17.506%",
         "stock_min_above_strike": "-9999%",
-        "stock_max_below_entry": "26.6%",
+        "stock_max_below_entry": "26.600%",
         "min_gain_to_take_profit": "9999%"
     }
 }

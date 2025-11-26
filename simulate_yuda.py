@@ -321,11 +321,15 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
             # Ranking flags (renamed from select_by to rank_by for clarity)
             RANK_BY_RR = bool(rules['entry_put_position'].get('rank_by_risk_reward_ratio', False))
-            RANK_BY_ANNUAL = bool(rules['entry_put_position'].get('rank_by_annual_risk', False))            
+            RANK_BY_ANNUAL = bool(rules['entry_put_position'].get('rank_by_annual_risk', False))
+            RANK_BY_REV_ANN = bool(rules['entry_put_position'].get('rank_by_rev_ann_risk', False))
             RANK_BY_EXPECTED = bool(rules['entry_put_position'].get('rank_by_expected_profit', False))
 
             MIN_ANNUAL_RISK = float(rules['entry_put_position']['min_annual_risk_reward_ratio'])
             min_annual_risk_str = f"{MIN_ANNUAL_RISK:>14.3f}"
+            # New: min_rev_annual_rr_ratio
+            MIN_REV_ANNUAL_RISK = float(rules['entry_put_position'].get('min_rev_annual_rr_ratio', "-1000000"))
+            min_rev_annual_risk_str = f"{MIN_REV_ANNUAL_RISK:>14.3f}"
             
             MIN_EXPECTED_PROFIT = safe_percentage_to_float(rules['entry_put_position']['min_expected_profit'])
             min_expected_profit_str= f"{MIN_EXPECTED_PROFIT*100:>13.2f}%"
@@ -333,12 +337,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # Validate that only one ranking method is enabled at a time
             rankers_enabled = sum([1 if RANK_BY_RR else 0,
                                    1 if RANK_BY_ANNUAL else 0,
+                                   1 if RANK_BY_REV_ANN else 0,
                                    1 if RANK_BY_EXPECTED else 0])
             if rankers_enabled > 1:
-                print("❌ Rule error: More than one ranking method is enabled in rules.json. Please enable only one of rank_by_risk_reward_ratio, rank_by_annual_risk, rank_by_expected_profit.")
+                print("❌ Rule error: More than one ranking method is enabled in rules.json. Please enable only one of rank_by_risk_reward_ratio, rank_by_annual_risk, rank_by_rev_ann_risk, rank_by_expected_profit.")
                 return
             if rankers_enabled == 0:
-                print("❌ Rule error: No ranking method is enabled in rules.json. Please enable one of rank_by_risk_reward_ratio, rank_by_annual_risk, rank_by_expected_profit.")
+                print("❌ Rule error: No ranking method is enabled in rules.json. Please enable one of rank_by_risk_reward_ratio, rank_by_annual_risk, rank_by_rev_ann_risk, rank_by_expected_profit.")
                 return
             
             # Derive the per-trade premium budget from initial cash and account-level max positions
@@ -461,9 +466,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(f"| Min Avg Above Strike       | {max_avg_above_strike_str} |")
             print(f"| Min Risk/Reward Ratio      | {min_risk_reward_str} |")
             print(f"| Min Annual Risk            | {min_annual_risk_str} |")
+            print(f"| Min Rev Annual Risk        | {min_rev_annual_risk_str} |")
             print(f"| Min Expected Profit        | {min_expected_profit_str} |")
             print(f"| Rank By Risk/Reward Ratio  | {('Yes' if RANK_BY_RR else 'No'):>14} |")
             print(f"| Rank By Annual Risk        | {('Yes' if RANK_BY_ANNUAL else 'No'):>14} |")
+            print(f"| Rank By Rev Annual Risk    | {('Yes' if RANK_BY_REV_ANN else 'No'):>14} |")
             print(f"| Rank By Expected Profit    | {('Yes' if RANK_BY_EXPECTED else 'No'):>14} |")
             print(f"|----------------------------|----------------|")
             print()
@@ -477,7 +484,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(f"| Stock Below SMA150         | {stock_max_below_avg_str} |")
             print(f"| Stock Min Above Strike     | {stock_min_above_strike_str} |")   
             print(f"| Stock Max Below Entry      | {stock_max_below_entry_str} |") 
-            print(f"| Min Gain to Take Profit    | {take_profit_min_gain_str}% |")
+            print(f"| Min Gain to Take Profit    | {take_profit_min_gain_str} |")
             print(f"|----------------------------|----------------|")
             print()                        
 
@@ -576,6 +583,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     worst_drawdown_pct = 0.0
     # NEW: Track peak number of open positions across the account
     peak_open_positions = 0
+    min_DTE = 9999
+    max_DTE = 0
 
     all_tickers = list(open_puts_tracker.keys())
     print(f"✅ Trackers initialized for {len(all_tickers)} tickers.")
@@ -1366,10 +1375,15 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                                 risk_reward_ratio = calculate_risk_reward_ratio(strike_value, pbidpx_value)
                                                 # Compute annualized R/R (if DTE available)
                                                 try:
-                                                    if risk_reward_ratio is not None and isinstance(dte, int) and dte > 0:                                                                                                                
+                                                    if risk_reward_ratio is not None and isinstance(dte, int) and dte > 0:
                                                         annual_risk = risk_reward_ratio * (365.0 / float(dte))
+                                                        annual_risk_reverse = risk_reward_ratio * (float(dte) / 365.0)
+                                                    else:
+                                                        annual_risk = None
+                                                        annual_risk_reverse = None
                                                 except Exception:
                                                     annual_risk = None
+                                                    annual_risk_reverse = None
 
                                                 # Compute expected profit metric when Delta is available
                                                 try:
@@ -1382,9 +1396,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                                 # Apply ALL three filters as minimum requirements
                                                 passes_rr = risk_reward_ratio is not None and risk_reward_ratio > MIN_RISK_REWARD_RATIO
                                                 passes_annual = annual_risk is not None and annual_risk > MIN_ANNUAL_RISK
+                                                passes_rev_annual = annual_risk_reverse is not None and annual_risk_reverse > MIN_REV_ANNUAL_RISK
                                                 passes_expected = expected_profit is not None and expected_profit > MIN_EXPECTED_PROFIT
                                                 
-                                                passes_metric = passes_rr and passes_annual and passes_expected
+                                                passes_metric = passes_rr and passes_annual and passes_rev_annual and passes_expected
                                             
                                             if passes_metric:
                                                 # Store computed metrics and Adj. Close on the option for easy access
@@ -1439,6 +1454,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         # Sort the ENTIRE list of candidates globally by the selected ranking metric
                         if RANK_BY_ANNUAL:
                             sort_key = lambda x: x.get('annual_risk', -float('inf'))
+                        elif RANK_BY_REV_ANN:
+                            sort_key = lambda x: x.get('annual_risk_reverse', -float('inf'))
                         elif RANK_BY_EXPECTED:
                             sort_key = lambda x: x.get('expected_profit', -float('inf'))
                         else:
@@ -1503,6 +1520,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             # Determine the actual ranking method being used
                             if RANK_BY_ANNUAL:
                                 ranking_method = "Annual Risk"
+                            elif RANK_BY_REV_ANN:
+                                ranking_method = "Rev Annual Risk"
                             elif RANK_BY_EXPECTED:
                                 ranking_method = "Expected Profit"
                             else:
@@ -1623,27 +1642,35 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             'ticker': ticker_to_enter,
                             'strike': best_contract['strike'],
                             'expiration_date': best_contract['expiration_date'],
+                            'dte': int(best_contract['dte']),  # Store DTE at entry
                             'premium_received': bid_at_entry, 
                             'quantity': trade_quantity,
                             'entry_adj_close': entry_adj_close_value,
                             'unique_key': (ticker_to_enter, best_contract['strike'], best_contract['expiration_date']),
                             'last_known_ask': ask_at_entry_float,  # Store initial ask price
-                            'last_ask_date': date_str  # Store date of last known ask price
+                            'last_ask_date': date_str  # Store date of last known ask price                            
                         }
                         open_trades_log.append(trade_entry)
-                        
+
+                        # Calculate min_DTE and max_DTE from open_trades_log
+                        if open_trades_log:
+                            min_DTE = min(trade['dte'] for trade in open_trades_log)
+                            max_DTE = max(trade['dte'] for trade in open_trades_log)
+                        else:
+                            min_DTE = max_DTE = None
+
                         # 7. Update the quick-check set
                         active_position_keys.add(trade_entry['unique_key'])
-                        
+
                         # 8. Print the consolidated portfolio summary
                         print_daily_portfolio_summary(open_puts_tracker)
-                        
+
                         # --- NEW: DETAILED TRANSACTION LOG ---
-                        
+
                         print("\n📈 **TODAY'S ENTRY TRANSACTION DETAILS:**")
                         print(f"  | Ticker/Contract: {ticker_to_enter} (Qty {trade_quantity})")
                         print(f"  | Bid Price: ${bid_at_entry:.2f} | Ask Price: ${ask_at_entry_float:.2f}")
-                        
+
                         # --- DETAILED VALUE CALCULATION INSERTED HERE (FIXED) ---
                         print("\n💵 **VALUE CALCULATION AT ENTRY (MTM):**")
                         print(f"  | Cash Balance Before: ${cash_before_trade:,.2f}")
@@ -1653,9 +1680,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         print(f"  | **Instantaneous Change to Portfolio Value (MTM):** ${instant_mtm_change:,.2f} (Expected small negative)")
                         print(f"  | **New Cash Balance:** ${cash_balance:,.2f} (Available for margin)")
                         # --- END DETAILED VALUE CALCULATION ---
-                        
+
                         print(f"  | Position Liability (Ask Price): ${position_liability_at_entry:,.2f}")
-                        
+
                         # Increment daily entry counter and remove entered contract from candidates
                         daily_entries_count += 1
                         
@@ -2439,9 +2466,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Min Avg Above Strike       | {max_avg_above_strike_str} |")
     print(f"| Min Risk/Reward Ratio      | {min_risk_reward_str} |")
     print(f"| Min Annual Risk            | {min_annual_risk_str} |")
+    print(f"| Min Rev Annual Risk        | {min_rev_annual_risk_str} |")
     print(f"| Min Expected Profit        | {min_expected_profit_str} |")
     print(f"| Rank By Risk/Reward Ratio  | {('Yes' if RANK_BY_RR else 'No'):>14} |")
     print(f"| Rank By Annual Risk        | {('Yes' if RANK_BY_ANNUAL else 'No'):>14} |")
+    print(f"| Rank By Rev Annual Risk    | {('Yes' if RANK_BY_REV_ANN else 'No'):>14} |")
     print(f"| Rank By Expected Profit    | {('Yes' if RANK_BY_EXPECTED else 'No'):>14} |")
     print(f"|----------------------------|----------------|")
     print()
@@ -2455,7 +2484,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Stock Below SMA150         | {stock_max_below_avg_str} |")
     print(f"| Stock Min Above Strike     | {stock_min_above_strike_str} |")   
     print(f"| Stock Max Below Entry      | {stock_max_below_entry_str} |") 
-    print(f"| Min Gain to Take Profit    | {take_profit_min_gain_str}% |")
+    print(f"| Min Gain to Take Profit    | {take_profit_min_gain_str} |")
     print(f"|----------------------------|----------------|")
     print()                        
 
@@ -2492,6 +2521,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Total Gain                 | ${TOTAL_GAIN:>22,.2f} |")    
     print(f"| Run Time                   | {runtime_str:>23} |")
     print(f"| Peak Open Positions        | {peak_open_positions:>23} |")
+    print(f"| Min DTE (Open Positions)   | {min_DTE:>23} |")
+    print(f"| Max DTE (Open Positions)   | {max_DTE:>23} |")
     print(f"| Total Entry Events         | {total_entry_events:>23} |")
     print(f"| Win Ratio                  | {win_ratio_pct:>22.2f}% |")
     
@@ -2513,6 +2544,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     except Exception:
         # If for any reason the metric isn't available, skip gracefully
         pass
+    Score = annualized_gain / -worst_drawdown_pct if worst_drawdown_pct != 0 else 0.0
+    print(f"| Score = Ann/-Drawdown      | {Score:>23.3f} |")
     print(f"|----------------------------|-------------------------|")
     print()    
     
