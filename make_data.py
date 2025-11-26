@@ -163,33 +163,24 @@ def process_csv(stop_after_first=False):
         file_date_str_yyyymmdd = match.group(1)
         file_date_dt = datetime.strptime(file_date_str_yyyymmdd, "%Y%m%d").date()
         
-        output_filename = f"{file_date_dt.strftime('%Y-%m-%d')}.json"
+
+        # Always write to .arr.json, never to legacy .json
+        output_filename = f"{file_date_dt.strftime('%Y-%m-%d')}.arr.json"
         output_path = os.path.join(json_folder, output_filename)
-
-        
-        # --- NEW: If the JSON already exists, skip processing to avoid overwriting ---
-        if os.path.exists(output_path):
-            print(f"⏩ Skipping {file}: Output JSON '{output_path}' already exists. Not overriding.")
-            continue
-
         print(f"\n=== Processing file: {file} ===")
         print(f"Input path: {input_path}")
         print(f"Output path: {output_path}")
-        
+
         sp500_dates = sorted(sp500_dict.keys())
         relevant_date = max((d for d in sp500_dates if d <= file_date_dt), default=None)
+        if relevant_date is not None:
+            sp500_tickers = sp500_dict[relevant_date]
+        else:
+            sp500_tickers = set()
         print(f"File date: {file_date_dt}, Relevant SP500 date: {relevant_date}")
-        
-        if relevant_date is None and sp500_dict:
-             print(f"Skipping file {file}: No relevant S&P 500 list found for {file_date_dt} (before or on file date).")
-             continue
-        
-        sp500_tickers = sp500_dict.get(relevant_date, set()) if relevant_date else set()
-        
-        daily_options_data = {}
-
         print(f"Processing {file}...")
 
+        daily_options_data = {}
         try:
             with open(input_path, newline='', encoding='utf-8') as infile:
                 reader = csv.DictReader(infile)
@@ -226,47 +217,40 @@ def process_csv(stop_after_first=False):
                         if days_interval < 45:
                             continue
                         
-                        # Create the filtered option record with raw data
-                        option_record = {col: row.get(col) for col in option_fields_to_keep}
-                        
-                        # 🚨 CHANGE 2: Calculate and format 'putDelta' as percentage string
+                        # Create the filtered option record as an array: [strike, pBidPx, pAskPx, putDelta]
+                        try:
+                            strike = float(row.get("strike", 0))
+                            pBidPx = float(row.get("pBidPx", 0))
+                            pAskPx = float(row.get("pAskPx", 0))
+                        except Exception:
+                            continue
+
+                        # Calculate putDelta as positive float (no percent sign)
                         delta_str = row.get("delta")
                         if delta_str is not None:
                             try:
                                 delta_float = float(delta_str)
-                                
-                                # 1. Calculate Put Delta: delta - 1.0 (assuming 'delta' is the call delta)
                                 put_delta_raw = delta_float - 1.0
-                                
-                                # 2. Round to 4 decimal places
-                                put_delta_rounded = round(put_delta_raw, 4)
-                                
-                                # 3. Convert to percentage string (multiplied by 100)
-                                put_delta_percent_str = f"{put_delta_rounded * 100.0:.2f}%"
-                                
-                                option_record["putDelta"] = put_delta_percent_str
-
-                            except ValueError:
-                                # Handle case where delta is not a valid number
-                                option_record["putDelta"] = None
+                                put_delta_abs = abs(round(put_delta_raw * 100.0, 2))
+                            except Exception:
+                                put_delta_abs = 0.0
                         else:
-                            option_record["putDelta"] = None
-                        # --------------------------------------------------
-                        
+                            put_delta_abs = 0.0
+
+                        option_array = [strike, pBidPx, pAskPx, put_delta_abs]
+
                         # Initialize structures
                         if symbol not in daily_options_data:
                             daily_options_data[symbol] = {}
-                        
+
                         if expir_date_str not in daily_options_data[symbol]:
                             daily_options_data[symbol][expir_date_str] = {
-                                "days_interval": days_interval, 
-                                "options": []                   
+                                "days_interval": days_interval,
+                                "options": []
                             }
-                        
-                        option_record["strike"] = float(option_record["strike"]) # Convert strike to float for numerical consistency
-                        
-                        # Append the option record
-                        daily_options_data[symbol][expir_date_str]["options"].append(option_record)
+
+                        # Append the option array
+                        daily_options_data[symbol][expir_date_str]["options"].append(option_array)
 
             print(f"\nProcessed data summary:")
             print(f"Total symbols processed: {len(daily_options_data)}")
