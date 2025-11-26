@@ -1,3 +1,7 @@
+STRIKE_ID = 0
+BID_ID = 1
+ASK_ID = 2
+DELTA_ID = 3
 import orjson
 import os
 from datetime import datetime
@@ -152,15 +156,16 @@ def get_contract_exit_price(orats_data, ticker, expiration_date_str, strike):
     options_array = exp_data.get('options', [])
     
     for option in options_array:
-        option_strike = float(option.get('strike', 0))
-        if abs(option_strike - strike) < 0.001: 
-            try:
-                pbidpx = float(str(option.get('pBidPx', 0.0)).strip())
-                paskpx = float(str(option.get('pAskPx', 0.0)).strip())
-            except ValueError:
-                pbidpx = 0.0
-                paskpx = 0.0
-            
+        try:
+            option_strike = float(option[STRIKE_ID])
+            pbidpx = float(option[BID_ID])
+            paskpx = float(option[ASK_ID])
+            # Convert delta back to negative percentage string for compatibility
+            put_delta = -abs(float(option[DELTA_ID]))
+            put_delta_str = f"{put_delta:.2f}%"
+        except (IndexError, ValueError, TypeError):
+            continue
+        if abs(option_strike - strike) < 0.001:
             # 1. Prioritize ASK PRICE (Most Conservative for closing a short position)
             if paskpx > 0:
                 return paskpx
@@ -168,7 +173,7 @@ def get_contract_exit_price(orats_data, ticker, expiration_date_str, strike):
             elif pbidpx > 0:
                 return pbidpx
             else:
-                return 0.0 
+                return 0.0
 
     return None
 
@@ -189,13 +194,15 @@ def get_contract_bid_price(orats_data, ticker, expiration_date_str, strike):
     options_array = exp_data.get('options', [])
 
     for option in options_array:
-        option_strike = float(option.get('strike', 0))
+        try:
+            option_strike = float(option[STRIKE_ID])
+            pbidpx = float(option[BID_ID])
+            # Convert delta back to negative percentage string for compatibility
+            put_delta = -abs(float(option[DELTA_ID]))
+            put_delta_str = f"{put_delta:.2f}%"
+        except (IndexError, ValueError, TypeError):
+            continue
         if abs(option_strike - strike) < 0.001:
-            try:
-                pbidpx = float(str(option.get('pBidPx', 0.0)).strip())
-            except (ValueError, TypeError):
-                return None
-
             return pbidpx if pbidpx > 0 else None
 
     return None
@@ -715,8 +722,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             daily_investable_data = {} 
             daily_trade_candidates = [] 
             
-            # Load ORATS data for this specific date
-            orats_file_path = os.path.join(ORATS_FOLDER, f"{date_str}.json")
+            # Load ORATS data for this specific date (use .arr.json for array format)
+            orats_file_path = os.path.join(ORATS_FOLDER, f"{date_str}.arr.json")
             daily_orats_data = None
             try:
                 with open(orats_file_path, 'rb') as f:
@@ -1335,45 +1342,40 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                         for option in options_array:
                                             
                                             # Parse necessary option data
-                                            pbidpx_value = float(str(option.get('pBidPx', -1.0)).strip())
-                                            paskpx_value = float(str(option.get('pAskPx', -1.0)).strip())
-                                            put_delta_value = safe_percentage_to_float(option.get('putDelta'))
-                                            strike_value = float(option.get('strike', 0))
+                                            try:
+                                                strike_value = float(option[STRIKE_ID])
+                                                pbidpx_value = float(option[BID_ID])
+                                                paskpx_value = float(option[ASK_ID])
+                                                # Convert delta back to negative percentage string for compatibility
+                                                put_delta_value = -abs(float(option[DELTA_ID]))
+                                                put_delta_str = f"{put_delta_value:.2f}%"
+                                            except (IndexError, ValueError, TypeError):
+                                                continue
                                             
                                             # --- Check 1: Min Bid Price ---
                                             passes_bid = pbidpx_value > MIN_BID_PRICE
                                             if not passes_bid: continue # Fail fast
-                                            
+
                                             # --- Check 2: Put Delta ---
-                                            passes_delta = False
-                                            if put_delta_value is not None:
-                                                passes_delta = MIN_DELTA <= put_delta_value <= MAX_DELTA
+                                            passes_delta = MIN_DELTA <= put_delta_value <= MAX_DELTA
                                             if not passes_delta: continue # Fail fast
 
                                             # --- Check 3: Bid-Ask Spread ---
-                                            passes_spread = False
-                                            if pbidpx_value > 0 and paskpx_value > pbidpx_value:
-                                                spread_pct = (paskpx_value - pbidpx_value) / pbidpx_value
-                                                passes_spread = spread_pct <= MAX_SPREAD_DECIMAL
+                                            passes_spread = pbidpx_value > 0 and paskpx_value > pbidpx_value and ((paskpx_value - pbidpx_value) / pbidpx_value) <= MAX_SPREAD_DECIMAL
                                             if not passes_spread: continue # Fail fast
 
                                             # --- Check 4: Strike Safety Margin ---
-                                            passes_safety_margin = False
-                                            if sma150_adj_close is not None and strike_value > 0:
-                                                current_ratio = sma150_adj_close / strike_value
-                                                passes_safety_margin = current_ratio > REQUIRED_SMA_STRIKE_RATIO
+                                            passes_safety_margin = sma150_adj_close is not None and strike_value > 0 and (sma150_adj_close / strike_value) > REQUIRED_SMA_STRIKE_RATIO
                                             if not passes_safety_margin: continue # Fail fast
 
                                             # --- Check 5: Risk/Reward Ratio ---
-                                            passes_metric = False
                                             risk_reward_ratio = None
                                             annual_risk = None
                                             expected_profit = None
-                                            
+                                            annual_risk_reverse = None
+                                            passes_metric = False
                                             if pbidpx_value > 0 and strike_value > pbidpx_value:
-                                                # Base R/R ratio
                                                 risk_reward_ratio = calculate_risk_reward_ratio(strike_value, pbidpx_value)
-                                                # Compute annualized R/R (if DTE available)
                                                 try:
                                                     if risk_reward_ratio is not None and isinstance(dte, int) and dte > 0:
                                                         annual_risk = risk_reward_ratio * (365.0 / float(dte))
@@ -1384,36 +1386,32 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                                 except Exception:
                                                     annual_risk = None
                                                     annual_risk_reverse = None
-
-                                                # Compute expected profit metric when Delta is available
                                                 try:
-                                                    if put_delta_value is not None:
-                                                        # put_delta_value is a decimal (e.g., -0.3)
-                                                        expected_profit = (pbidpx_value * (1.0 + put_delta_value) + (strike_value - pbidpx_value) * put_delta_value) / pbidpx_value
+                                                    expected_profit = (pbidpx_value * (1.0 + put_delta_value) + (strike_value - pbidpx_value) * put_delta_value) / pbidpx_value
                                                 except Exception:
                                                     expected_profit = None
-
-                                                # Apply ALL three filters as minimum requirements
                                                 passes_rr = risk_reward_ratio is not None and risk_reward_ratio > MIN_RISK_REWARD_RATIO
                                                 passes_annual = annual_risk is not None and annual_risk > MIN_ANNUAL_RISK
                                                 passes_rev_annual = annual_risk_reverse is not None and annual_risk_reverse > MIN_REV_ANNUAL_RISK
                                                 passes_expected = expected_profit is not None and expected_profit > MIN_EXPECTED_PROFIT
-                                                
                                                 passes_metric = passes_rr and passes_annual and passes_rev_annual and passes_expected
-                                            
+
                                             if passes_metric:
-                                                # Store computed metrics and Adj. Close on the option for easy access
-                                                option['calculated_rr_ratio'] = risk_reward_ratio
-                                                option['annual_risk'] = annual_risk
-                                                option['expected_profit'] = expected_profit
-                                                option['adj_close'] = current_adj_close 
-                                                filtered_options.append(option)
+                                                # Instead of adding extra fields to the array, wrap in a dict for metadata
+                                                filtered_options.append({
+                                                    'option': option,
+                                                    'calculated_rr_ratio': risk_reward_ratio,
+                                                    'annual_risk': annual_risk,
+                                                    'expected_profit': expected_profit,
+                                                    'adj_close': current_adj_close,
+                                                    'ticker': ticker,
+                                                    'dte': dte,
+                                                    'expiration_date': expiration_date
+                                                })
                                                 
                                         # Only record the chain if it has at least one option that passed all filters
                                         if filtered_options:
-                                            # Sort the options within the chain by the selected ranking metric
                                             filtered_options.sort(key=lambda x: x['calculated_rr_ratio'], reverse=True)
-
                                             filtered_chains_summary.append({
                                                 'expiration_date': expiration_date,
                                                 'dte': dte,
@@ -1430,12 +1428,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         
                         # Add all filtered options from this ticker to the daily candidates list
                         for chain in filtered_chains_summary:
-                            for option in chain['filtered_options']:
-                                # Ensure ticker, dte, and exp date are on the option for global sorting
-                                option['ticker'] = ticker
-                                option['dte'] = chain['dte']
-                                option['expiration_date'] = chain['expiration_date']
-                                daily_trade_candidates.append(option)
+                            for option_meta in chain['filtered_options']:
+                                daily_trade_candidates.append(option_meta)
 
 
                 
