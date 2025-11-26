@@ -1347,7 +1347,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                                 pbidpx_value = float(option[BID_ID])
                                                 paskpx_value = float(option[ASK_ID])
                                                 # Convert delta back to negative percentage string for compatibility
-                                                put_delta_value = -abs(float(option[DELTA_ID]))
+                                                put_delta_value = -abs(float(option[DELTA_ID])) /100.00
                                                 put_delta_str = f"{put_delta_value:.2f}%"
                                             except (IndexError, ValueError, TypeError):
                                                 continue
@@ -1356,7 +1356,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                             passes_bid = pbidpx_value > MIN_BID_PRICE
                                             if not passes_bid: continue # Fail fast
 
-                                            # --- Check 2: Put Delta ---
+                                            # --- Check 2: Put Delta ---                                            
                                             passes_delta = MIN_DELTA <= put_delta_value <= MAX_DELTA
                                             if not passes_delta: continue # Fail fast
 

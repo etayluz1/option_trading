@@ -3,7 +3,7 @@
         "start_date": "01/01/2020",
         "end_date": "10/28/2025",
         "initial_cash": "1000000",
-        "max_puts_per_account": "40",
+        "max_puts_per_account": "38",
         "max_puts_per_stock": "7",
         "max_puts_per_day": "7",
         "wrapper_sweep_pct": "5%",
