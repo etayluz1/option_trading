@@ -270,7 +270,16 @@ def _print_summary(rows: list[dict], param_name: str, emit: Callable[[str], None
     def _print_line(columns: list[str]) -> None:
         emit(" | ".join(col.ljust(widths[idx]) for idx, col in enumerate(columns)))
 
-    emit("Simulation summary:")
+    # Print total run-time since sim_wraper.py started
+    global _sim_wraper_start_time
+    if '_sim_wraper_start_time' in globals():
+        elapsed = time.perf_counter() - _sim_wraper_start_time
+        hh = int(elapsed // 3600)
+        mm = int((elapsed % 3600) // 60)
+        ss = int(elapsed % 60)
+        emit(f"Sim Total Run-Time: {hh:02d}:{mm:02d}:{ss:02d}")
+    else:
+        emit("Sim Total Run-time: (unknown)")
     _print_line(headers)
     emit("-+-".join("-" * width for width in widths))
     for data in table_rows:
@@ -502,7 +511,7 @@ def main() -> None:
             best_serialized = serialize_value(best_value, param_type)
             current_rules[section][key] = best_serialized
             write_rules_file()
-            log(f"Applied best {label}={best_serialized} based on score.")
+            
             # Always log rules.json after every triplet of runs (after each parameter sweep), but only once per sweep
             if idx == 0:
                 log_rules_snapshot(f"--- rules.json after first sweep ({label}) ---")
@@ -533,4 +542,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    global _sim_wraper_start_time
+    _sim_wraper_start_time = time.perf_counter()
     main()

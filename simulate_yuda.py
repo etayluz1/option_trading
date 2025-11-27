@@ -1,13 +1,15 @@
-STRIKE_ID = 0
-BID_ID = 1
-ASK_ID = 2
-DELTA_ID = 3
 import orjson
 import os
 from datetime import datetime
 import math
 import sys
 import time
+
+# ----- Constants for ORATS.json option data indices -----
+STRIKE_ID = 0
+BID_ID = 1
+ASK_ID = 2
+DELTA_ID = 3
 
 # --- Logger Class ---
 class Logger:
@@ -51,7 +53,7 @@ DEBUG_VERBOSE = False # Set to True to see individual ticker details (Total Viab
 
 # Commission Fee
 COMMISSION_PER_CONTRACT = 0.67
-commission_per_contract_str = f"{COMMISSION_PER_CONTRACT:>13.2f}"
+commission_per_contract_str = f"{COMMISSION_PER_CONTRACT:>13.4f}"
 FINAL_COMMISSION_PER_CONTRACT = COMMISSION_PER_CONTRACT # Commission for closing trades
 
 # Maximum premium to collect per single trade entry
@@ -162,7 +164,7 @@ def get_contract_exit_price(orats_data, ticker, expiration_date_str, strike):
             paskpx = float(option[ASK_ID])
             # Convert delta back to negative percentage string for compatibility
             put_delta = -abs(float(option[DELTA_ID]))
-            put_delta_str = f"{put_delta:.2f}%"
+            put_delta_str = f"{put_delta:.4f}%"
         except (IndexError, ValueError, TypeError):
             continue
         if abs(option_strike - strike) < 0.001:
@@ -199,7 +201,7 @@ def get_contract_bid_price(orats_data, ticker, expiration_date_str, strike):
             pbidpx = float(option[BID_ID])
             # Convert delta back to negative percentage string for compatibility
             put_delta = -abs(float(option[DELTA_ID]))
-            put_delta_str = f"{put_delta:.2f}%"
+            put_delta_str = f"{put_delta:.4f}%"
         except (IndexError, ValueError, TypeError):
             continue
         if abs(option_strike - strike) < 0.001:
@@ -268,12 +270,12 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             MAX_PUTS_PER_DAY = int(rules["account_simulation"]["max_puts_per_day"])
             wrapper_sweep_pct_val = rules["account_simulation"].get("wrapper_sweep_pct", "5%")
             wrapper_sweep_pct_float = float(wrapper_sweep_pct_val.rstrip("%"))
-            wrapper_sweep_pct_str = f"{wrapper_sweep_pct_float:>13.2f}%"
+            wrapper_sweep_pct_str = f"{wrapper_sweep_pct_float:>13.4f}%"
             MINIMAL_PRINT_OUT = bool(rules["account_simulation"].get("Minimal_Print_Out", False))
             
             # --- RISK MANAGEMENT RULE (Stock Price Stop Loss) ---
             STOCK_MAX_BELOW_AVG_PCT = abs(safe_percentage_to_float(rules["exit_put_position"]["stock_max_below_avg"]))
-            stock_max_below_avg_str = f"{STOCK_MAX_BELOW_AVG_PCT*100:>13.3f}%"
+            stock_max_below_avg_str = f"{STOCK_MAX_BELOW_AVG_PCT*100:>13.4f}%"
             
             # Start/End Dates
             start_date_str = rules["account_simulation"]["start_date"]
@@ -303,28 +305,28 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             
             # Bid Price Rule
             MIN_BID_PRICE = float(rules["entry_put_position"]["min_put_bid_price"].replace('$', '').strip())
-            min_bid_price_str = f"$ {MIN_BID_PRICE:>12.3f}"
+            min_bid_price_str = f"$ {MIN_BID_PRICE:>12.4f}"
                                   
             
             # Put Delta Rules
             MIN_DELTA = safe_percentage_to_float(rules["entry_put_position"]["min_put_delta"])
             MAX_DELTA = safe_percentage_to_float(rules["entry_put_position"]["max_put_delta"])
-            min_delta_str = f"{MIN_DELTA*100:>13.2f}%"
-            max_delta_str = f"{MAX_DELTA*100:>13.2f}%"           
+            min_delta_str = f"{MIN_DELTA*100:>13.4f}%"
+            max_delta_str = f"{MAX_DELTA*100:>13.4f}%"           
             
             # Max Bid-Ask Spread Rule
             MAX_SPREAD_DECIMAL = safe_percentage_to_float(rules["entry_put_position"]["max_ask_above_bid_pct"])
-            max_spread_str= f"{MAX_SPREAD_DECIMAL*100:>13.3f}%"                               
+            max_spread_str= f"{MAX_SPREAD_DECIMAL*100:>13.4f}%"                               
 
             # Strike Price Safety Margin Rule
             MIN_AVG_ABOVE_STRIKE_PCT = safe_percentage_to_float(rules["entry_put_position"]["min_avg_above_strike"])
-            max_avg_above_strike_str = f"{MIN_AVG_ABOVE_STRIKE_PCT*100:>13.2f}%"
+            max_avg_above_strike_str = f"{MIN_AVG_ABOVE_STRIKE_PCT*100:>13.4f}%"
 
             REQUIRED_SMA_STRIKE_RATIO = 1.0 + MIN_AVG_ABOVE_STRIKE_PCT
             
             # Risk/Reward Ratio Rule
             MIN_RISK_REWARD_RATIO = float(rules["entry_put_position"]["min_risk_reward_ratio"])
-            min_risk_reward_str = f"{MIN_RISK_REWARD_RATIO:>14.3f}"
+            min_risk_reward_str = f"{MIN_RISK_REWARD_RATIO:>14.4f}"
 
             # Ranking flags (renamed from select_by to rank_by for clarity)
             RANK_BY_RR = bool(rules['entry_put_position'].get('rank_by_risk_reward_ratio', False))
@@ -333,13 +335,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             RANK_BY_EXPECTED = bool(rules['entry_put_position'].get('rank_by_expected_profit', False))
 
             MIN_ANNUAL_RISK = float(rules['entry_put_position']['min_annual_risk_reward_ratio'])
-            min_annual_risk_str = f"{MIN_ANNUAL_RISK:>14.3f}"
+            min_annual_risk_str = f"{MIN_ANNUAL_RISK:>14.4f}"
             # New: min_rev_annual_rr_ratio
             MIN_REV_ANNUAL_RISK = float(rules['entry_put_position'].get('min_rev_annual_rr_ratio', "-1000000"))
-            min_rev_annual_risk_str = f"{MIN_REV_ANNUAL_RISK:>14.3f}"
+            min_rev_annual_risk_str = f"{MIN_REV_ANNUAL_RISK:>14.4f}"
             
             MIN_EXPECTED_PROFIT = safe_percentage_to_float(rules['entry_put_position']['min_expected_profit'])
-            min_expected_profit_str= f"{MIN_EXPECTED_PROFIT*100:>13.2f}%"
+            min_expected_profit_str= f"{MIN_EXPECTED_PROFIT*100:>13.4f}%"
             
             # Validate that only one ranking method is enabled at a time
             rankers_enabled = sum([1 if RANK_BY_RR else 0,
@@ -359,7 +361,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             try:
                 if MAX_PUTS_PER_ACCOUNT > 0:
                     MAX_PREMIUM_PER_TRADE = float(INITIAL_CASH) / float(MAX_PUTS_PER_ACCOUNT)
-                    max_premium_per_trade_str = f"{MAX_PREMIUM_PER_TRADE:>13.2f}"
+                    max_premium_per_trade_str = f"{MAX_PREMIUM_PER_TRADE:>13.4f}"
                 else:
                     # Fallback to existing constant if the rules are invalid
                     MAX_PREMIUM_PER_TRADE = MAX_PREMIUM_PER_TRADE
@@ -370,13 +372,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # Define POSITION_STOP_LOSS_PCT first
             _pos_raw = rules.get('exit_put_position', {}).get('position_stop_loss_pct', "0%")
             POSITION_STOP_LOSS_PCT = abs(safe_percentage_to_float(_pos_raw)) if _pos_raw is not None else 0.0
-            position_stop_loss_str = f"{POSITION_STOP_LOSS_PCT*100:>13.2f}%"
+            position_stop_loss_str = f"{POSITION_STOP_LOSS_PCT*100:>13.4f}%"
 
             # New Exit Rule: Min Gain to Take Profit (percentage profit threshold vs entry bid)
             try:
                 _tp_raw = rules.get('exit_put_position', {}).get('min_gain_to_take_profit', None)
                 TAKE_PROFIT_MIN_GAIN_PCT = safe_percentage_to_float(_tp_raw) if _tp_raw is not None else None
-                take_profit_min_gain_str = f"{TAKE_PROFIT_MIN_GAIN_PCT*100:>10.2f}%"
+                take_profit_min_gain_str = f"{TAKE_PROFIT_MIN_GAIN_PCT*100:>13.4f}%"
             except Exception:
                 TAKE_PROFIT_MIN_GAIN_PCT = None
 
@@ -384,7 +386,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             try:
                 _min_above_strike_raw = rules.get('exit_put_position', {}).get('stock_min_above_strike', None)
                 STOCK_MIN_ABOVE_STRIKE_PCT = safe_percentage_to_float(_min_above_strike_raw) if _min_above_strike_raw is not None else None
-                stock_min_above_strike_str = f"{STOCK_MIN_ABOVE_STRIKE_PCT*100:>13.2f}%"
+                stock_min_above_strike_str = f"{STOCK_MIN_ABOVE_STRIKE_PCT*100:>13.4f}%"
             except Exception:
                 STOCK_MIN_ABOVE_STRIKE_PCT = None
 
@@ -397,7 +399,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 elif 'Stock max below entry' in exit_rules:
                     _max_below_entry = exit_rules.get('Stock max below entry')
                 STOCK_MAX_BELOW_ENTRY_PCT = abs(safe_percentage_to_float(_max_below_entry)) if _max_below_entry is not None else None
-                stock_max_below_entry_str = f"{STOCK_MAX_BELOW_ENTRY_PCT*100:>13.3f}%"
+                stock_max_below_entry_str = f"{STOCK_MAX_BELOW_ENTRY_PCT*100:>13.4f}%"
             except Exception:
                 STOCK_MAX_BELOW_ENTRY_PCT = None
 
@@ -594,8 +596,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     max_DTE_result = int(0)
 
     all_tickers = list(open_puts_tracker.keys())
-    print(f"✅ Trackers initialized for {len(all_tickers)} tickers.")
-    print("-" * 50)
+    print(f"✅ Trackers initialized for {len(all_tickers)} tickers.")    
     
     # Helper: determine if a given day's data meets the 'investable' criteria
     def compute_investable_flag(daily_data, rules):
@@ -2199,7 +2200,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("")
     print("\n--- MONTHLY PORTFOLIO GAIN ---")
     # NEW COLUMN: % SPY Gain
-    print("| Month   | Total Value EOD    | $ Gain            |  % Gain | % SPY Gain |")
+    print("| Month   | Total Value EOD    |   $ Total Gain    |  % Gain | % SPY Gain |")
     print("|---------|--------------------|-------------------|---------|------------|") 
     
     for (year, month), data in monthly_performance.items():
@@ -2222,8 +2223,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     # --- Print Yearly Table ---
     print("")
     print("\n--- YEARLY PORTFOLIO GAIN ---")
-    # NEW COLUMN: % SPY Gain
-    print("| Year    | Total Value EOD    | $ Gain               | % Gain  | % SPY Gain |")
+    # NEW COLUMN: % SPY Gain    
+    print("| Year    | Total Value EOD    |     $ Total Gain     |  % Gain | % SPY Gain |")
     print("|---------|--------------------|----------------------|---------|------------|") 
     
     for year in sorted(yearly_performance.keys()):
