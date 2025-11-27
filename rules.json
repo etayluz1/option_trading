@@ -6,14 +6,14 @@
         "max_puts_per_account": "38",
         "max_puts_per_stock": "7",
         "max_puts_per_day": "7",
-        "wrapper_sweep_pct": "5%",
+        "wrapper_sweep_pct": "3%",
         "Minimal_Print_Out": true
     },
     "underlying_stock": {
         "min_5_day_rise_pct": "-19.75%",
-        "min_above_avg_pct": "-4.39%",
+        "min_above_avg_pct": "-4.522%",
         "max_above_avg_pct": "41%",
-        "min_avg_up_slope_pct": "-0.1%",
+        "min_avg_up_slope_pct": "-0.102%",
         "min_stock_price": "$27.15"
     },
     "entry_put_position": {
@@ -28,14 +28,14 @@
         "min_annual_risk_reward_ratio": "-15",
         "min_rev_annual_rr_ratio": "-8",
         "min_expected_profit": "-100%",
-        "rank_by_risk_reward_ratio": false,
+        "rank_by_risk_reward_ratio": true,
         "rank_by_annual_risk": false,
-        "rank_by_rev_ann_risk": true,
+        "rank_by_rev_ann_risk": false,
         "rank_by_expected_profit": false
     },
     "exit_put_position": {
         "position_stop_loss_pct": "9999%",
-        "stock_max_below_avg": "17.506%",
+        "stock_max_below_avg": "17.856%",
         "stock_min_above_strike": "-9999%",
         "stock_max_below_entry": "26.6%",
         "min_gain_to_take_profit": "9999%"

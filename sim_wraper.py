@@ -125,7 +125,7 @@ def _extract_dollar(line: str) -> Optional[float]:
     return None
 
 
-def _parse_log_metrics(log_path: Path) -> tuple[Optional[float], Optional[float], Optional[float], Optional[float]]:
+def _parse_log_metrics(log_path: Path) -> tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[float]]:
     try:
         text = log_path.read_text(encoding="utf-8", errors="ignore")
     except FileNotFoundError as exc:
@@ -135,6 +135,7 @@ def _parse_log_metrics(log_path: Path) -> tuple[Optional[float], Optional[float]
     gain = None
     annualized = None
     drawdown = None
+    win_rate = None
 
     for raw_line in text.splitlines():
         line = raw_line.strip()
@@ -167,6 +168,11 @@ def _parse_log_metrics(log_path: Path) -> tuple[Optional[float], Optional[float]
             if match:
                 drawdown = float(match.group(1))
 
+        if "Win Ratio" in line:
+            match = re.search(r"(\d+(?:\.\d+)?)%", line)
+            if match:
+                win_rate = float(match.group(1))
+
     if nav is None:
         nav = _extract_float((FINAL_NAV_RE, DAILY_NAV_RE), text)
     if gain is None:
@@ -174,7 +180,7 @@ def _parse_log_metrics(log_path: Path) -> tuple[Optional[float], Optional[float]
     if annualized is None:
         annualized = _extract_float((ANNUALIZED_GAIN_RE,), text)
 
-    return nav, gain, annualized, drawdown
+    return nav, gain, annualized, drawdown, win_rate
 
 
 def _run_simulation_once(run_id: int) -> dict:
@@ -205,7 +211,7 @@ def _run_simulation_once(run_id: int) -> dict:
         )
 
     log_path = _locate_log_file(result.stdout, before_logs, after_logs)
-    nav, gain, annualized, drawdown = _parse_log_metrics(log_path)
+    nav, gain, annualized, drawdown, win_rate = _parse_log_metrics(log_path)
 
     return {
         "run_id": run_id,
@@ -215,6 +221,7 @@ def _run_simulation_once(run_id: int) -> dict:
         "gain": gain,
         "annualized": annualized,
         "drawdown": drawdown,
+        "win_rate": win_rate,
         "log_name": log_path.name,
         "score": None,
         "param_value": None,
@@ -227,27 +234,31 @@ def _print_summary(rows: list[dict], param_name: str, emit: Callable[[str], None
         emit(f"No simulation results to display for {param_name}.")
         return
 
-    headers = [
+    headers = [        
         "Run Id",
         param_name,
         "Run time",
-        "$NAV",
+        "Win Rate",
         "$Gain",
         "Ann%",
         "Drawdown",
         "Score",
         "Log File",
     ]
+    # Tripple ID is now assigned per triplet in main()
+
     table_rows = [
-        [
-            str(row["run_id"]),
+        [            
+            f"{row['tripple_id']}.{row['run_id']}",
             (
-                f"{row['param_display']} (best score)"
-                if row.get("is_best")
-                else str(row["param_display"])
+                f"{row['tripple_id']}.{row['run_id']}" if row["run_id"] in (1,2,3) else (
+                    f"{row['param_display']} (best score)"
+                    if row.get("is_best")
+                    else str(row["param_display"])
+                )
             ),
             row["runtime"],
-            _format_money(row["nav"]),
+            _format_pct(row.get("win_rate")),
             _format_money(row["gain"]),
             _format_pct(row["annualized"]),
             _format_pct(row.get("drawdown")),
@@ -437,6 +448,7 @@ def main() -> None:
             {"section": "exit_put_position", "key": "stock_max_below_entry", "label": "stock_max_below_entry", "type": "percent"},
         ]
 
+        tripple_id_counter = 1
         for idx, spec in enumerate(param_specs):
             section = spec["section"]
             key = spec["key"]
@@ -461,17 +473,36 @@ def main() -> None:
                 if candidate not in seen_values:
                     candidates.append(candidate)
                     seen_values.add(candidate)
-
+           
+            log("")          
             results: list[dict] = []
             for run_id, value in enumerate(candidates, start=1):
                 serialized_value = serialize_value(value, param_type)
                 current_rules[section][key] = serialized_value
                 write_rules_file()
-                log(f"Starting run {run_id} with {label}={serialized_value}...")
+                # Print the starting message (no newline, flush immediately)
+                print(f"Run{run_id} --> {label}={serialized_value}  ...", end="", flush=True)
+                # Run simulation and capture result
                 run_result = _run_simulation_once(run_id)
                 run_result["param_value"] = value
                 run_result["param_display"] = serialized_value
+                run_result["tripple_id"] = tripple_id_counter
                 results.append(run_result)
+                # Prepare Ann% and Drawdown for printout
+                ann_val = run_result.get("annualized")
+                drawdown_val = run_result.get("drawdown")
+                ann_str = _format_pct(ann_val) if ann_val is not None else "-"
+                drawdown_str = _format_pct(drawdown_val) if drawdown_val is not None else "-"
+                # Calculate Score = Ann / -Drawdown (if both are present and drawdown is negative)
+                score_str = "-"
+                if ann_val is not None and drawdown_val is not None and drawdown_val < 0:
+                    try:
+                        score = ann_val / abs(drawdown_val)
+                        score_str = f"{score:.3f}"
+                    except Exception:
+                        score_str = "-"
+                # Print results on the same line
+                print(f"    Ann: {ann_str}    Drawdown:{drawdown_str}    Score:{score_str}")
 
             best_value = evaluate_and_mark(results, base_value, param_type)
             best_serialized = serialize_value(best_value, param_type)
@@ -486,6 +517,7 @@ def main() -> None:
 
             log("")
             _print_summary(results, label, log)
+            tripple_id_counter += 1
 
             if param_type == "percent":
                 baseline_matched = math.isclose(best_value, base_value, abs_tol=1e-9)
@@ -494,7 +526,6 @@ def main() -> None:
 
             if baseline_matched and idx < len(param_specs) - 1:
                 log("")
-                log(f"Best configuration matched baseline; optimizing {param_specs[idx + 1]['label']}...")
 
     except Exception:
         RULES_PATH.write_text(original_rules_text, encoding="utf-8")
@@ -508,4 +539,21 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+        [
+            str(row.get("tripple_id", 1)),
+            f"{row['tripple_id']}.{row['run_id']}",
+            (
+                f"{row['param_display']} (best score)"
+                if row.get("is_best")
+                else str(row["param_display"])
+            ),
+            row["runtime"],
+            _format_pct(row.get("win_rate")),
+            _format_money(row["gain"]),
+            _format_pct(row["annualized"]),
+            _format_pct(row.get("drawdown")),
+            _format_score(row.get("score")),
+            row["log_name"],
+        ]
+        for row in rows
+    ]

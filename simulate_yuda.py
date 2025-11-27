@@ -298,8 +298,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         end_date_obj = None
             
             # DTE Rules
-            MIN_DTE = int(rules["entry_put_position"]["min_days_for_expiration"])
-            MAX_DTE = int(rules["entry_put_position"]["max_days_for_expiration"])
+            MIN_DTE_RULE = int(rules["entry_put_position"]["min_days_for_expiration"])
+            MAX_DTE_RULE = int(rules["entry_put_position"]["max_days_for_expiration"])
             
             # Bid Price Rule
             MIN_BID_PRICE = float(rules["entry_put_position"]["min_put_bid_price"].replace('$', '').strip())
@@ -376,7 +376,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             try:
                 _tp_raw = rules.get('exit_put_position', {}).get('min_gain_to_take_profit', None)
                 TAKE_PROFIT_MIN_GAIN_PCT = safe_percentage_to_float(_tp_raw) if _tp_raw is not None else None
-                take_profit_min_gain_str = f"{TAKE_PROFIT_MIN_GAIN_PCT*100:>12.2f}%"
+                take_profit_min_gain_str = f"{TAKE_PROFIT_MIN_GAIN_PCT*100:>10.2f}%"
             except Exception:
                 TAKE_PROFIT_MIN_GAIN_PCT = None
 
@@ -464,8 +464,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(f"|----------------------------|----------------|")
             print(f"| Parameter                  | Value          |")
             print(f"|----------------------------|----------------|")
-            print(f"| Min DTE                    | {MIN_DTE:>14} |")
-            print(f"| Max DTE                    | {MAX_DTE:>14} |")
+            print(f"| Min DTE                    | {MIN_DTE_RULE:>14} |")
+            print(f"| Max DTE                    | {MAX_DTE_RULE:>14} |")
             print(f"| Min Put Bid Price          | {min_bid_price_str} |")
             print(f"| Min Put Delta              | {min_delta_str} |")
             print(f"| Max Put Delta              | {max_delta_str} |")
@@ -590,8 +590,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     worst_drawdown_pct = 0.0
     # NEW: Track peak number of open positions across the account
     peak_open_positions = 0
-    min_DTE = 9999
-    max_DTE = 0
+    min_DTE_result = int(9999)
+    max_DTE_result = int(0)
 
     all_tickers = list(open_puts_tracker.keys())
     print(f"✅ Trackers initialized for {len(all_tickers)} tickers.")
@@ -644,21 +644,25 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             if day_rise is None or adj_above_pct is None or sma_slope is None or adj_close is None:
                 return False
 
-            # Apply the same conditions used in get_stock_history.py
-            cond_rise = day_rise > (min_5_day_rise_pct if min_5_day_rise_pct is not None else -1e9)
-            cond_above_avg = True
-            if min_above_avg_pct is not None and max_above_avg_pct is not None:
-                cond_above_avg = (adj_above_pct >= min_above_avg_pct) and (adj_above_pct <= max_above_avg_pct)
+            # Early exit on first failed rule
+            if not (day_rise > (min_5_day_rise_pct if min_5_day_rise_pct is not None else -1e9)):
+                return False
 
-            cond_slope = sma_slope > (min_avg_up_slope_pct if min_avg_up_slope_pct is not None else -1e9)
-            cond_price = True
+            if min_above_avg_pct is not None and max_above_avg_pct is not None:
+                if not (adj_above_pct >= min_above_avg_pct and adj_above_pct <= max_above_avg_pct):
+                    return False
+
+            if not (sma_slope > (min_avg_up_slope_pct if min_avg_up_slope_pct is not None else -1e9)):
+                return False
+
             if min_stock_price_rule is not None:
                 try:
-                    cond_price = float(adj_close) > float(min_stock_price_rule)
+                    if not (float(adj_close) > float(min_stock_price_rule)):
+                        return False
                 except Exception:
-                    cond_price = False
+                    return False
 
-            return cond_rise and cond_above_avg and cond_slope and cond_price
+            return True
         except Exception:
             return False
     
@@ -1334,7 +1338,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                 if isinstance(days_interval, int) or (isinstance(days_interval, str) and str(days_interval).isdigit()):
                                     dte = int(days_interval) 
                                     
-                                    if MIN_DTE <= dte <= MAX_DTE:
+                                    if MIN_DTE_RULE <= dte <= MAX_DTE_RULE:
                                         
                                         # --- 2. All Contract Filters Loop ---
                                         filtered_options = []
@@ -1651,12 +1655,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         }
                         open_trades_log.append(trade_entry)
 
-                        # Calculate min_DTE and max_DTE from open_trades_log
+                        # Update min_DTE_result and max_DTE_result from open_trades_log
                         if open_trades_log:
-                            min_DTE = min(trade['dte'] for trade in open_trades_log)
-                            max_DTE = max(trade['dte'] for trade in open_trades_log)
-                        else:
-                            min_DTE = max_DTE = None
+                            min_DTE_result = min(min_DTE_result, int(best_contract['dte']))
+                            max_DTE_result = max(max_DTE_result, int(best_contract['dte']))
+                        
 
                         # 7. Update the quick-check set
                         active_position_keys.add(trade_entry['unique_key'])
@@ -1978,10 +1981,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         print("\n--- FINAL PORTFOLIO LIQUIDATION ---")
         
         # Prepare header for liquidation table
-        print("| Ticker | Qty  | Strike   | Premium Sold  | Closing Ask  | Cost to Close  | Exit Commission | Net Gain/Loss |")
+        print("| Ticker | Qty  | Strike   |  Premium Sold  | Closing Ask  | Cost to Close  | Exit Commission | Net Gain/Loss |")
         
         # CRITICAL FIX 9: Adjust the header separator line based on the visual widths.
-        print("|--------|------|----------|---------------|--------------|----------------|-----------------|---------------|") 
+        print("|--------|------|----------|----------------|--------------|----------------|-----------------|---------------|") 
         
         # We liquidate all remaining trades
         for trade in positions_to_liquidate:
@@ -2068,7 +2071,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             
             use_older_ask = " using older ask price" if fallback_note else ""
             print(
-                f"| {trade['ticker']:<6} | {qty:4} | $ {trade['strike']:>6.2f} | $ {premium_collected_gross:>11,.2f} | "
+                f"| {trade['ticker']:<6} | {qty:4} | $ {trade['strike']:>6.2f} | $ {premium_collected_gross:>12,.2f} | "
                 f"$ {closing_ask:>10.2f} | $ {cost_to_close_gross:>12,.2f} | $ {exit_commission:>13.2f} | "
                 f"$ {position_net_gain:>11.2f} | {use_older_ask}"
             )            
@@ -2374,7 +2377,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         # Adjusted separator for new Exit # column
         print("\n\n--- DETAILED CLOSED TRADE LOG (Full History) ---")
         print("| Exit #  | Ticker |  Qty |   Day In   | Price In   |   Amount In    |  Day Out   | Price Out |   Amount Out   | Reason Why Closed          |    Gain $  |   Gain % |")
-        print("|---------|--------|------|------------|------------|-------------_--|------------|-----------|----------------|----------------------------|------------|----------|")
+        print("|---------|--------|------|------------|------------|----------------|------------|-----------|----------------|----------------------------|------------|----------|")
         
         for index, trade in enumerate(closed_trades_log):
             
@@ -2456,8 +2459,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"|----------------------------|----------------|")
     print(f"| Parameter                  | Value          |")
     print(f"|----------------------------|----------------|")
-    print(f"| Min DTE                    | {MIN_DTE:>14} |")
-    print(f"| Max DTE                    | {MAX_DTE:>14} |")
+    print(f"| Min DTE                    | {MIN_DTE_RULE:>14} |")
+    print(f"| Max DTE                    | {MAX_DTE_RULE:>14} |")
     print(f"| Min Put Bid Price          | {min_bid_price_str} |")
     print(f"| Min Put Delta              | {min_delta_str} |")
     print(f"| Max Put Delta              | {max_delta_str} |")
@@ -2516,12 +2519,12 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Parameter                  |  Value                  |")
     print(f"|----------------------------|-------------------------|")
     print(f"| Current Date/Time          | {datetime.now().strftime('%Y-%m-%d %H:%M'):>23} |")
-    print(f"| Annualized Gain            | {annualized_gain:>22.2f}% |")
+    print(f"| Annualized Gain            | {annualized_gain:>22.3f}% |")
     print(f"| Total Gain                 | ${TOTAL_GAIN:>22,.2f} |")    
     print(f"| Run Time                   | {runtime_str:>23} |")
     print(f"| Peak Open Positions        | {peak_open_positions:>23} |")
-    print(f"| Min DTE (Open Positions)   | {min_DTE:>23} |")
-    print(f"| Max DTE (Open Positions)   | {max_DTE:>23} |")
+    print(f"| Min DTE (Open Positions)   | {min_DTE_result:>23} |")
+    print(f"| Max DTE (Open Positions)   | {max_DTE_result:>23} |")
     print(f"| Total Entry Events         | {total_entry_events:>23} |")
     print(f"| Win Ratio                  | {win_ratio_pct:>22.2f}% |")
     
@@ -2539,12 +2542,12 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     
     # Worst drawdown across all simulated dates
     try:
-        print(f"| Worst Drawdown             | {worst_drawdown_pct:>22.2f}% |")
+        print(f"| Worst Drawdown             | {worst_drawdown_pct:>22.3f}% |")
     except Exception:
         # If for any reason the metric isn't available, skip gracefully
         pass
     Score = annualized_gain / -worst_drawdown_pct if worst_drawdown_pct != 0 else 0.0
-    print(f"| Score = Ann/-Drawdown      | {Score:>23.3f} |")
+    print(f"| Score = Ann/-Drawdown      | {Score:>23.4f} |")
     print(f"|----------------------------|-------------------------|")
     print()    
     
