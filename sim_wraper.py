@@ -248,15 +248,9 @@ def _print_summary(rows: list[dict], param_name: str, emit: Callable[[str], None
     # Tripple ID is now assigned per triplet in main()
 
     table_rows = [
-        [            
+        [
             f"{row['tripple_id']}.{row['run_id']}",
-            (
-                f"{row['tripple_id']}.{row['run_id']}" if row["run_id"] in (1,2,3) else (
-                    f"{row['param_display']} (best score)"
-                    if row.get("is_best")
-                    else str(row["param_display"])
-                )
-            ),
+            f"{row['param_display']} (best score)" if row.get("is_best") else str(row["param_display"]),
             row["runtime"],
             _format_pct(row.get("win_rate")),
             _format_money(row["gain"]),
@@ -539,21 +533,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-        [
-            str(row.get("tripple_id", 1)),
-            f"{row['tripple_id']}.{row['run_id']}",
-            (
-                f"{row['param_display']} (best score)"
-                if row.get("is_best")
-                else str(row["param_display"])
-            ),
-            row["runtime"],
-            _format_pct(row.get("win_rate")),
-            _format_money(row["gain"]),
-            _format_pct(row["annualized"]),
-            _format_pct(row.get("drawdown")),
-            _format_score(row.get("score")),
-            row["log_name"],
-        ]
-        for row in rows
-    ]
+    main()

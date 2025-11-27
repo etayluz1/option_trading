@@ -3,7 +3,7 @@
         "start_date": "01/01/2020",
         "end_date": "10/28/2025",
         "initial_cash": "1000000",
-        "max_puts_per_account": "38",
+        "max_puts_per_account": "36",
         "max_puts_per_stock": "7",
         "max_puts_per_day": "7",
         "wrapper_sweep_pct": "3%",
@@ -11,7 +11,7 @@
     },
     "underlying_stock": {
         "min_5_day_rise_pct": "-19.75%",
-        "min_above_avg_pct": "-4.522%",
+        "min_above_avg_pct": "-4.39%",
         "max_above_avg_pct": "41%",
         "min_avg_up_slope_pct": "-0.102%",
         "min_stock_price": "$27.15"
@@ -28,8 +28,8 @@
         "min_annual_risk_reward_ratio": "-15",
         "min_rev_annual_rr_ratio": "-8",
         "min_expected_profit": "-100%",
-        "rank_by_risk_reward_ratio": true,
-        "rank_by_annual_risk": false,
+        "rank_by_risk_reward_ratio": false,
+        "rank_by_annual_risk": true,
         "rank_by_rev_ann_risk": false,
         "rank_by_expected_profit": false
     },
