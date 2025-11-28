@@ -446,6 +446,7 @@ def main() -> None:
             {"section": "entry_put_position", "key": "min_avg_above_strike", "label": "min_avg_above_strike", "type": "percent"},
             {"section": "entry_put_position", "key": "min_risk_reward_ratio", "label": "min_risk_reward_ratio", "type": "float"},
             {"section": "entry_put_position", "key": "min_annual_risk_reward_ratio", "label": "min_annual_risk_reward_ratio", "type": "float"},
+            {"section": "entry_put_position", "key": "min_rev_annual_rr_ratio", "label": "min_rev_annual_rr_ratio", "type": "float"},
             {"section": "entry_put_position", "key": "min_expected_profit", "label": "min_expected_profit", "type": "percent"},
             {"section": "exit_put_position", "key": "stock_max_below_avg", "label": "stock_max_below_avg", "type": "percent"},
             {"section": "exit_put_position", "key": "stock_max_below_entry", "label": "stock_max_below_entry", "type": "percent"},
