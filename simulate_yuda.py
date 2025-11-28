@@ -1860,6 +1860,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
             # NEW: Current Drawdown vs. peak NAV so far
             try:
+                if peak_account_value is None or peak_account_value < total_account_value:
+                    peak_account_value = total_account_value
                 if peak_account_value and peak_account_value > 0:
                     current_drawdown_pct = ((total_account_value / peak_account_value) - 1.0) * 100.0
                 else:

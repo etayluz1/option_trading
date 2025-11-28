@@ -79,7 +79,7 @@ def _format_pct(value: Optional[float]) -> str:
 
 
 def _format_score(value: Optional[float]) -> str:
-    return "N/A" if value is None else f"{value:.3f}"
+    return "N/A" if value is None else f"{value:.4f}"
 
 
 def _format_runtime(seconds: Optional[float]) -> str:
@@ -458,6 +458,10 @@ def main() -> None:
             key = spec["key"]
             label = spec["label"]
 
+            section = spec["section"]
+            key = spec["key"]
+            label = spec["label"]
+            param_type = spec.get("type", "int")
             base_raw = current_rules.get(section, {}).get(key)
             if base_raw is None:
                 raise KeyError(f"Missing '{label}' in rules.json")
@@ -477,8 +481,8 @@ def main() -> None:
                 if candidate not in seen_values:
                     candidates.append(candidate)
                     seen_values.add(candidate)
-           
-            log("")          
+
+            log("")
             results: list[dict] = []
             for run_id, value in enumerate(candidates, start=1):
                 serialized_value = serialize_value(value, param_type)
@@ -502,7 +506,7 @@ def main() -> None:
                 if ann_val is not None and drawdown_val is not None and drawdown_val < 0:
                     try:
                         score = ann_val / abs(drawdown_val)
-                        score_str = f"{score:.3f}"
+                        score_str = f"{score:.4f}"
                     except Exception:
                         score_str = "-"
                 # Print results on the same line
@@ -512,7 +516,17 @@ def main() -> None:
             best_serialized = serialize_value(best_value, param_type)
             current_rules[section][key] = best_serialized
             write_rules_file()
-            
+
+            # Track score improvements
+            if 'score_improvements_count' not in locals():
+                score_improvements_count = 0
+            if param_type == "percent":
+                baseline_matched = math.isclose(best_value, base_value, abs_tol=1e-9)
+            else:
+                baseline_matched = best_value == base_value
+            if not baseline_matched:
+                score_improvements_count += 1
+
             # Always log rules.json after every triplet of runs (after each parameter sweep), but only once per sweep
             if idx == 0:
                 log_rules_snapshot(f"--- rules.json after first sweep ({label}) ---")
@@ -522,11 +536,6 @@ def main() -> None:
             log("")
             _print_summary(results, label, log)
             tripple_id_counter += 1
-
-            if param_type == "percent":
-                baseline_matched = math.isclose(best_value, base_value, abs_tol=1e-9)
-            else:
-                baseline_matched = best_value == base_value
 
             if baseline_matched and idx < len(param_specs) - 1:
                 log("")
@@ -540,6 +549,16 @@ def main() -> None:
         log_file.write(RULES_PATH.read_text(encoding="utf-8"))
         log_file.write("\n")
         log_file.write(f"LOG FILE: {optimize_log_path.name}\n")
+        if 'score_improvements_count' in locals():
+            log_file.write(f"Score improvements counted: {score_improvements_count}\n")
+        else:
+            log_file.write("Score improvements counted: 0\n")
+
+    # Print to console as well
+    if 'score_improvements_count' in locals():
+        print(f"Score improvements counted: {score_improvements_count}")
+    else:
+        print("Score improvements counted: 0")
 
 
 if __name__ == "__main__":

@@ -6,5 +6,6 @@ ORATS_zip/
 stock_history.json
 ticker_data/
 under_stock.json
-logs/
+logs/*
+!logs/Summary.xlsm
 __pycache__/
