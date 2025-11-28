@@ -590,6 +590,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     peak_account_value = INITIAL_CASH
     # NEW: Track worst drawdown percentage observed across all simulated dates (negative number, e.g., -12.34)
     worst_drawdown_pct = 0.0
+    # Track all drawdown periods
+    drawdown_periods = []
+    current_drawdown = None
     # NEW: Track peak number of open positions across the account
     peak_open_positions = 0
     min_DTE_result = int(9999)
@@ -931,9 +934,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     
                     # --- Calculate Exit P&L ---
                     exit_commission = qty * FINAL_COMMISSION_PER_CONTRACT
-                    # Net premium collected, subtracting entry commission
-                    premium_collected_gross = (trade['premium_received'] * qty * 100.0)
                     entry_commission = qty * COMMISSION_PER_CONTRACT
+                    # Net premium collected, subtracting entry commission
+                    premium_collected_gross = (trade['premium_received'] * qty * 100.0) - entry_commission # Gross includes entry_comission
+                    
                     
                     if expired_triggered:
                         # --- CRITICAL FIX FOR OTM/ITM ASSIGNMENT ---
@@ -969,8 +973,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             
                             if is_itm:
                                 # ITM/ASSIGNMENT SCENARIO (Loss)
-                                assignment_loss_gross = (trade['strike'] - current_adj_close) * qty * 100.0 + entry_commission + exit_commission 
-                                net_profit = premium_collected_gross  - assignment_loss_gross - exit_commission
+                                entry_commission = qty * FINAL_COMMISSION_PER_CONTRACT
+                                exit_commission = qty * FINAL_COMMISSION_PER_CONTRACT
+                                assignment_loss_gross = (trade['strike'] - current_adj_close) * qty * 100.0  + exit_commission 
+                                net_profit = premium_collected_gross  - assignment_loss_gross  # Gross includes entry_comission
                                 
                                 # Count exit EVENTS (not contracts)
                                 expired_itm_count += 1
@@ -986,7 +992,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                 # OTM/MAX PROFIT SCENARIO
                                 cost_to_close_gross = 0.0 
                                 exit_commission = 0.0
-                                net_profit = premium_collected_gross- entry_commission - exit_commission
+                                net_profit = premium_collected_gross - exit_commission # Gross includes entry_comission
                                 
                                 # Count exit EVENTS (not contracts)
                                 expired_otm_count += 1
@@ -1001,8 +1007,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         
                     elif (stop_loss_triggered or take_profit_triggered) and current_ask_price is not None:
                         # STOP LOSS or TAKE PROFIT SCENARIO (uses option Ask for closure)
+                        exit_commission = qty * FINAL_COMMISSION_PER_CONTRACT
                         cost_to_close_gross = current_ask_price * qty * 100.0 + exit_commission
-                        net_profit = premium_collected_gross - cost_to_close_gross - exit_commission
+                        net_profit = premium_collected_gross - cost_to_close_gross  # Gross includes entry_comission
 
                         # Determine specific reason (take-profit has priority if triggered)
                         if take_profit_triggered:
@@ -1037,8 +1044,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         
                         if fallback_price is not None:
                             # Use the stored historical price to close the position
+                            exit_commission = qty * FINAL_COMMISSION_PER_CONTRACT
                             cost_to_close_gross = fallback_price * qty * 100.0 + exit_commission
-                            net_profit = premium_collected_gross - cost_to_close_gross - exit_commission
+                            net_profit = premium_collected_gross - cost_to_close_gross  # Gross includes entry_comission
                             
                             # Determine base reason
                             if take_profit_triggered:
@@ -1106,7 +1114,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     # Yuda: I don't like this bug cash_balance += premium_collected_gross
                     
                     # Final P&L calculation
-                    daily_pnl += net_profit  # Add to daily P&L only; cumulative is updated at end of day
+                    daily_pnl += net_profit  # Add exit gain to daily P&L only; cumulative is updated at end of day
                     
                     # Calculate percentage gain relative to max risk (Premium / Max Loss)
                     premium_collected_per_contract = trade['premium_received'] * 100.0
@@ -1121,7 +1129,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     exit_details['Gain%'] = position_gain_percent
 
                     # Log the exit
-                    print(f"🔥 **EXIT:** {exit_details['ReasonWhyClosed']}: {trade['ticker']} (Strike ${trade['strike']:.2f}, Qty {qty}). Net Profit: ${net_profit:,.2f}")
+                    print(f"🔥 **EXIT:** {exit_details['ReasonWhyClosed']}: {trade['ticker']} (Strike ${trade['strike']:.2f}, Qty {qty}, PriceOut ${exit_details['PriceOut']:.2f}). Net Profit: ${net_profit:,.2f}")
                     
                     # --- NEW LOGGING FOR CASH FLOW TRANSPARENCY ---
                     # FIX: Displaying the three components that net out to the P&L, proving the net change is correct.
@@ -1130,7 +1138,6 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     print(f"  | - Commission: -${exit_commission:,.2f}")
                     print(f"  | + Premium Collected (Realized Component): +${premium_collected_gross:,.2f}")
                     print(f"  | **Final Cash Balance After Event:** ${cash_balance:,.2f} (Net Change: ${net_profit:,.2f})")
-                    # --- END NEW LOGGING ---
 
                     # --- CAPTURE COMPLETE TRADE LOG AND REMOVE ---
                     
@@ -1608,8 +1615,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         total_contracts_opened_qty += trade_quantity # Increment by contract quantity (QTY)
 
                         # 3. Calculate cash change and P&L
-                        daily_pnl -= entry_commission
-                        cumulative_realized_pnl -= entry_commission
+                        # daily_pnl -= entry_commission                    # Entry commission is not a realized loss
+                        # cumulative_realized_pnl -= entry_commission      # Entry commission is not a realized loss
                         premium_inflow = premium_per_contract * trade_quantity
                         
                         # Calculate instant MTM liability and change for logging
@@ -1730,30 +1737,31 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     price_source_date = trade.get('last_ask_date', 'unknown')
                 
                 if current_price is not None:
-                    premium_collected_trade = trade['premium_received'] * trade['quantity'] * 100.0
+                    entry_commission = trade['quantity'] * COMMISSION_PER_CONTRACT
+                    premium_collected_gross = trade['premium_received'] * trade['quantity'] * 100.0 - entry_commission
                     put_cost_to_close = current_price * trade['quantity'] * 100.0
                     
                     # 1. Update total liability
                     total_put_liability += put_cost_to_close 
                     
                     # 2. Update total premium collected on open puts
-                    total_open_premium_collected += premium_collected_trade
+                    total_open_premium_collected += premium_collected_gross
                     
                     # 3. UPnL: (Premium Collected - Cost to Close)
-                    pnl_one_position = premium_collected_trade - put_cost_to_close
-                    unrealized_pnl += pnl_one_position
+                    pnl_unrealized_one_position = premium_collected_gross - put_cost_to_close
+                    unrealized_pnl += pnl_unrealized_one_position
                     
                     # 4. Itemization for Printout
                     if price_source_date != date_str:
                         # Using historical price - note it in the itemization
                         item_detail = (
                             f"  > **{trade['ticker']}** (Qty {trade['quantity']}, Strike ${trade['strike']:.2f}, Exp {trade['expiration_date']}): "
-                            f"Ask=${current_price:.2f} (from {price_source_date}), Cost to Close=${put_cost_to_close:,.2f}"
+                            f"Ask=${current_price:.2f} (from {price_source_date}), Cost to Close=${put_cost_to_close:,.2f}, Premium Received=${trade['premium_received']:.2f}"
                         )
                     else:
                         item_detail = (
                             f"  > **{trade['ticker']}** (Qty {trade['quantity']}, Strike ${trade['strike']:.2f}, Exp {trade['expiration_date']}): "
-                            f"Ask=${current_price:.2f}, Cost to Close=${put_cost_to_close:,.2f}"
+                            f"Ask=${current_price:.2f}, Cost to Close=${put_cost_to_close:,.2f}, Premium Received=${trade['premium_received']:.2f}"
                         )
                     daily_liability_itemization.append(item_detail)
                     
@@ -1846,7 +1854,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     print(item)
 
             
-            print(f"  > **Total accumulated Premium on Open Puts:** +${total_open_premium_collected:,.2f}")
+            print(f"  > **Total accumulated Gross Premium on Open Puts:** +${total_open_premium_collected:,.2f}")
 
             print(f"💰 **Cash Balance:** ${cash_balance:,.2f}")
 
@@ -1860,6 +1868,42 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 if current_drawdown_pct < worst_drawdown_pct:
                     worst_drawdown_pct = current_drawdown_pct
                 print(f"  > **Current Drawdown:** {current_drawdown_pct:.2f}% (vs peak ${peak_account_value:,.2f})")
+
+                # --- Drawdown period tracking ---
+                if current_drawdown_pct < 0:
+                    # In a drawdown
+                    if current_drawdown is None:
+                        # Start new drawdown period
+                        current_drawdown = {
+                            'start_date': date_str,
+                            'start_nav': peak_account_value,
+                            'worst_date': date_str,
+                            'worst_nav': total_account_value,
+                            'end_date': None,
+                            'end_nav': None,
+                            'worst_pct': current_drawdown_pct
+                        }
+                    else:
+                        # Update worst point if needed
+                        if total_account_value < current_drawdown['worst_nav']:
+                            current_drawdown['worst_nav'] = total_account_value
+                            current_drawdown['worst_date'] = date_str
+                            current_drawdown['worst_pct'] = current_drawdown_pct
+                else:
+                    # Not in drawdown (at or above previous peak)
+                    if current_drawdown is not None:
+                        # End the drawdown period
+                        current_drawdown['end_date'] = date_str
+                        current_drawdown['end_nav'] = total_account_value
+                        # Calculate days in drawdown
+                        try:
+                            start_dt = datetime.strptime(current_drawdown['start_date'], '%Y-%m-%d').date()
+                            end_dt = datetime.strptime(current_drawdown['end_date'], '%Y-%m-%d').date()
+                            current_drawdown['days'] = (end_dt - start_dt).days
+                        except Exception:
+                            current_drawdown['days'] = 0
+                        drawdown_periods.append(current_drawdown)
+                        current_drawdown = None
             except Exception:
                 # If any unexpected numeric issue occurs, skip printing drawdown for the day
                 pass
@@ -1903,6 +1947,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     print("❌ Total is not the same as cash+gain")
                     print(f"  | cash_plus_total_pnl: ${cash_plus_total_pnl:,.2f}")
                     print(f"  | total_account_value: ${total_account_value:,.2f}")
+                    print(f"  | Difference: : ${total_account_value - cash_plus_total_pnl:,.2f}")
                     # sys.exit(1)
             except Exception:
                 # If comparison or exit fails for any reason, continue but report
@@ -2015,12 +2060,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             premium_collected_per_contract = trade['premium_received']
             
             # Financials (based on last known/available market price)
+            entry_commission = qty * COMMISSION_PER_CONTRACT
             exit_commission = qty * FINAL_COMMISSION_PER_CONTRACT
-            premium_collected_gross = premium_collected_per_contract * qty * 100.0 - qty * FINAL_COMMISSION_PER_CONTRACT
-            cost_to_close_gross = closing_ask * qty * 100.0 + exit_commission
+            premium_collected_gross = premium_collected_per_contract * qty * 100.0 - entry_commission  # Gross includes entry_commission
+            cost_to_close_gross = closing_ask * qty * 100.0 + exit_commission # Gross includes exit_commission
             
             # P&L Calculation: (Initial Premium) - (Cost to Close) - (Exit Commission)
-            position_net_gain = premium_collected_gross - cost_to_close_gross 
+            position_net_gain = premium_collected_gross - cost_to_close_gross  # Gross includes entry_commission
             
             total_liquidation_pnl += position_net_gain
             
@@ -2425,9 +2471,25 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # If any unexpected format occurs, skip totals but continue gracefully
             pass
 
+
+    # 11 Drawdown Periods
+    if drawdown_periods:
+        filtered_drawdowns = [dd for dd in drawdown_periods if abs(dd['worst_pct']) > 10.0]
+        if filtered_drawdowns:
+            print("\n--- DRAWNDOWN PERIODS GREATER THAN 10% ---")
+            print("|  ID | Start Date |  Start NAV     | Worst Date |  Worst NAV     | End Date    |  End NAV       | Days | Worse [%] |")
+            print("|-----|------------|----------------|------------|----------------|-------------|----------------|------|-----------|")
+            for idx, dd in enumerate(filtered_drawdowns, 1):
+                print(f"| {idx:3d} | {dd['start_date']} | ${dd['start_nav']:13,.2f} | {dd['worst_date']} | ${dd['worst_nav']:13,.2f} | {dd['end_date'] or '-':11} | ${dd['end_nav']:13,.2f} | {dd['days']:4d} | {dd['worst_pct']:9.2f} |")
+            print("|- ---|------------|----------------|------------|----------------|-------------|----------------|------|-----------|")
+        else:
+            print("No drawdown periods greater than 5% detected.")
+    else:
+        print("No drawdown periods detected.")
+
     print("\n=== FINAL TRADING RULES SUMMARY ===\n")
 
-    # 1. Account Simulation Rules
+    # 12. Account Simulation Rules
     print(f"📊 Account Simulation Rules")
     print(f"|----------------------------|----------------|")
     print(f"| Parameter                  | Value          |")
