@@ -9,3 +9,8 @@ under_stock.json
 logs/*
 !logs/Summary.xlsm
 __pycache__/
+junk/
+*.tmp
+*.log
+*.bak
+*.pyc

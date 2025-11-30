@@ -8,12 +8,11 @@ ATR_PERIOD = 14
 SMA_PERIOD = 150 
 SMA_SLOPE_PERIOD = 10 
 RISE_PERIOD = 5 
-#  Date,Adj_Close,Close,High,Low,Open,Dividends,Split_Ratio:
-columns = ['Date', 'Adj_Close', 'Close', 'High', 'Low', 'Open', 'Dividends', 'Split_Ratio']
+csv_columns = ['Date', 'Adj_Close', 'Close', 'High', 'Low', 'Open', 'Dividends', 'Split_Ratio']
 stock_history_dict = {}
 
 # DataFrame Column Names (Internal)
-SMA_COL_NAME = 'SMA_150_ADJ_CLOSE' 
+SMA_ADJ_COL_NAME = 'SMA_150_ADJ_CLOSE' 
 SMA_SLOPE_COL_NAME = 'AVG_SLOPE' 
 RISE_COL_NAME = 'tead_PCT' 
 ABOVE_AVG_COL_NAME = 'ABOVE_AVG_PCT' 
@@ -86,7 +85,7 @@ for filename in os.listdir(folder_path):
     file_path = os.path.join(folder_path, filename)
 
     # Read CSV and ensure numeric columns
-    df = pd.read_csv(file_path, skiprows=3, header=None, names=columns, dtype={"Date": str})
+    df = pd.read_csv(file_path, skiprows=3, header=None, names=csv_columns, dtype={"Date": str})
     
     # Convert all necessary columns to numeric types, coercing errors to NaN
     numeric_cols = ['Adj_Close', 'High', 'Low', 'Close']
@@ -117,20 +116,20 @@ for filename in os.listdir(folder_path):
 
     # --- Step 2: Calculate Moving Averages (Rolling Mean) (Same as before) ---
     df['ATR_14'] = df['TR_PCT'].rolling(window=ATR_PERIOD, min_periods=ATR_PERIOD).mean()
-    df[SMA_COL_NAME] = df['Adj_Close'].rolling(window=SMA_PERIOD, min_periods=SMA_PERIOD).mean()
+    df[SMA_ADJ_COL_NAME] = df['Adj_Close'].rolling(window=SMA_PERIOD, min_periods=SMA_PERIOD).mean()
 
     # --- Step 3: Calculate Slope, 5-Day Rise, and Above/Below-Average Percentage ---
     
     # A. Average Slope Calculation
-    df['SMA_PREV'] = df[SMA_COL_NAME].shift(SMA_SLOPE_PERIOD)
-    df[SMA_SLOPE_COL_NAME] = ((df[SMA_COL_NAME] / df['SMA_PREV']) - 1) * 100
+    df['SMA_PREV'] = df[SMA_ADJ_COL_NAME].shift(SMA_SLOPE_PERIOD)
+    df[SMA_SLOPE_COL_NAME] = ((df[SMA_ADJ_COL_NAME] / df['SMA_PREV']) - 1) * 100
     
     # B. 5-Day Rise Calculation
     df['ADJ_CLOSE_PREV_5'] = df['Adj_Close'].shift(RISE_PERIOD)
     df[RISE_COL_NAME] = ((df['Adj_Close'] / df['ADJ_CLOSE_PREV_5']) - 1) * 100
     
     # C. Above-Average Percentage Calculation
-    df[ABOVE_AVG_COL_NAME] = ((df['Adj_Close'] / df[SMA_COL_NAME]) - 1) * 100
+    df[ABOVE_AVG_COL_NAME] = ((df['Adj_Close'] / df[SMA_ADJ_COL_NAME]) - 1) * 100
 
     # D. Below-Average Percentage Calculation (Negation)
     df[BELOW_AVG_COL_NAME] = -1 * df[ABOVE_AVG_COL_NAME]
@@ -179,7 +178,7 @@ for filename in os.listdir(folder_path):
             ('5_day_rise', safe_val(row[RISE_COL_NAME], fmt='pct')),
             ('10_day_avg_slope', safe_val(row[SMA_SLOPE_COL_NAME], fmt='pct')),
             ('adj_price_above_avg_pct', safe_val(row[ABOVE_AVG_COL_NAME], fmt='pct')),
-            ('sma150_adj_close', safe_val(row[SMA_COL_NAME], dec=4)),
+            ('sma150_adj_close', safe_val(row[SMA_ADJ_COL_NAME], dec=4)),
             ('Split', safe_val(row['Split_Ratio']) if 'Split_Ratio' in df.columns else None)
         ]
         date_metrics = OrderedDict((k, v) for k, v in key_order if v is not None)

@@ -1,3 +1,39 @@
+# Utility: Find first dividend and split event between two dates for a ticker
+def get_first_dividend_and_split(stock_history_dict, ticker, entry_date, exit_date):
+    """
+    Returns (dividend_str, split_str): the date of the first dividend and split event (as yyyy-mm-dd), or '' if none,
+    between entry_date and exit_date (inclusive) for the given ticker.
+    """
+    if ticker not in stock_history_dict:
+        return '', ''
+    ticker_data = stock_history_dict[ticker]
+    # Ensure dates are in correct order and format
+    try:
+        entry_dt = datetime.strptime(entry_date, '%Y-%m-%d')
+        exit_dt = datetime.strptime(exit_date, '%Y-%m-%d')
+    except Exception:
+        return '', ''
+    if entry_dt > exit_dt:
+        entry_dt, exit_dt = exit_dt, entry_dt
+    dividend_str = ''
+    split_str = ''
+    for dt in sorted(ticker_data.keys()):
+        try:
+            dt_obj = datetime.strptime(dt, '%Y-%m-%d')
+        except Exception:
+            continue
+        if entry_dt <= dt_obj <= exit_dt:
+            day_data = ticker_data[dt]
+            # Check for dividend
+            if dividend_str == '' and (day_data.get('Dividends', 0) or day_data.get('dividends', 0)):
+                dividend_str = dt
+            # Check for split
+            split_val = day_data.get('Split', 0) or day_data.get('Split_Ratio', 0) or day_data.get('split', 0)
+            if split_str == '' and split_val:
+                split_str = dt
+            if dividend_str and split_str:
+                break
+    return dividend_str, split_str
 import orjson
 import os
 from datetime import datetime
@@ -320,7 +356,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
             # Strike Price Safety Margin Rule
             MIN_AVG_ABOVE_STRIKE_PCT = safe_percentage_to_float(rules["entry_put_position"]["min_avg_above_strike"])
-            max_avg_above_strike_str = f"{MIN_AVG_ABOVE_STRIKE_PCT*100:>13.4f}%"
+            min_avg_above_strike_str = f"{MIN_AVG_ABOVE_STRIKE_PCT*100:>13.4f}%"
 
             REQUIRED_SMA_STRIKE_RATIO = 1.0 + MIN_AVG_ABOVE_STRIKE_PCT
             
@@ -472,7 +508,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(f"| Min Put Delta              | {min_delta_str} |")
             print(f"| Max Put Delta              | {max_delta_str} |")
             print(f"| Max Bid-Ask Spread         | {max_spread_str} |")            
-            print(f"| Min Avg Above Strike       | {max_avg_above_strike_str} |")
+            print(f"| Min Avg Above Strike       | {min_avg_above_strike_str} |")
             print(f"| Min Risk/Reward Ratio      | {min_risk_reward_str} |")
             print(f"| Min Annual Risk            | {min_annual_risk_str} |")
             print(f"| Min Rev Annual Risk        | {min_rev_annual_risk_str} |")
@@ -1329,6 +1365,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         # --- Stock Data Needed for Filtering ---
                         sma150_adj_close = daily_data.get('sma150_adj_close')
                         current_adj_close = daily_data.get('adj_close')
+                        current_close_price = daily_data.get('close')
                         
                         
                         # List to hold (expiration_date, DTE, list_of_filtered_options)
@@ -1377,7 +1414,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                             if not passes_spread: continue # Fail fast
 
                                             # --- Check 4: Strike Safety Margin ---
-                                            passes_safety_margin = sma150_adj_close is not None and strike_value > 0 and (sma150_adj_close / strike_value) > REQUIRED_SMA_STRIKE_RATIO
+                                            sma150_close = sma150_adj_close * current_close_price / current_adj_close if current_adj_close and current_adj_close > 0 else None
+                                            passes_safety_margin = sma150_close is not None and strike_value > 0 and (sma150_close / strike_value) > REQUIRED_SMA_STRIKE_RATIO
                                             if not passes_safety_margin: continue # Fail fast
 
                                             # --- Check 5: Risk/Reward Ratio ---
@@ -2425,14 +2463,22 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
         # Adjusted separator for new Exit # column
         print("\n\n--- DETAILED CLOSED TRADE LOG (Full History) ---")
-        print("| Exit #  | Ticker |  Qty |   Day In   | Price In   |   Amount In    |  Day Out   | Price Out |   Amount Out   | Reason Why Closed          |    Gain $  |   Gain % |")
-        print("|---------|--------|------|------------|------------|----------------|------------|-----------|----------------|----------------------------|------------|----------|")
+        print("| Exit #  | Ticker |  Qty |   Day In   | Price In   |   Amount In    |  Day Out   | Price Out |   Amount Out   | Reason Why Closed          |    Gain $  |   Gain % | Dividend |    Split   |")
+        print("|---------|--------|------|------------|------------|----------------|------------|-----------|----------------|----------------------------|------------|----------|----------|------------|")
         
         for index, trade in enumerate(closed_trades_log):
             
             # Exit Number (1, 2, 3...)
             exit_number = index + 1
-            
+
+            # Find first dividend and split event between entry and exit
+            dividend_str, split_str = get_first_dividend_and_split(
+                stock_history_dict,
+                trade['Ticker'],
+                trade['DayIn'],
+                trade['DayOut']
+            )
+
             # Format numbers (Price In/Out, Amount In/Out, Gain $)
             price_in_str = f"${trade['PriceIn']:>9.2f}"
             price_out_str = f"${trade['PriceOut']:>8.2f}" if trade['PriceOut'] is not None else ""
@@ -2455,7 +2501,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 f"| {exit_number:>{COL_EXIT_NUM}} | {trade['Ticker']:<{COL_TICKER}} | {trade['Qty']:>{COL_QTY}} | {trade['DayIn']:^{10}} | "
                 f"{price_in_str} | {amount_in_str} | {trade['DayOut']:^{10}} | "
                 f"{price_out_str} | {amount_out_str} | "
-                f" {reason_str:<{25}} | {gain_abs_str} | {gain_pct_str} |"
+                f" {reason_str:<{25}} | {gain_abs_str} | {gain_pct_str} | {dividend_str:^8} | {split_str:^6} |"
             )
             print(row)
 
@@ -2530,7 +2576,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Min Put Delta              | {min_delta_str} |")
     print(f"| Max Put Delta              | {max_delta_str} |")
     print(f"| Max Bid-Ask Spread         | {max_spread_str} |")            
-    print(f"| Min Avg Above Strike       | {max_avg_above_strike_str} |")
+    print(f"| Min Avg Above Strike       | {min_avg_above_strike_str} |")
     print(f"| Min Risk/Reward Ratio      | {min_risk_reward_str} |")
     print(f"| Min Annual Risk            | {min_annual_risk_str} |")
     print(f"| Min Rev Annual Risk        | {min_rev_annual_risk_str} |")
