@@ -8,13 +8,14 @@ ATR_PERIOD = 14
 SMA_PERIOD = 150 
 SMA_SLOPE_PERIOD = 10 
 RISE_PERIOD = 5 
-columns = ['Date', 'Adj Close', 'Close', 'High', 'Low', 'Open', 'Volume']
+#  Date,Adj_Close,Close,High,Low,Open,Dividends,Split_Ratio:
+columns = ['Date', 'Adj_Close', 'Close', 'High', 'Low', 'Open', 'Dividends', 'Split_Ratio']
 stock_history_dict = {}
 
 # DataFrame Column Names (Internal)
 SMA_COL_NAME = 'SMA_150_ADJ_CLOSE' 
 SMA_SLOPE_COL_NAME = 'AVG_SLOPE' 
-RISE_COL_NAME = '5_DAY_RISE_PCT' 
+RISE_COL_NAME = 'tead_PCT' 
 ABOVE_AVG_COL_NAME = 'ABOVE_AVG_PCT' 
 BELOW_AVG_COL_NAME = 'BELOW_AVG_PCT' 
 EXIT_COL_NAME = 'SHOULD_EXIT' # New internal column name
@@ -85,15 +86,21 @@ for filename in os.listdir(folder_path):
     file_path = os.path.join(folder_path, filename)
 
     # Read CSV and ensure numeric columns
-    df = pd.read_csv(file_path, skiprows=3, header=None, names=columns)
+    df = pd.read_csv(file_path, skiprows=3, header=None, names=columns, dtype={"Date": str})
     
     # Convert all necessary columns to numeric types, coercing errors to NaN
-    numeric_cols = ['Adj Close', 'High', 'Low', 'Close']
+    numeric_cols = ['Adj_Close', 'High', 'Low', 'Close']
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
     # Drop any rows where required values (High, Low, Close, Adj Close) are NaN
     df.dropna(subset=numeric_cols, inplace=True)
+
+    # Ensure the index is numeric
+    df.reset_index(drop=True, inplace=True)
+
+    # Ensure the Date column is explicitly converted to a string after reading
+    df['Date'] = df['Date'].astype(str)
 
     # --- True Range (TR) Calculation (Same as before) ---
     df['Prev Close'] = df['Close'].shift(1) 
@@ -110,7 +117,7 @@ for filename in os.listdir(folder_path):
 
     # --- Step 2: Calculate Moving Averages (Rolling Mean) (Same as before) ---
     df['ATR_14'] = df['TR_PCT'].rolling(window=ATR_PERIOD, min_periods=ATR_PERIOD).mean()
-    df[SMA_COL_NAME] = df['Adj Close'].rolling(window=SMA_PERIOD, min_periods=SMA_PERIOD).mean()
+    df[SMA_COL_NAME] = df['Adj_Close'].rolling(window=SMA_PERIOD, min_periods=SMA_PERIOD).mean()
 
     # --- Step 3: Calculate Slope, 5-Day Rise, and Above/Below-Average Percentage ---
     
@@ -119,11 +126,11 @@ for filename in os.listdir(folder_path):
     df[SMA_SLOPE_COL_NAME] = ((df[SMA_COL_NAME] / df['SMA_PREV']) - 1) * 100
     
     # B. 5-Day Rise Calculation
-    df['ADJ_CLOSE_PREV_5'] = df['Adj Close'].shift(RISE_PERIOD)
-    df[RISE_COL_NAME] = ((df['Adj Close'] / df['ADJ_CLOSE_PREV_5']) - 1) * 100
+    df['ADJ_CLOSE_PREV_5'] = df['Adj_Close'].shift(RISE_PERIOD)
+    df[RISE_COL_NAME] = ((df['Adj_Close'] / df['ADJ_CLOSE_PREV_5']) - 1) * 100
     
     # C. Above-Average Percentage Calculation
-    df[ABOVE_AVG_COL_NAME] = ((df['Adj Close'] / df[SMA_COL_NAME]) - 1) * 100
+    df[ABOVE_AVG_COL_NAME] = ((df['Adj_Close'] / df[SMA_COL_NAME]) - 1) * 100
 
     # D. Below-Average Percentage Calculation (Negation)
     df[BELOW_AVG_COL_NAME] = -1 * df[ABOVE_AVG_COL_NAME]
@@ -135,7 +142,7 @@ for filename in os.listdir(folder_path):
     cond_above_avg = (df[ABOVE_AVG_COL_NAME] >= min_above_avg_pct_rule) & \
                      (df[ABOVE_AVG_COL_NAME] <= max_above_avg_pct_rule)
     cond_slope = (df[SMA_SLOPE_COL_NAME] > min_avg_up_slope_pct_rule)
-    cond_price = (df['Adj Close'] > min_stock_price_rule)
+    cond_price = (df['Adj_Close'] > min_stock_price_rule)
     df[INVESTABLE_JSON_KEY] = cond_rise & cond_above_avg & cond_slope & cond_price
     
     # SHOULD_EXIT LOGIC (Exit Screen - NEW)
@@ -148,54 +155,44 @@ for filename in os.listdir(folder_path):
     tr_values = {}
     
     for index, row in df.iterrows():
-        date = row['Date']
-        prev_close_val = row['Prev Close']
+        # Ensure the date is explicitly converted to a string for JSON output
+        date_str = str(row['Date'])
 
-        # Base dictionary with all required price and TR data
-        date_metrics = {
-            "true_range": round(row['TR'], 4),
-            "true_range_pct": f"{round(row['TR_PCT'], 2)}%",
-            "high": round(row['High'], 4),
-            "low": round(row['Low'], 4),
-            "close": round(row['Close'], 4),
-            "prev_close": round(prev_close_val, 4) if not pd.isna(prev_close_val) else None,
-            "adj_close": round(row['Adj Close'], 4)
-        }
-        
-        # Add technical metrics
-        if not pd.isna(row['ATR_14']):
-            date_metrics[ATR_JSON_KEY] = f"{round(row['ATR_14'], 3):.3f}%"
-        if not pd.isna(row[SMA_COL_NAME]):
-            date_metrics[SMA_JSON_KEY] = round(row[SMA_COL_NAME], 4)
-        
-        if not pd.isna(row[ABOVE_AVG_COL_NAME]):
-            date_metrics[ABOVE_AVG_JSON_KEY] = f"{round(row[ABOVE_AVG_COL_NAME], 3):.3f}%"
-        
-        if not pd.isna(row[BELOW_AVG_COL_NAME]):
-            date_metrics[BELOW_AVG_JSON_KEY] = f"{round(row[BELOW_AVG_COL_NAME], 3):.3f}%"
 
-        if not pd.isna(row[SMA_SLOPE_COL_NAME]):
-            date_metrics[SLOPE_JSON_KEY] = f"{round(row[SMA_SLOPE_COL_NAME], 3):.3f}%"
-        if not pd.isna(row[RISE_COL_NAME]):
-            date_metrics[RISE_JSON_KEY] = f"{round(row[RISE_COL_NAME], 3):.3f}%"
 
-        # Add boolean flags
-        date_metrics[INVESTABLE_JSON_KEY] = bool(row[INVESTABLE_JSON_KEY]) if pd.notna(row[INVESTABLE_JSON_KEY]) else False
-        date_metrics[SHOULD_EXIT_JSON_KEY] = bool(row[EXIT_COL_NAME]) if pd.notna(row[EXIT_COL_NAME]) else False
-        
-        # Sort the keys alphabetically for this date's metrics
-        # This creates an OrderedDict in older Python versions or a regular
-        # dict with sorted keys in newer versions (3.7+)
-        tr_values[date] = dict(sorted(date_metrics.items()))
+        # Enforce the exact key order as specified by the user
+        from collections import OrderedDict
+        # Always output keys in the exact order, using None for missing values
+        from collections import OrderedDict
+        def safe_val(val, fmt=None, dec=None):
+            if pd.isna(val):
+                return None
+            if fmt == 'pct':
+                return f"{round(val, 3):.3f}%"
+            if dec is not None:
+                return round(val, dec)
+            return val
+
+        key_order = [
+            ('adj_close', safe_val(row['Adj_Close'], dec=5)),
+            ('close', safe_val(row['Close'], dec=5)),
+            ('5_day_rise', safe_val(row[RISE_COL_NAME], fmt='pct')),
+            ('10_day_avg_slope', safe_val(row[SMA_SLOPE_COL_NAME], fmt='pct')),
+            ('adj_price_above_avg_pct', safe_val(row[ABOVE_AVG_COL_NAME], fmt='pct')),
+            ('sma150_adj_close', safe_val(row[SMA_COL_NAME], dec=4)),
+            ('Split', safe_val(row['Split_Ratio']) if 'Split_Ratio' in df.columns else None)
+        ]
+        date_metrics = OrderedDict((k, v) for k, v in key_order if v is not None)
+        tr_values[date_str] = date_metrics
 
     stock_history_dict[ticker] = tr_values
-    print(f"✅ Calculated all metrics, '{INVESTABLE_JSON_KEY}', and '{SHOULD_EXIT_JSON_KEY}' flag for {ticker} ({len(tr_values)} days)")
+    print(f"✅ Calculated all metrics for {ticker} ({len(tr_values)} days)")
 
 # --- Step 6: Save the final dictionary to JSON once ---
 # The 'sort_keys=True' argument in json.dump will sort the top-level keys
-# (the stock tickers) and the keys within the final date objects, ensuring
-# a fully alphabetized output.
+
+# Use sort_keys=False to preserve OrderedDict key order for date metrics
 with open("stock_history.json", "w") as f:
-    json.dump(stock_history_dict, f, indent=4, sort_keys=True)
+    json.dump(stock_history_dict, f, indent=4, sort_keys=False)
 
 print("✅ Saved stock_history.json with all keys in alphabetical order.")
