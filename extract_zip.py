@@ -4,8 +4,8 @@ import csv
 import io # Used to read text from zip file contents (in memory)
 
 # --- Configuration ---
-folder_path = "D:\ORATS_zip"  # Input folder with zip files
-extract_to = "D:\ORATS_csv"   # Output folder for extracted data
+folder_path = r"C:\option_trading\ORATS_zip"  # Input folder with zip files
+extract_to = r"C:\option_trading\ORATS_csv"   # Output folder for extracted data
 columns_to_keep = [
     "ticker", "expirDate", "strike", 
     "pBidPx", "pAskPx", "delta"

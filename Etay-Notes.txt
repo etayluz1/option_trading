@@ -1,9 +1,11 @@
 SETUP
 1. Download Visual Stodio Code (VSC) 
 2. Connect source control with Etay's Github to c:\option_trading
-3. Use FileZila to download ORATS zip files 2007 - 2025 to d:\option_trading\ORATS_zip 
-4. Run extract_zip.py from VSC play button (zip --> csv under d:\ORATS_csv)
-5. Run make_data.py (d:\ORATS_csv --> c:\option_trading\ORATS_json)
+3. Use FileZila to download ORATS zip files 2007 - 2025 to c:\option_trading\ORATS_zip 
+4. Run extract_zip.py (zip --> csv under c:\option_trading\ORATS_csv)
+   Note: The new files will not go to c:\option_trading\ORATS_csv\2025
+   but it is OK since make_data.py will find them anywhere.
+5. Run make_data.py (c:\option_trading\ORATS_csv --> c:\option_trading\ORATS_json)
    This will keep only: "expirDate", "strike", "pBidPx", "pAskPx" and "putDelta"
 6. Open terminal and run these command:
    pip install yfinance

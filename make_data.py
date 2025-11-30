@@ -9,6 +9,9 @@ json_folder = "c:\\option_trading\\ORATS_json"    # New JSON folder
 columns_to_keep = ["expirDate", "strike", "pBidPx", "pAskPx"]
 compact_json = True  # Write compact JSON (no pretty spaces) to reduce file size
 
+# New flag: if False, skip processing if JSON file exists
+overwrite_json_files = False
+
 sp500_file = "SP500_history.csv"
 sp500_dict = {}
 etfs = [
@@ -164,12 +167,18 @@ def process_csv(stop_after_first=False):
         file_date_dt = datetime.strptime(file_date_str_yyyymmdd, "%Y%m%d").date()
         
 
+
         # Always write to .arr.json, never to legacy .json
         output_filename = f"{file_date_dt.strftime('%Y-%m-%d')}.arr.json"
         output_path = os.path.join(json_folder, output_filename)
         print(f"\n=== Processing file: {file} ===")
         print(f"Input path: {input_path}")
         print(f"Output path: {output_path}")
+
+        # Skip processing if JSON exists and overwrite_json_files is False
+        if not overwrite_json_files and os.path.exists(output_path):
+            print(f"Skipping {output_path} (already exists, overwrite_json_files=False)")
+            continue
 
         sp500_dates = sorted(sp500_dict.keys())
         relevant_date = max((d for d in sp500_dates if d <= file_date_dt), default=None)

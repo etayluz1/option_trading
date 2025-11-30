@@ -1,7 +1,17 @@
-import yfinance as yf
+import sys
+import subprocess
+
+try:
+    import yfinance as yf
+except ModuleNotFoundError:
+    print("yfinance not found. Installing...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "yfinance"])
+    import yfinance as yf
+
 import json
 import os
 from datetime import datetime
+Overwrite = True # Flag to control overwriting
 
 # Load tickers
 with open('tickers.json', 'r') as f:
@@ -17,8 +27,8 @@ os.makedirs("ticker_data", exist_ok=True)
 for ticker in tickers:
     file_path = f"ticker_data/{ticker}.csv"
 
-    # Skip if file already exists
-    if os.path.exists(file_path):
+    # Skip if file already exists and Overwrite is False
+    if not Overwrite and os.path.exists(file_path):
         print(f"⏩ Skipping {ticker} — file already exists.")
         continue
 
