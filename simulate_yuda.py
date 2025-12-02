@@ -469,7 +469,6 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # Print rules in formatted tables
             print("\n=== TRADING RULES SUMMARY ===\n")
             
-            # 1. Account Simulation Rules
             print(f"📊 Account Simulation Rules")
             print(f"|----------------------------|----------------|")
             print(f"| Parameter                  | Value          |")
@@ -658,6 +657,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             adj_above_pct = pct_str_to_percent(daily_data.get('adj_price_above_avg_pct'))
             sma_slope = pct_str_to_percent(daily_data.get('10_day_avg_slope'))
             adj_close = daily_data.get('adj_close')
+            close_price = daily_data.get('close')
 
             # Parse rules and convert to comparable units (percent values as raw numbers)
             min_5_day_rise_pct = safe_percentage_to_float(rules['underlying_stock']['min_5_day_rise_pct'])
@@ -697,7 +697,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
             if min_stock_price_rule is not None:
                 try:
-                    if not (float(adj_close) > float(min_stock_price_rule)):
+                    if not (float(close_price) > float(min_stock_price_rule)):
                         return False
                 except Exception:
                     return False
@@ -744,7 +744,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             
             # --- START DAILY PROCESSING ---
             # Capture simulation dates and SPY prices
-            print()              
+            print("")              
             print(daily_date_obj)
             spy_current_price = None
             if 'SPY' in stock_history_dict and date_str in stock_history_dict['SPY']:
@@ -1345,6 +1345,14 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 
                 # Inner loop: Check ALL tickers for viable contracts
                 for ticker in all_tickers:
+                    # USER RULE: Do not invest in TQQQ until 2022-04-17
+                    if ticker == 'TQQQ':
+                        try:
+                            tqqq_block_date = datetime(2022, 4, 17).date()
+                            if daily_date_obj < tqqq_block_date:
+                                continue
+                        except Exception:
+                            pass
                     # Check 1: Data exists for date
                     if date_str in stock_history_dict[ticker]:
                         # Compute investable dynamically from the day's metrics and rules
@@ -1354,23 +1362,17 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         daily_data['investable'] = is_investable
                         if not is_investable:
                             continue # Skip non-investable tickers
-                        
                         # Optimization: Skip scanning this ticker if its limit is reached
                         if open_puts_tracker[ticker] >= MAX_PUTS_PER_STOCK:
                             continue
-                            
                         total_investable_entries_processed += 1
                         daily_data = stock_history_dict[ticker][date_str]
-                        
                         # --- Stock Data Needed for Filtering ---
                         sma150_adj_close = daily_data.get('sma150_adj_close')
                         current_adj_close = daily_data.get('adj_close')
                         current_close_price = daily_data.get('close')
-                        
-                        
                         # List to hold (expiration_date, DTE, list_of_filtered_options)
                         filtered_chains_summary = [] 
-                        
                         if daily_orats_data and ticker in daily_orats_data:
                             ticker_orats_data = daily_orats_data[ticker]
                             
@@ -2056,25 +2058,16 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     # Check if there are positions to liquidate
     positions_to_liquidate = [trade for trade in open_trades_log if open_puts_tracker.get(trade['ticker'], 0) > 0]
 
-    if positions_to_liquidate:
-        
+    if positions_to_liquidate:      
         print(f"\n--- Final Open Puts Tally (Tickers with Open Positions) ---")
         for ticker in sorted(open_puts_tracker.keys()):
             count = open_puts_tracker[ticker]
             if count > 0:
                 print(f"  {ticker:<5}: {count} open puts (REMAINED OPEN AT LIQUIDATION)")
-        
         print("\n--- FINAL PORTFOLIO LIQUIDATION ---")
-        
-        # Prepare header for liquidation table
         print("| Ticker | Qty  | Strike   |  Premium Sold  | Closing Ask  | Cost to Close  | Exit Commission | Net Gain/Loss |")
-        
-        # CRITICAL FIX 9: Adjust the header separator line based on the visual widths.
         print("|--------|------|----------|----------------|--------------|----------------|-----------------|---------------|") 
-        
-        # We liquidate all remaining trades
-        for trade in positions_to_liquidate:
-            
+        for trade in positions_to_liquidate:            
             # Use the LAST calculated Ask Price (Liability) from the final processed day for closing
             closing_ask = get_contract_exit_price(
                 last_daily_orats_data, 
@@ -2195,7 +2188,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     # Annualized Gain Calculation (CAGR)
     annualized_gain = 0.0
     if total_sim_years > 0 and final_account_value_liquidated > 0 and INITIAL_CASH > 0:
-        annualized_gain = (math.pow((final_account_value_liquidated / INITIAL_CASH), (1 / total_sim_years)) - 1) * 100.0
+        annualized_gain = (math.pow((final_account_value_liquidated / INITIAL_CASH), (1 / total_sim_years)) - 1) * 100.0  
+    if annualized_gain == 0:
+        annualized_gain = (total_net_profit / INITIAL_CASH) * 100 / total_sim_years 
         
     # SPY Benchmark Calculation
     spy_total_return = 0.0
@@ -2205,15 +2200,16 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         if total_sim_years > 0:
             spy_annualized_return = (math.pow((spy_end_price / spy_start_price), (1 / total_sim_years)) - 1) * 100.0
 
+
     print(f"\n--- CUMULATIVE PERFORMANCE SUMMARY ({total_sim_days} days) ---")
     
     print(f"📈 **Simulation Period:** {sim_start_date} to {sim_end_date}")
     
-    print("\n")
     print("| Metric                  |  Account Gain [%] | SPY Benchmark  | Comparison       |") 
     print("|-------------------------|-------------------|----------------|------------------|")
     # FIX 4: Aligned columns using refined explicit width and right alignment (>)
     # Portfolio Gain (16), SPY Benchmark (13), Comparison (10)
+
     print(f"| **Total Net Gain (%)**  | {percent_total_gain:>16.2f}% | {spy_total_return:>13.2f}% | **{percent_total_gain - spy_total_return:>10.2f}pp** |")
     print(f"| **Annualized Gain (%)** | {annualized_gain:>16.2f}% | {spy_annualized_return:>13.2f}% | **{annualized_gain - spy_annualized_return:>10.2f}pp** |")
     
@@ -2290,8 +2286,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("|---------|--------------------|-------------------|---------|------------|") 
     
     for (year, month), data in monthly_performance.items():
-        month_label = datetime(year, month, 1).strftime('%Y-%m')
-        
+        month_label = datetime(year, month, 1).strftime('%Y-%m')        
         # Data widths used: End Value (11,.2f), $ Gain (9,.2f), % Gain (6.2f), % SPY Gain (8.2f)
         print(
             f"| {month_label:^5} | $ {data['end_value']:>14,.2f}   | $ {data['gain_abs']:>15,.2f} | "
@@ -2349,7 +2344,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     total_exit_events_count = len(closed_trades_log)
 
     print("")
-    print("\n--- TRADE EXIT STATISTICS (by Trade Event Count) ---")
+    print("\n--- TRADE EXIT STATISTICS (by Trade Event Count) ---")    
     
     # Define Total Gain/Premium Collected for the whole simulation
     TOTAL_GAIN = stop_loss_gain + take_profit_gain + expired_otm_gain + expired_itm_gain + liquidation_gain
@@ -2439,21 +2434,20 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             net_gain_pct = 0
         
         # Truncate reason if too long (max 36 chars to fit column)
-        reason_display = reason[:36] if len(reason) <= 36 else reason[:33] + "..."
+        reason_display = reason[:36] if len(reason) <= 36 else reason[:33] + "..."      
         
         print(
             f"| {reason_display:<36} | {count:>12,} | {pct_of_total:>10.2f}% | "
             f"${gain:>16,.2f} | {net_gain_pct:>9.2f}% |"
-        )
+        ) 
     
     # Separator and Total
     print(f"|--------------------------------------|--------------|-------------|-------------------|------------|")    
     print(f"| Total Exit Trades Closed             | {total_closed_events:>12,} | {100.0:>10.2f}% | "
-          f"${TOTAL_GAIN:>16,.2f} | {'N/A':>10} |"
-    )
+            f"${TOTAL_GAIN:>16,.2f} | {'N/A':>10} |"
+        )    
     print(f"|--------------------------------------|--------------|-------------|-------------------|------------|")     
-    print(f"| Total Entry Events{' ':19}| {total_entry_events:>12,} |")
-    
+    print(f"| Total Entry Events{' ':19}| {total_entry_events:>12,} |")    
     
     # 10. NEW: Detailed Closed Trade Log
     if closed_trades_log:
@@ -2479,16 +2473,20 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 trade['DayOut']
             )
 
+            # If split_str is blank, use 10 spaces for table alignment
+            if not split_str:
+                split_str = "          "  # 10 spaces
+
             # Format numbers (Price In/Out, Amount In/Out, Gain $)
             price_in_str = f"${trade['PriceIn']:>9.2f}"
             price_out_str = f"${trade['PriceOut']:>8.2f}" if trade['PriceOut'] is not None else ""
-            
+
             amount_in_str = f"${trade['AmountIn']:>13,.2f}"
             amount_out_str = f"${trade['AmountOut']:>13,.2f}"
-            
+
             gain_abs_str = f"{trade['Gain$']:>10.2f}"
             gain_pct_str = f"{trade['Gain%']:>7.2f}%"
-            
+
             # Truncate reason if necessary (Reason is 26 chars) 
             # Define Column Widths
             COL_EXIT_NUM = 7
@@ -2496,20 +2494,20 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             COL_IN_AMT, COL_OUT_AMT, COL_GAIN_ABS, COL_GAIN_PCT = 11, 11, 8, 7
             COL_DAY, COL_REASON = 10, 26
             reason_str = trade['ReasonWhyClosed'][:25]
-            
+
             row = (
                 f"| {exit_number:>{COL_EXIT_NUM}} | {trade['Ticker']:<{COL_TICKER}} | {trade['Qty']:>{COL_QTY}} | {trade['DayIn']:^{10}} | "
                 f"{price_in_str} | {amount_in_str} | {trade['DayOut']:^{10}} | "
                 f"{price_out_str} | {amount_out_str} | "
                 f" {reason_str:<{25}} | {gain_abs_str} | {gain_pct_str} | {dividend_str:^8} | {split_str:^6} |"
             )
-            print(row)
+            print(row)            
 
         # Cumulative totals for closed trades (AmountIn, AmountOut, Gain$)
         try:
             total_amount_in = sum(float(t.get('AmountIn') or 0.0) for t in closed_trades_log)
             total_amount_out = sum(float(t.get('AmountOut') or 0.0) for t in closed_trades_log)
-            total_gain_dollars = sum(float(t.get('Gain$') or 0.0) for t in closed_trades_log)
+            total_gain_dollars = sum(float(t.get('Gain$') or 0.0) for t in closed_trades_log)            
             print()
             print("--- CLOSED TRADES CUMULATIVE TOTALS ---")
             print(f"  Total Amount In : ${total_amount_in:,.2f}")
@@ -2520,7 +2518,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             pass
 
 
-    # 11 Drawdown Periods
+    # 11 Drawdown Periods    
     if drawdown_periods:
         filtered_drawdowns = [dd for dd in drawdown_periods if abs(dd['worst_pct']) > 10.0]
         if filtered_drawdowns:

@@ -453,6 +453,19 @@ def main() -> None:
         ]
 
         tripple_id_counter = 1
+
+        prev_best_result = None
+        prev_best_param_value = None
+        prev_best_param_display = None
+        prev_best_log_name = None
+        prev_best_runtime = None
+        prev_best_runtime_seconds = None
+        prev_best_win_rate = None
+        prev_best_gain = None
+        prev_best_annualized = None
+        prev_best_drawdown = None
+        prev_best_score = None
+
         for idx, spec in enumerate(param_specs):
             section = spec["section"]
             key = spec["key"]
@@ -475,6 +488,7 @@ def main() -> None:
 
             plus_value, minus_value = compute_variants(base_value, param_type)
 
+
             candidates = []
             seen_values = set()
             for candidate in (base_value, plus_value, minus_value):
@@ -482,12 +496,34 @@ def main() -> None:
                     candidates.append(candidate)
                     seen_values.add(candidate)
 
+            # For possible Run4, store the extra +5% and -5% values
+            extra_plus = plus_value * 1.05 if param_type != "int" else math.ceil(plus_value * 1.05)
+            extra_minus = minus_value * 0.95 if param_type != "int" else max(1, math.floor(minus_value * 0.95))
+
             log("")
             results: list[dict] = []
+
+            run_results = []
             for run_id, value in enumerate(candidates, start=1):
                 serialized_value = serialize_value(value, param_type)
                 current_rules[section][key] = serialized_value
                 write_rules_file()
+
+                # FAKE RUN1 for triplets after the first
+                if run_id == 1 and idx > 0 and prev_best_result is not None:
+                    # Copy previous triplet's best result, update triplet/run IDs and param values
+                    fake_result = prev_best_result.copy()
+                    fake_result["run_id"] = 1
+                    fake_result["tripple_id"] = tripple_id_counter
+                    fake_result["param_value"] = value
+                    fake_result["param_display"] = serialized_value
+                    fake_result["is_best"] = True
+                    results.append(fake_result)
+                    run_results.append(fake_result)
+                    # Print the starting message and the copied results
+                    print(f"Run1 --> {label}={serialized_value}  ...    Ann: {_format_pct(fake_result.get('annualized'))}    Drawdown:{_format_pct(fake_result.get('drawdown'))}    Score:{_format_score(fake_result.get('score'))}")
+                    continue
+
                 # Print the starting message (no newline, flush immediately)
                 print(f"Run{run_id} --> {label}={serialized_value}  ...", end="", flush=True)
                 # Run simulation and capture result
@@ -496,6 +532,7 @@ def main() -> None:
                 run_result["param_display"] = serialized_value
                 run_result["tripple_id"] = tripple_id_counter
                 results.append(run_result)
+                run_results.append(run_result)
                 # Prepare Ann% and Drawdown for printout
                 ann_val = run_result.get("annualized")
                 drawdown_val = run_result.get("drawdown")
@@ -511,6 +548,50 @@ def main() -> None:
                         score_str = "-"
                 # Print results on the same line
                 print(f"    Ann: {ann_str}    Drawdown:{drawdown_str}    Score:{score_str}")
+
+            # Check if Run2 or Run3 is best, and if so, add a Run4 with additional +5% or -5%
+            best_value = evaluate_and_mark(results, base_value, param_type)
+            best_index = None
+            for i, row in enumerate(results):
+                if row.get("is_best"):
+                    best_index = i
+                    break
+
+            run4_needed = False
+            run4_value = None
+            if best_index == 1:  # Run2 is best (index 1)
+                run4_value = plus_value * 1.05 if param_type != "int" else math.ceil(plus_value * 1.05)
+                run4_needed = True
+            elif best_index == 2:  # Run3 is best (index 2)
+                run4_value = minus_value * 0.95 if param_type != "int" else max(1, math.floor(minus_value * 0.95))
+                run4_needed = True
+
+            if run4_needed:
+                serialized_value = serialize_value(run4_value, param_type)
+                current_rules[section][key] = serialized_value
+                write_rules_file()
+                print(f"Run4 --> {label}={serialized_value}  ...", end="", flush=True)
+                run_result = _run_simulation_once(4)
+                run_result["param_value"] = run4_value
+                run_result["param_display"] = serialized_value
+                run_result["tripple_id"] = tripple_id_counter
+                results.append(run_result)
+                # Prepare Ann% and Drawdown for printout
+                ann_val = run_result.get("annualized")
+                drawdown_val = run_result.get("drawdown")
+                ann_str = _format_pct(ann_val) if ann_val is not None else "-"
+                drawdown_str = _format_pct(drawdown_val) if drawdown_val is not None else "-"
+                score_str = "-"
+                if ann_val is not None and drawdown_val is not None and drawdown_val < 0:
+                    try:
+                        score = ann_val / abs(drawdown_val)
+                        score_str = f"{score:.4f}"
+                    except Exception:
+                        score_str = "-"
+                print(f"    Ann: {ann_str}    Drawdown:{drawdown_str}    Score:{score_str}")
+
+                # Re-evaluate best after Run4
+                best_value = evaluate_and_mark(results, base_value, param_type)
 
             best_value = evaluate_and_mark(results, base_value, param_type)
             best_serialized = serialize_value(best_value, param_type)
@@ -536,6 +617,13 @@ def main() -> None:
             log("")
             _print_summary(results, label, log)
             tripple_id_counter += 1
+
+            # Save the best result of this triplet for use in the next triplet's fake run
+            prev_best_result = None
+            for row in results:
+                if row.get("is_best"):
+                    prev_best_result = row.copy()
+                    break
 
             if baseline_matched and idx < len(param_specs) - 1:
                 log("")
