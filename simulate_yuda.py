@@ -2047,11 +2047,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(last_monthly_summary_msg)
     
     # 6. Final Liquidation and Performance Summary (Runs after all trading days are processed)
-    
-    # Enable output if minimal mode was active
-    if hasattr(sys.stdout, 'enable_output'):
-        sys.stdout.enable_output()
-    
+        
     # --- Liquidation Preparation ---
     total_liquidation_pnl = 0.0
     
@@ -2533,6 +2529,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     else:
         print("No drawdown periods detected.")
 
+
+    # Enable output if minimal mode was active
+    if hasattr(sys.stdout, 'enable_output'):
+        sys.stdout.enable_output()
     print("\n=== FINAL TRADING RULES SUMMARY ===\n")
 
     # 12. Account Simulation Rules
