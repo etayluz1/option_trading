@@ -4,30 +4,31 @@
         "end_date": "10/28/2025",
         "initial_cash": "1000000",
         "max_puts_per_account": "32",
-        "max_puts_per_stock": "9",
-        "max_puts_per_day": "12",
-        "wrapper_sweep_pct": "5%",
+        "max_puts_per_stock": "10",
+        "max_puts_per_day": "10",
+        "wrapper_sweep_pct": "8%",
+        "drawdown_goal_pct": "-25%",
         "Minimal_Print_Out": true
     },
     "underlying_stock": {
-        "min_5_day_rise_pct": "-19.688%",
-        "min_above_avg_pct": "-5.048%",
+        "min_5_day_rise_pct": "-18.704%",
+        "min_above_avg_pct": "-6.182%",
         "max_above_avg_pct": "38.828%",
-        "min_avg_up_slope_pct": "-0.11%",
-        "min_stock_price": "$24.89"
+        "min_avg_up_slope_pct": "-0.104%",
+        "min_stock_price": "$21.35"
     },
     "entry_put_position": {
         "min_days_for_expiration": "55",
         "max_days_for_expiration": "269",
-        "min_put_bid_price": "2.9346",
+        "min_put_bid_price": "2.6485",
         "min_put_delta": "-23.75%",
         "max_put_delta": "-0.452%",
-        "max_ask_above_bid_pct": "81.722%",
-        "min_avg_above_strike": "-15%",
-        "min_risk_reward_ratio": "-8.5378",
-        "min_annual_risk_reward_ratio": "-15.3",
+        "max_ask_above_bid_pct": "73.754%",
+        "min_avg_above_strike": "-18.754%",
+        "min_risk_reward_ratio": "-8.1109",
+        "min_annual_risk_reward_ratio": "-19.8885",
         "min_rev_annual_rr_ratio": "-8",
-        "min_expected_profit": "-99.75%",
+        "min_expected_profit": "-94.762%",
         "rank_by_risk_reward_ratio": false,
         "rank_by_annual_risk": true,
         "rank_by_rev_ann_risk": false,
@@ -38,6 +39,6 @@
         "stock_max_below_avg": "16.075%",
         "stock_min_above_strike": "-9999%",
         "stock_max_below_entry": "23.725%",
-        "min_gain_to_take_profit": "75%"
+        "min_gain_to_take_profit": "78.75%"
     }
 }

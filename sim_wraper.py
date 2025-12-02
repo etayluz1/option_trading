@@ -71,11 +71,11 @@ def _extract_float(patterns: Iterable[re.Pattern[str]], text: str) -> Optional[f
 
 
 def _format_money(value: Optional[float]) -> str:
-    return "N/A" if value is None else f"${value:,.2f}"
+    return "N/A" if value is None else f"${value:,.3f}"
 
 
 def _format_pct(value: Optional[float]) -> str:
-    return "N/A" if value is None else f"{value:.2f}%"
+    return "N/A" if value is None else f"{value:.3f}%"
 
 
 def _format_score(value: Optional[float]) -> str:
@@ -131,14 +131,27 @@ def _parse_log_metrics(log_path: Path) -> tuple[Optional[float], Optional[float]
     except FileNotFoundError as exc:
         raise RuntimeError(f"Log file not found: {log_path}") from exc
 
+
     nav = None
     gain = None
     annualized = None
     drawdown = None
     win_rate = None
+    new_score_str = None
+    new_score_pct = None
 
     for raw_line in text.splitlines():
         line = raw_line.strip()
+        if "Score = Ann/(Goal-Drawdown)" in line:
+            new_score_str = line
+            # print(line)
+            # Try to extract the numeric value from the line (after the last '|')
+            match = re.search(r"\|\s*([0-9]+\.[0-9]+|[0-9]+)\s*\|$", line)
+            if match:
+                try:
+                    new_score_pct = float(match.group(1))
+                except Exception:
+                    new_score_pct = None
 
         if "FINAL REALIZED CASH VALUE" in line or "FINAL ACCOUNT" in line:
             value = _extract_dollar(line)
@@ -180,7 +193,7 @@ def _parse_log_metrics(log_path: Path) -> tuple[Optional[float], Optional[float]
     if annualized is None:
         annualized = _extract_float((ANNUALIZED_GAIN_RE,), text)
 
-    return nav, gain, annualized, drawdown, win_rate
+    return nav, gain, annualized, drawdown, win_rate, new_score_pct
 
 
 def _run_simulation_once(run_id: int) -> dict:
@@ -211,7 +224,7 @@ def _run_simulation_once(run_id: int) -> dict:
         )
 
     log_path = _locate_log_file(result.stdout, before_logs, after_logs)
-    nav, gain, annualized, drawdown, win_rate = _parse_log_metrics(log_path)
+    nav, gain, annualized, drawdown, win_rate, new_score_pct = _parse_log_metrics(log_path)
 
     return {
         "run_id": run_id,
@@ -223,7 +236,8 @@ def _run_simulation_once(run_id: int) -> dict:
         "drawdown": drawdown,
         "win_rate": win_rate,
         "log_name": log_path.name,
-        "score": None,
+        "score": new_score_pct,
+        "new_score_pct": new_score_pct,
         "param_value": None,
         "is_best": False,
     }
@@ -366,18 +380,10 @@ def compute_variants(base_value: float, param_type: str) -> tuple[float, float]:
 def evaluate_and_mark(results: list[dict], default_value: float, param_type: str) -> float:
     best_row = None
     for row in results:
-        ann = row.get("annualized")
-        drawdown = row.get("drawdown")
-        if (
-            ann is None
-            or drawdown is None
-            or drawdown >= 0
-            or abs(drawdown) < 1e-9
-        ):
-            row["score"] = None
-            continue
-        score = ann / abs(drawdown)
+        score = row.get("new_score_pct")
         row["score"] = score
+        if score is None:
+            continue
         if best_row is None or (score is not None and score > best_row.get("score", float("-inf"))):
             best_row = row
 
@@ -447,9 +453,11 @@ def main() -> None:
             {"section": "entry_put_position", "key": "min_risk_reward_ratio", "label": "min_risk_reward_ratio", "type": "float"},
             {"section": "entry_put_position", "key": "min_annual_risk_reward_ratio", "label": "min_annual_risk_reward_ratio", "type": "float"},
             {"section": "entry_put_position", "key": "min_rev_annual_rr_ratio", "label": "min_rev_annual_rr_ratio", "type": "float"},
-            {"section": "entry_put_position", "key": "min_expected_profit", "label": "min_expected_profit", "type": "percent"},
+            {"section": "entry_put_position", "key": "min_expected_profit", "label": "min_expected_profit", "type": "percent"},            
+            {"section": "exit_put_position", "key": "position_stop_loss_pct", "label": "position_stop_loss_pct", "type": "percent"},
             {"section": "exit_put_position", "key": "stock_max_below_avg", "label": "stock_max_below_avg", "type": "percent"},
-            {"section": "exit_put_position", "key": "stock_max_below_entry", "label": "stock_max_below_entry", "type": "percent"},
+            {"section": "exit_put_position", "key": "stock_max_below_entry", "label": "stock_max_below_entry", "type": "percent"},            
+            {"section": "exit_put_position", "key": "min_gain_to_take_profit", "label": "min_gain_to_take_profit", "type": "percent"}
         ]
 
         tripple_id_counter = 1
@@ -538,14 +546,8 @@ def main() -> None:
                 drawdown_val = run_result.get("drawdown")
                 ann_str = _format_pct(ann_val) if ann_val is not None else "-"
                 drawdown_str = _format_pct(drawdown_val) if drawdown_val is not None else "-"
-                # Calculate Score = Ann / -Drawdown (if both are present and drawdown is negative)
-                score_str = "-"
-                if ann_val is not None and drawdown_val is not None and drawdown_val < 0:
-                    try:
-                        score = ann_val / abs(drawdown_val)
-                        score_str = f"{score:.4f}"
-                    except Exception:
-                        score_str = "-"
+                score_val = run_result.get("new_score_pct")
+                score_str = f"{score_val:.4f}" if score_val is not None else "-"
                 # Print results on the same line
                 print(f"    Ann: {ann_str}    Drawdown:{drawdown_str}    Score:{score_str}")
 

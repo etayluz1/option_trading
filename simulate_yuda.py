@@ -307,7 +307,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             wrapper_sweep_pct_val = rules["account_simulation"].get("wrapper_sweep_pct", "5%")
             wrapper_sweep_pct_float = float(wrapper_sweep_pct_val.rstrip("%"))
             wrapper_sweep_pct_str = f"{wrapper_sweep_pct_float:>13.4f}%"
+            drawdown_goal_pct_str = rules["account_simulation"].get("drawdown_goal_pct", "25%")
+            drawdown_goal_pct = float(drawdown_goal_pct_str.strip('%'))
             MINIMAL_PRINT_OUT = bool(rules["account_simulation"].get("Minimal_Print_Out", False))
+
+            # --- DRAWDOWN GOAL PCT ---
             
             # --- RISK MANAGEMENT RULE (Stock Price Stop Loss) ---
             STOCK_MAX_BELOW_AVG_PCT = abs(safe_percentage_to_float(rules["exit_put_position"]["stock_max_below_avg"]))
@@ -480,6 +484,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             print(f"| Max Puts/Stock             | {MAX_PUTS_PER_STOCK:>14} |")
             print(f"| Max Puts/Day               | {MAX_PUTS_PER_DAY:>14} |")
             print(f"| Wrapper Sweep +/- Step %   | {wrapper_sweep_pct_str:>14} |")
+            print(f"| Drawdown Goal %            | {drawdown_goal_pct_str:>14} |")
             print(f"|----------------------------|----------------|")
             print()
             
@@ -2608,6 +2613,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Max Puts/Stock             | {MAX_PUTS_PER_STOCK:>14} |")
     print(f"| Max Puts/Day               | {MAX_PUTS_PER_DAY:>14} |")
     print(f"| Wrapper Sweep +/- Step %   | {wrapper_sweep_pct_str:>14} |")
+    print(f"| Drawdown Goal %            | {drawdown_goal_pct_str:>14} |")
     print(f"|----------------------------|----------------|")
     print()
     
@@ -2685,40 +2691,40 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     
     # Performance Summary
     print("📊 Final Performance")
-    print(f"|----------------------------|-------------------------|") 
-    print(f"| Parameter                  |  Value                  |")
-    print(f"|----------------------------|-------------------------|")
-    print(f"| Current Date/Time          | {datetime.now().strftime('%Y-%m-%d %H:%M'):>23} |")
-    print(f"| Annualized Gain            | {annualized_gain:>22.3f}% |")
-    print(f"| Total Gain                 | ${TOTAL_GAIN:>22,.2f} |")    
-    print(f"| Run Time                   | {runtime_str:>23} |")
-    print(f"| Peak Open Positions        | {peak_open_positions:>23} |")
-    print(f"| Min DTE (Open Positions)   | {min_DTE_result:>23} |")
-    print(f"| Max DTE (Open Positions)   | {max_DTE_result:>23} |")
-    print(f"| Total Entry Events         | {total_entry_events:>23} |")
-    print(f"| Win Ratio                  | {win_ratio_pct:>22.2f}% |")
+    print(f"|-----------------------------|-------------------------|") 
+    print(f"| Parameter                   |  Value                  |")
+    print(f"|-----------------------------|-------------------------|")
+    print(f"| Current Date/Time           | {datetime.now().strftime('%Y-%m-%d %H:%M'):>23} |")
+    print(f"| Annualized Gain             | {annualized_gain:>22.3f}% |")
+    print(f"| Total Gain                  | ${TOTAL_GAIN:>22,.2f} |")    
+    print(f"| Run Time                    | {runtime_str:>23} |")
+    print(f"| Peak Open Positions         | {peak_open_positions:>23} |")
+    print(f"| Min DTE (Open Positions)    | {min_DTE_result:>23} |")
+    print(f"| Max DTE (Open Positions)    | {max_DTE_result:>23} |")
+    print(f"| Total Entry Events          | {total_entry_events:>23} |")
+    print(f"| Win Ratio                   | {win_ratio_pct:>22.2f}% |")
     
     # Print current log file name (row ~2418 request)
     try:
         current_log_path = getattr(sys.stdout, 'logfile', None)
         if current_log_path and hasattr(current_log_path, 'name'):
             log_filename_only = os.path.basename(current_log_path.name)
-            print(f"| Log File                   | {log_filename_only:>23} |")
+            print(f"| Log File                    | {log_filename_only:>23} |")
         else:
             # Fallback if stdout has been restored or structure changed
-            print(f"| Log File                   | {'N/A':>23} |")
+            print(f"| Log File                    | {'N/A':>23} |")
     except Exception:
-        print(f"| Log File                   | {'ERR':>23} |")
+        print(f"| Log File                    | {'ERR':>23} |")
     
     # Worst drawdown across all simulated dates
     try:
-        print(f"| Worst Drawdown             | {worst_drawdown_pct:>22.3f}% |")
+        print(f"| Worst Drawdown              | {worst_drawdown_pct:>22.3f}% |")
     except Exception:
         # If for any reason the metric isn't available, skip gracefully
         pass
-    Score = annualized_gain / -worst_drawdown_pct if worst_drawdown_pct != 0 else 0.0
-    print(f"| Score = Ann/-Drawdown      | {Score:>23.4f} |")
-    print(f"|----------------------------|-------------------------|")
+    Score = annualized_gain / (drawdown_goal_pct - worst_drawdown_pct) if worst_drawdown_pct != 0 else 0.0
+    print(f"| Score = Ann/(Goal-Drawdown) | {Score:>23.4f} |")
+    print(f"|-----------------------------|-------------------------|")
     print()    
     
 # Execute the main function
