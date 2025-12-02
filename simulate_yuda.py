@@ -1755,8 +1755,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             'entry_adj_close': entry_adj_close_value,
                             'unique_key': (ticker_to_enter, best_contract['strike'], best_contract['expiration_date']),
                             'last_known_ask': ask_at_entry_float,  # Store initial ask price
-                            'last_ask_date': date_str,  # Store date of last known ask price
-                            'orig_amount_in': bid_at_entry * trade_quantity * 100.0,                            
+                            'last_ask_date': date_str,  # Store date of last known ask price                            
+                            'orig_amount_in': bid_at_entry * trade_quantity * 100.0 - entry_commission,                            
                             'orig_strike': best_contract['strike'],
                             'orig_quantity': trade_quantity
                         }
@@ -2225,6 +2225,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         print("\n--- FINAL LIQUIDATION SUMMARY ---")
         print(f"💰 **FINAL REALIZED CASH VALUE:** ${final_account_value_liquidated:,.2f}")
         print(f"✅ **TOTAL LIQUIDATION P&L:** ${total_liquidation_pnl:,.2f}")
+        print(f"💵 **TOTAL Account End Value:** ${final_account_value_liquidated:,.2f}")
         print(f"💵 **TOTAL NET PROFIT (Start to Finish):** ${final_account_value_liquidated - INITIAL_CASH:,.2f}")
         
     else:

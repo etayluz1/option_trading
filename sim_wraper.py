@@ -32,7 +32,9 @@ CUM_REALIZED_RE = re.compile(r"TOTAL NET REALIZED P&L \(Cumulative\):\s*\$\s*([\
 ANNUALIZED_GAIN_RE = re.compile(r"Annualized Gain[^%]*?([0-9]+(?:\.[0-9]+)?)%")
 
 
-def _current_log_names() -> set[str]:
+TOTAL_GAIN_RE = re.compile(r"TOTAL NET PROFIT \(Start to Finish\):\s*\$\s*([\d,]+(?:\.[\d]+)?)")
+# Capture the Total Gain value from the summary table (monitor output)
+TOTAL_GAIN_TABLE_RE = re.compile(r"Total Gain\s*\|\s*\$\s*([\d,]+(?:\.[\d]+)?)\s*\|")
     if not LOGS_DIR.exists():
         return set()
     return {
