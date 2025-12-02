@@ -1,7 +1,7 @@
 # Utility: Find first dividend and split event between two dates for a ticker
 def get_first_dividend_and_split(stock_history_dict, ticker, entry_date, exit_date):
     """
-    Returns (dividend_str, split_str): the date of the first dividend and split event (as yyyy-mm-dd), or '' if none,
+    Returns (dividend_str, split_date_str): the date of the first dividend and split event (as yyyy-mm-dd), or '' if none,
     between entry_date and exit_date (inclusive) for the given ticker.
     """
     if ticker not in stock_history_dict:
@@ -16,7 +16,7 @@ def get_first_dividend_and_split(stock_history_dict, ticker, entry_date, exit_da
     if entry_dt > exit_dt:
         entry_dt, exit_dt = exit_dt, entry_dt
     dividend_str = ''
-    split_str = ''
+    split_date_str = ''
     for dt in sorted(ticker_data.keys()):
         try:
             dt_obj = datetime.strptime(dt, '%Y-%m-%d')
@@ -29,11 +29,11 @@ def get_first_dividend_and_split(stock_history_dict, ticker, entry_date, exit_da
                 dividend_str = dt
             # Check for split
             split_val = day_data.get('Split', 0) or day_data.get('Split_Ratio', 0) or day_data.get('split', 0)
-            if split_str == '' and split_val:
-                split_str = dt
-            if dividend_str and split_str:
+            if split_date_str == '' and split_val:
+                split_date_str = dt
+            if dividend_str and split_date_str:
                 break
-    return dividend_str, split_str
+    return dividend_str, split_date_str
 import orjson
 import os
 from datetime import datetime
@@ -735,13 +735,19 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     all_dates_list = list(sorted_unique_dates)
     
     for idx, date_str in enumerate(all_dates_list):
+                    # --- When entering a new trade, store original strike and quantity ---
+                    # This should be placed at the point where new trades are appended to open_trades_log
+                    # Example:
+                    # new_trade = {...}
+                    # new_trade['orig_strike'] = new_trade['strike']
+                    # new_trade['orig_quantity'] = new_trade['quantity']
+                    # open_trades_log.append(new_trade)
         daily_date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
         # Early liquidation: stop processing beyond configured end_date
         if 'end_date_obj' in locals() and end_date_obj is not None and daily_date_obj > end_date_obj:
             break
         
         if daily_date_obj >= start_date_obj:
-            
             # --- START DAILY PROCESSING ---
             # Capture simulation dates and SPY prices
             print("")              
@@ -749,11 +755,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             spy_current_price = None
             if 'SPY' in stock_history_dict and date_str in stock_history_dict['SPY']:
                 spy_current_price = stock_history_dict['SPY'][date_str].get('adj_close')
-                
+
             if sim_start_date is None:
                 sim_start_date = daily_date_obj
                 spy_start_price = spy_current_price
-            
+
             sim_end_date = daily_date_obj # Update end date every successful day
             spy_end_price = spy_current_price # Update end SPY price every day
 
@@ -761,11 +767,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             month_key = (daily_date_obj.year, daily_date_obj.month)
             if spy_current_price is not None:
                  monthly_spy_prices[month_key] = spy_current_price
-            
+
             total_dates_processed += 1
             daily_investable_data = {} 
             daily_trade_candidates = [] 
-            
+
             # Load ORATS data for this specific date (use .arr.json for array format)
             orats_file_path = os.path.join(ORATS_FOLDER, f"{date_str}.arr.json")
             daily_orats_data = None
@@ -775,21 +781,49 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     last_daily_orats_data = daily_orats_data # Store the latest successful load
             except (FileNotFoundError, orjson.JSONDecodeError):
                 pass
-            
+
             current_account_put_positions = sum(open_puts_tracker.values())
             daily_pnl = 0.0 # Realized P&L from closed trades today
-            
+
             # --- Liability Trackers (Re-initialized daily for fresh MTM calculation) ---
             unrealized_pnl = 0.0 
             total_put_liability = 0.0 
             total_open_premium_collected = 0.0 
-            
+
             # FIX 1: Initialize total_account_value and account_full_today at the start of the loop
             total_account_value = cash_balance # Placeholder; actual MTM calculated later
             account_full_today = False 
-            
+
             # Track number of new positions entered today
             daily_entries_count = 0
+
+            # --- SPLIT ADJUSTMENT FOR OPEN POSITIONS ---
+            # For each ticker, check if a split event occurs on this date
+            for ticker in stock_history_dict.keys():
+                day_data = stock_history_dict[ticker].get(date_str, {})
+                split_val = day_data.get('Split', 0) or day_data.get('Split_Ratio', 0) or day_data.get('split', 0)
+                if split_val and split_val != 1:
+                    try:
+                        split_ratio = float(split_val)
+                        if split_ratio > 0 and split_ratio != 1:
+                            for trade in open_trades_log:
+                                if trade['ticker'] == ticker:
+                                    # Adjust strike and quantity
+                                    trade['strike'] = trade['strike'] / split_ratio
+                                    trade['quantity'] = trade['quantity'] * split_ratio
+                                    # (split_entry_amount removed)
+                                    trade['split_strike'] = trade['strike']
+                                    trade['split_quantity'] = trade['quantity']
+                    except Exception:
+                        pass
+            # --- When entering a new trade, store original strike and quantity ---
+            # This should be placed at the point where new trades are appended to open_trades_log
+            # (This is a placeholder; you may need to adjust the exact location to match your entry logic)
+            # Example:
+            # new_trade = {...}
+            # new_trade['orig_strike'] = new_trade['strike']
+            # new_trade['orig_quantity'] = new_trade['quantity']
+            # open_trades_log.append(new_trade)
 
             # ----------------------------------------------------
             # --- Position Management/Exit Logic (Stop-Loss & Expiration) ---
@@ -823,6 +857,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 # --- Get Stock Data and Option Exit Price for Today ---
                 current_stock_data = stock_history_dict.get(ticker, {}).get(date_str, {})
                 current_adj_close = current_stock_data.get('adj_close')
+                current_close_price = daily_data.get('close')
                 sma150_adj_close = current_stock_data.get('sma150_adj_close')
                 
                 # Get conservative option price (Ask price) for stop-loss closure
@@ -851,7 +886,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 try:
                     if current_adj_close is not None and STOCK_MIN_ABOVE_STRIKE_PCT is not None:
                         strike_buffer_threshold = trade['strike'] * (1.0 + STOCK_MIN_ABOVE_STRIKE_PCT)
-                        if current_adj_close < strike_buffer_threshold:
+                        if current_close_price < strike_buffer_threshold:
                             strike_buffer_stop_triggered = True
                             stop_loss_triggered = True
                             # Ensure we have an exit price; prefer ASK, then BID as fallback
@@ -900,9 +935,14 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     current_bid_price = None
 
                 entry_bid_price = trade.get('premium_received')
+                orig_quantity = trade.get('orig_quantity', trade.get('quantity', 1))
+                curr_quantity = trade.get('quantity', 1)
                 if current_bid_price is not None and entry_bid_price is not None and entry_bid_price > 0:
-                    # Loss ratio relative to entry bid (positive when current bid > entry bid)
-                    loss_ratio = (current_bid_price - entry_bid_price) / entry_bid_price
+                    # Compare total current value to total entry value to handle splits
+                    entry_total = entry_bid_price * orig_quantity * 100.0
+                    current_total = current_bid_price * curr_quantity * 100.0
+                    # Loss ratio relative to entry total (positive when current value > entry value)
+                    loss_ratio = (current_total - entry_total) / entry_total
                     if loss_ratio > 0 and loss_ratio >= POSITION_STOP_LOSS_PCT:
                         position_stop_loss_triggered = True
                         # mark as a stop loss so existing exit flow is used
@@ -918,7 +958,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             )
                             current_ask_price = fallback_ask if fallback_ask is not None else current_bid_price
 
-                # 1.c TAKE-PROFIT CHECK (based on current ASK vs entry BID)
+                # 1.c TAKE-PROFIT CHECK (based on current ASK vs entry BID, using total amounts for splits)
                 try:
                     if (
                         TAKE_PROFIT_MIN_GAIN_PCT is not None and TAKE_PROFIT_MIN_GAIN_PCT > 0 and
@@ -933,8 +973,12 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                 trade['strike']
                             )
                             current_ask_price = fallback_tp_ask
+                        orig_quantity = trade.get('orig_quantity', trade.get('quantity', 1))
+                        curr_quantity = trade.get('quantity', 1)
                         if current_ask_price is not None and current_ask_price > 0:
-                            profit_ratio = 1.0 - (current_ask_price / entry_bid_price)
+                            entry_total = entry_bid_price * orig_quantity * 100.0
+                            current_total = current_ask_price * curr_quantity * 100.0
+                            profit_ratio = 1.0 - (current_total / entry_total)
                             if profit_ratio >= TAKE_PROFIT_MIN_GAIN_PCT:
                                 take_profit_triggered = True
                 except Exception:
@@ -970,9 +1014,16 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     
                     # --- Calculate Exit P&L ---
                     exit_commission = qty * FINAL_COMMISSION_PER_CONTRACT
-                    entry_commission = qty * COMMISSION_PER_CONTRACT
+                    qty_in = trade.get('orig_quantity', trade.get('quantity', 1))
+                    entry_commission = qty_in * COMMISSION_PER_CONTRACT
                     # Net premium collected, subtracting entry commission
-                    premium_collected_gross = (trade['premium_received'] * qty * 100.0) - entry_commission # Gross includes entry_comission
+                    premium_collected_gross = trade.get('orig_amount_in', None)
+                    if premium_collected_gross is None:
+                        # Fallback for legacy trades or missing field                        
+                        premium_collected_gross = trade['premium_received'] * qty_in * 100.0 - entry_commission
+                    put_cost_to_close = current_price * trade['quantity'] * 100.0                   
+                    
+                    
                     
                     
                     if expired_triggered:
@@ -1185,7 +1236,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         'DayIn': trade['entry_date'],
                         'PriceIn': trade['premium_received'], # Option Bid Price in
                         'Qty': qty,
-                        'AmountIn': premium_collected_gross, # Gross premium collected
+                        'AmountIn': trade.get('orig_amount_in', premium_collected_gross), # Use stored entry value, fallback to legacy
                         'unique_key': trade['unique_key'], # Add unique_key for validation
                         **exit_details # Merge in all exit details
                     }
@@ -1256,7 +1307,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         'DayIn': trade['entry_date'],
                         'PriceIn': trade['premium_received'],
                         'Qty': trade['quantity'],
-                        'AmountIn': trade['premium_received'] * trade['quantity'] * 100.0,
+                        'AmountIn': trade.get('orig_amount_in'),
                         'unique_key': trade['unique_key'], # Add unique_key for validation
                         **exit_details
                     }
@@ -1346,7 +1397,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 # Inner loop: Check ALL tickers for viable contracts
                 for ticker in all_tickers:
                     # USER RULE: Do not invest in TQQQ until 2022-04-17
-                    if ticker == 'TQQQ':
+                    if ticker == 'TQQQ_JUNK':
                         try:
                             tqqq_block_date = datetime(2022, 4, 17).date()
                             if daily_date_obj < tqqq_block_date:
@@ -1688,7 +1739,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             except Exception:
                                 entry_adj_close_value = None
 
-                        trade_entry = {
+                        trade_entry = {                                                        
                             'entry_date': daily_date_obj.strftime('%Y-%m-%d'),
                             'ticker': ticker_to_enter,
                             'strike': best_contract['strike'],
@@ -1699,7 +1750,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             'entry_adj_close': entry_adj_close_value,
                             'unique_key': (ticker_to_enter, best_contract['strike'], best_contract['expiration_date']),
                             'last_known_ask': ask_at_entry_float,  # Store initial ask price
-                            'last_ask_date': date_str  # Store date of last known ask price                            
+                            'last_ask_date': date_str,  # Store date of last known ask price
+                            'orig_amount_in': bid_at_entry * trade_quantity * 100.0,                            
+                            'orig_strike': best_contract['strike'],
+                            'orig_quantity': trade_quantity
                         }
                         open_trades_log.append(trade_entry)
 
@@ -1777,15 +1831,19 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     price_source_date = trade.get('last_ask_date', 'unknown')
                 
                 if current_price is not None:
-                    entry_commission = trade['quantity'] * COMMISSION_PER_CONTRACT
-                    premium_collected_gross = trade['premium_received'] * trade['quantity'] * 100.0 - entry_commission
+                    premium_collected_gross = trade.get('orig_amount_in', None)
+                    if premium_collected_gross is None:
+                        # Fallback for legacy trades or missing field
+                        qty_in = trade.get('orig_quantity', trade['quantity'])
+                        entry_commission = qty_in * COMMISSION_PER_CONTRACT
+                        premium_collected_gross = trade['premium_received'] * qty_in * 100.0 - entry_commission
                     put_cost_to_close = current_price * trade['quantity'] * 100.0
                     
                     # 1. Update total liability
                     total_put_liability += put_cost_to_close 
                     
                     # 2. Update total premium collected on open puts
-                    total_open_premium_collected += premium_collected_gross
+                    total_open_premium_collected += trade.get('orig_amount_in', premium_collected_gross)
                     
                     # 3. UPnL: (Premium Collected - Cost to Close)
                     pnl_unrealized_one_position = premium_collected_gross - put_cost_to_close
@@ -2085,13 +2143,16 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     fallback_note = " (No price data; forced at $0.00)"
             
             qty = trade['quantity']
-            
+            qty_in = trade.get('orig_quantity', qty)
             premium_collected_per_contract = trade['premium_received']
             
             # Financials (based on last known/available market price)
-            entry_commission = qty * COMMISSION_PER_CONTRACT
+            entry_commission = qty_in * COMMISSION_PER_CONTRACT
             exit_commission = qty * FINAL_COMMISSION_PER_CONTRACT
-            premium_collected_gross = premium_collected_per_contract * qty * 100.0 - entry_commission  # Gross includes entry_commission
+            premium_collected_gross = trade.get('orig_amount_in')
+            if premium_collected_gross is None:
+                # Fallback for legacy trades                
+                premium_collected_gross = premium_collected_per_contract * qty_in * 100.0 - entry_commission
             cost_to_close_gross = closing_ask * qty * 100.0 + exit_commission # Gross includes exit_commission
             
             # P&L Calculation: (Initial Premium) - (Cost to Close) - (Exit Commission)
@@ -2129,7 +2190,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 'DayIn': trade['entry_date'],
                 'PriceIn': trade['premium_received'], # Option Bid Price in
                 'Qty': qty,
-                'AmountIn': premium_collected_gross, # Gross premium collected
+                'AmountIn': trade.get('orig_amount_in', premium_collected_gross), # Use stored entry value, fallback to legacy
                 'DayOut': sim_end_date.strftime('%Y-%m-%d'),
                 'PriceOut': closing_ask, # Option Ask Price at liquidation
                 'QtyOut': qty,
@@ -2462,16 +2523,16 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             exit_number = index + 1
 
             # Find first dividend and split event between entry and exit
-            dividend_str, split_str = get_first_dividend_and_split(
+            dividend_str, split_date_str = get_first_dividend_and_split(
                 stock_history_dict,
                 trade['Ticker'],
                 trade['DayIn'],
                 trade['DayOut']
             )
 
-            # If split_str is blank, use 10 spaces for table alignment
-            if not split_str:
-                split_str = "          "  # 10 spaces
+            # If split_date_str is blank, use 10 spaces for table alignment
+            if not split_date_str:
+                split_date_str = "          "  # 10 spaces
 
             # Format numbers (Price In/Out, Amount In/Out, Gain $)
             price_in_str = f"${trade['PriceIn']:>9.2f}"
@@ -2495,7 +2556,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 f"| {exit_number:>{COL_EXIT_NUM}} | {trade['Ticker']:<{COL_TICKER}} | {trade['Qty']:>{COL_QTY}} | {trade['DayIn']:^{10}} | "
                 f"{price_in_str} | {amount_in_str} | {trade['DayOut']:^{10}} | "
                 f"{price_out_str} | {amount_out_str} | "
-                f" {reason_str:<{25}} | {gain_abs_str} | {gain_pct_str} | {dividend_str:^8} | {split_str:^6} |"
+                f" {reason_str:<{25}} | {gain_abs_str} | {gain_pct_str} | {dividend_str:^8} | {split_date_str:^6} |"
             )
             print(row)            
 
