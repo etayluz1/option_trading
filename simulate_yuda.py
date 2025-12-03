@@ -806,21 +806,31 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # For each ticker, check if a split event occurs on this date
             for ticker in stock_history_dict.keys():
                 day_data = stock_history_dict[ticker].get(date_str, {})
-                split_val = day_data.get('Split', 0) or day_data.get('Split_Ratio', 0) or day_data.get('split', 0)
-                if split_val and split_val != 1:
-                    try:
-                        split_ratio = float(split_val)
-                        if split_ratio > 0 and split_ratio != 1:
-                            for trade in open_trades_log:
-                                if trade['ticker'] == ticker:
-                                    # Adjust strike and quantity
-                                    trade['strike'] = trade['strike'] / split_ratio
-                                    trade['quantity'] = trade['quantity'] * split_ratio
-                                    # (split_entry_amount removed)
-                                    trade['split_strike'] = trade['strike']
-                                    trade['split_quantity'] = trade['quantity']
-                    except Exception:
-                        pass
+                split_val = day_data.get('Split', 0)
+                # if ticker == 'GE':
+                #    print(f"GE split check: date={date_str}, split_val={split_val}, day_data={day_data}")
+                #    open_trade_tickers = [t['ticker'] for t in open_trades_log]
+                #    print(f"Open trades on {date_str}: {open_trade_tickers}")
+
+                # Use split_val directly as split ratio (float)
+                try:
+                    split_val = float(split_val)
+                except Exception:
+                    split_val = None
+                if split_val and split_val > 0 and split_val != 1:
+                    # print(f"Processing split for {ticker} on {date_str}: split ratio={split_val}")
+                    for trade in open_trades_log:
+                        if trade['ticker'] == ticker:
+                            # Save old values for print
+                            strike_old = trade['strike']
+                            qty_old = trade['quantity']
+                            # Adjust strike and quantity
+                            trade['strike'] = trade['strike'] / split_val
+                            trade['quantity'] = trade['quantity'] * split_val
+                            trade['split_strike'] = trade['strike']
+                            trade['split_quantity'] = trade['quantity']
+                            # Print split event
+                            print(f"SPLIT EVENT: Ticker={ticker}, Date={date_str}, Ratio={split_val}, StrikeOld={strike_old}, StrikeNew={trade['strike']}, QtyOld={qty_old}, QtyNew={trade['quantity']}")
             # --- When entering a new trade, store original strike and quantity ---
             # This should be placed at the point where new trades are appended to open_trades_log
             # (This is a placeholder; you may need to adjust the exact location to match your entry logic)
@@ -1242,6 +1252,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         'PriceIn': trade['premium_received'], # Option Bid Price in
                         'Qty': qty,
                         'AmountIn': trade.get('orig_amount_in', premium_collected_gross), # Use stored entry value, fallback to legacy
+                        'orig_quantity': trade.get('orig_quantity', qty),
                         'unique_key': trade['unique_key'], # Add unique_key for validation
                         **exit_details # Merge in all exit details
                     }
@@ -1313,6 +1324,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         'PriceIn': trade['premium_received'],
                         'Qty': trade['quantity'],
                         'AmountIn': trade.get('orig_amount_in'),
+                        'orig_quantity': trade.get('orig_quantity', trade['quantity']),
                         'unique_key': trade['unique_key'], # Add unique_key for validation
                         **exit_details
                     }
@@ -2194,11 +2206,12 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                 'ExpDate': trade['expiration_date'],
                 'DayIn': trade['entry_date'],
                 'PriceIn': trade['premium_received'], # Option Bid Price in
-                'Qty': qty,
-                'AmountIn': trade.get('orig_amount_in', premium_collected_gross), # Use stored entry value, fallback to legacy
+                'orig_quantity': trade.get('orig_quantity', qty),                
+                'AmountIn': trade.get('orig_amount_in', premium_collected_gross), # Use stored entry value, fallback to legacy                
                 'DayOut': sim_end_date.strftime('%Y-%m-%d'),
                 'PriceOut': closing_ask, # Option Ask Price at liquidation
                 'QtyOut': qty,
+                'Qty': qty,
                 'AmountOut': cost_to_close_gross, # Gross cost to close
                 'ReasonWhyClosed': reason_str,
                 'Gain$': position_net_gain,
@@ -2520,8 +2533,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
         # Adjusted separator for new Exit # column
         print("\n\n--- DETAILED CLOSED TRADE LOG (Full History) ---")
-        print("| Exit #  | Ticker |  Qty |   Day In   | Price In   |   Amount In    |  Day Out   | Price Out |   Amount Out   | Reason Why Closed          |    Gain $  |   Gain % | Dividend |    Split   |")
-        print("|---------|--------|------|------------|------------|----------------|------------|-----------|----------------|----------------------------|------------|----------|----------|------------|")
+        print("| Exit #  | Ticker | QtyIn |   Day In   | Price In   |   Amount In    |  Day Out   |Qty Out| Price Out |   Amount Out   | Reason Why Closed          |    Gain $  |   Gain %  |    Split   |")
+        print("|---------|--------|-------|------------|------------|----------------|------------|-------|-----------|----------------|----------------------------|------------|-----------|------------|")
         
         for index, trade in enumerate(closed_trades_log):
             
@@ -2553,16 +2566,18 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             # Truncate reason if necessary (Reason is 26 chars) 
             # Define Column Widths
             COL_EXIT_NUM = 7
-            COL_TICKER, COL_QTY, COL_ENTRY_PRICE, COL_EXIT_PRICE = 6, 4, 9, 9
+            COL_TICKER, COL_QTY, COL_ENTRY_PRICE, COL_EXIT_PRICE = 6, 5, 9, 9
             COL_IN_AMT, COL_OUT_AMT, COL_GAIN_ABS, COL_GAIN_PCT = 11, 11, 8, 7
             COL_DAY, COL_REASON = 10, 26
             reason_str = trade['ReasonWhyClosed'][:25]
 
+            # Always use orig_quantity for QtyIn; if missing, show as blank or 0 for legacy records
+            qty_in = trade['orig_quantity'] if 'orig_quantity' in trade else ''
             row = (
-                f"| {exit_number:>{COL_EXIT_NUM}} | {trade['Ticker']:<{COL_TICKER}} | {trade['Qty']:>{COL_QTY}} | {trade['DayIn']:^{10}} | "
-                f"{price_in_str} | {amount_in_str} | {trade['DayOut']:^{10}} | "
+                f"| {exit_number:>{COL_EXIT_NUM}} | {trade['Ticker']:<{COL_TICKER}} | {qty_in:>{COL_QTY}} | {trade['DayIn']:^{10}} | "
+                f"{price_in_str} | {amount_in_str} | {trade['DayOut']:^{10}} | {trade.get('QtyOut', ''):>{COL_QTY}} | "
                 f"{price_out_str} | {amount_out_str} | "
-                f" {reason_str:<{25}} | {gain_abs_str} | {gain_pct_str} | {dividend_str:^8} | {split_date_str:^6} |"
+                f" {reason_str:<{25}} | {gain_abs_str} | {gain_pct_str}  | {split_date_str:^6} |"
             )
             print(row)            
 

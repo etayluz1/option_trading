@@ -35,6 +35,8 @@ ANNUALIZED_GAIN_RE = re.compile(r"Annualized Gain[^%]*?([0-9]+(?:\.[0-9]+)?)%")
 TOTAL_GAIN_RE = re.compile(r"TOTAL NET PROFIT \(Start to Finish\):\s*\$\s*([\d,]+(?:\.[\d]+)?)")
 # Capture the Total Gain value from the summary table (monitor output)
 TOTAL_GAIN_TABLE_RE = re.compile(r"Total Gain\s*\|\s*\$\s*([\d,]+(?:\.[\d]+)?)\s*\|")
+
+def _current_log_names() -> set[str]:
     if not LOGS_DIR.exists():
         return set()
     return {
@@ -585,13 +587,9 @@ def main() -> None:
                 drawdown_val = run_result.get("drawdown")
                 ann_str = _format_pct(ann_val) if ann_val is not None else "-"
                 drawdown_str = _format_pct(drawdown_val) if drawdown_val is not None else "-"
-                score_str = "-"
-                if ann_val is not None and drawdown_val is not None and drawdown_val < 0:
-                    try:
-                        score = ann_val / abs(drawdown_val)
-                        score_str = f"{score:.4f}"
-                    except Exception:
-                        score_str = "-"
+                # Use the best score from Run1, Run2, Run3
+                best_score = max((r.get("score") for r in results[:3] if r.get("score") is not None), default=None)
+                score_str = f"{best_score:.4f}" if best_score is not None else "-"
                 print(f"    Ann: {ann_str}    Drawdown:{drawdown_str}    Score:{score_str}")
 
                 # Re-evaluate best after Run4
