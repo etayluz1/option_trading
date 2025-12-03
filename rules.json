@@ -3,30 +3,30 @@
         "start_date": "01/01/2020",
         "end_date": "10/28/2025",
         "initial_cash": "1000000",
-        "max_puts_per_account": "49",
-        "max_puts_per_stock": "7",
+        "max_puts_per_account": "27",
+        "max_puts_per_stock": "4",
         "max_puts_per_day": "10",
-        "wrapper_sweep_pct": "20%",
-        "drawdown_goal_pct": "0%",
+        "wrapper_sweep_pct": "5%",
+        "drawdown_goal_pct": "20%",
         "Minimal_Print_Out": true
     },
     "underlying_stock": {
-        "min_5_day_rise_pct": "-15.15%",
+        "min_5_day_rise_pct": "-12.877%",
         "min_above_avg_pct": "-5.858%",
-        "max_above_avg_pct": "38.828%",
+        "max_above_avg_pct": "32.46%",
         "min_avg_up_slope_pct": "-0.13%",
-        "min_stock_price": "$12.81"
+        "min_stock_price": "$11.53"
     },
     "entry_put_position": {
         "min_days_for_expiration": "41",
         "max_days_for_expiration": "269",
-        "min_put_bid_price": "2.3148",
+        "min_put_bid_price": "1.9253",
         "min_put_delta": "-23.75%",
-        "max_put_delta": "-0.374%",
-        "max_ask_above_bid_pct": "44.667%",
-        "min_avg_above_strike": "-18.754%",
+        "max_put_delta": "-0.224%",
+        "max_ask_above_bid_pct": "61.908%",
+        "min_avg_above_strike": "-20.01%",
         "min_risk_reward_ratio": "-6.4887",
-        "min_annual_risk_reward_ratio": "-14.1706",
+        "min_annual_risk_reward_ratio": "-15.8761",
         "min_rev_annual_rr_ratio": "-8",
         "min_expected_profit": "-94.762%",
         "rank_by_risk_reward_ratio": false,
@@ -35,10 +35,10 @@
         "rank_by_expected_profit": false
     },
     "exit_put_position": {
-        "position_stop_loss_pct": "42%",
-        "stock_max_below_avg": "16.075%",
+        "position_stop_loss_pct": "38.069%",
+        "stock_max_below_avg": "18.486%",
         "stock_min_above_strike": "-9999%",
-        "stock_max_below_entry": "20.081%",
+        "stock_max_below_entry": "19.479%",
         "min_gain_to_take_profit": "78.75%"
     }
 }
