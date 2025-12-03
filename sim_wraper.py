@@ -266,12 +266,12 @@ def _print_summary(rows: list[dict], param_name: str, emit: Callable[[str], None
         "Run Id",
         param_name,
         "Run time",
-        "Win Rate",
+        "Win Rate",        
         "$Gain",
         "Ann%",
+        "Worst Year",
         "Drawdown",
-        "Score",
-        "Worst Year %",
+        "Score",        
         "Log File",
     ]
     # Tripple ID is now assigned per triplet in main()
@@ -284,9 +284,9 @@ def _print_summary(rows: list[dict], param_name: str, emit: Callable[[str], None
             _format_pct(row.get("win_rate")),
             _format_money(row["gain"]),
             _format_pct(row["annualized"]),
-            _format_pct(row.get("drawdown")),
-            _format_score(row.get("score")),
             _format_pct(row.get("worst_year_pct")),
+            _format_pct(row.get("drawdown")),
+            _format_score(row.get("score")),            
             row["log_name"],
         ]
         for row in rows
@@ -520,9 +520,18 @@ def main() -> None:
                     candidates.append(candidate)
                     seen_values.add(candidate)
 
-            # For possible Run4, store the extra +5% and -5% values
-            extra_plus = plus_value * 1.05 if param_type != "int" else math.ceil(plus_value * 1.05)
-            extra_minus = minus_value * 0.95 if param_type != "int" else max(1, math.floor(minus_value * 0.95))
+            # For possible Run4, store the extra +wrapper_sweep_pct and -wrapper_sweep_pct values
+            try:
+                sweep_str = current_rules.get("account_simulation", {}).get("wrapper_sweep_pct", "5%")
+                if isinstance(sweep_str, str) and sweep_str.endswith("%"):
+                    wrapper_sweep_pct_val = float(sweep_str.rstrip("%")) / 100.0
+                else:
+                    wrapper_sweep_pct_val = float(sweep_str)
+            except Exception:
+                wrapper_sweep_pct_val = 0.05
+
+            extra_plus = plus_value * (1 + wrapper_sweep_pct_val) if param_type != "int" else math.ceil(plus_value * (1 + wrapper_sweep_pct_val))
+            extra_minus = minus_value * (1 - wrapper_sweep_pct_val) if param_type != "int" else max(1, math.floor(minus_value * (1 - wrapper_sweep_pct_val)))
 
             log("")
             results: list[dict] = []
@@ -545,7 +554,10 @@ def main() -> None:
                     results.append(fake_result)
                     run_results.append(fake_result)
                     # Print the starting message and the copied results
-                    print(f"Run1 --> {label}={serialized_value}  ...    Ann: {_format_pct(fake_result.get('annualized'))}    Drawdown:{_format_pct(fake_result.get('drawdown'))}    Score:{_format_score(fake_result.get('score'))}")
+                    # Print Fake Run1 with Worst Year [%] as in real runs
+                    worst_year_val = fake_result.get("worst_year_pct")
+                    worst_year_str = f"{worst_year_val:.2f}%" if worst_year_val is not None else "N/A"
+                    print(f"Run1 --> {label}={serialized_value}  ...    Ann: {_format_pct(fake_result.get('annualized'))}    Worst Year [%]: {worst_year_str}    Drawdown:{_format_pct(fake_result.get('drawdown'))}    Score:{_format_score(fake_result.get('score'))}")
                     continue
 
                 # Print the starting message (no newline, flush immediately)
