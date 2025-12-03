@@ -146,7 +146,7 @@ def _parse_log_metrics(log_path: Path) -> tuple[Optional[float], Optional[float]
 
     for raw_line in text.splitlines():
         line = raw_line.strip()
-        if "Score = Ann/(Goal-Drawdown)" in line:
+        if "Score Result" in line:
             new_score_str = line
             # print(line)
             # Try to extract the numeric value from the line (after the last '|')

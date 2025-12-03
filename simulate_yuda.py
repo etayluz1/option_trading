@@ -2405,13 +2405,30 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             f"{yearly_gain_pct:>6.2f}% | {spy_yearly_return:>9.2f}% |"
         )
 
+    print(f"|---------|--------------------|----------------------|---------|------------|")
+
+    worst_year = None
+    worst_year_pct = None
+    if yearly_performance:
+        # Find the year with the worst % gain
+        for year in sorted(yearly_performance.keys()):
+            data = yearly_performance[year]
+            year_end_value = data['end_value']
+            year_start_value = data['start_value']
+            yearly_gain_abs = year_end_value - year_start_value
+            yearly_gain_pct = (yearly_gain_abs / year_start_value) * 100.0 if year_start_value > 0 else 0.0
+            if worst_year_pct is None or yearly_gain_pct < worst_year_pct:
+                worst_year_pct = yearly_gain_pct
+                worst_year = year
+        print(f"| Worst Year Gain% ({worst_year}){' ':5} |                      | {worst_year_pct:>6.2f}% | ")
+
     # Cumulative yearly $ Gain total
     try:
         total_yearly_gain_abs = sum((data.get('end_value', 0.0) - data.get('start_value', 0.0)) for data in yearly_performance.values())        
-        print(f"|---------|--------------------|----------------------|---------|------------|")
         print(f"| {'TOTAL (Years)':<9} {' ':14} | $ {total_yearly_gain_abs:>18,.2f} | ")
     except Exception:
         pass
+
 
     # 9. Exit Statistics (Focusing on Entry/Exit Events)
     total_closed_positions_qty = stop_loss_count + expired_otm_count + expired_itm_count
@@ -2714,6 +2731,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Annualized Gain             | {annualized_gain:>22.3f}% |")
     print(f"| Total Gain                  | ${TOTAL_GAIN:>22,.2f} |")    
     print(f"| Run Time                    | {runtime_str:>23} |")
+    # Print the worst year and its percentage gain
+    if worst_year is not None and worst_year_pct is not None:
+        print(f"| Worst Year (Gain %)         | {str(worst_year) + ':  ' + format(worst_year_pct, '.2f') + '%':>23} |")
     print(f"| Peak Open Positions         | {peak_open_positions:>23} |")
     print(f"| Min DTE (Open Positions)    | {min_DTE_result:>23} |")
     print(f"| Max DTE (Open Positions)    | {max_DTE_result:>23} |")
@@ -2738,8 +2758,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     except Exception:
         # If for any reason the metric isn't available, skip gracefully
         pass
-    Score = annualized_gain / (drawdown_goal_pct - worst_drawdown_pct) if worst_drawdown_pct != 0 else 0.0
-    print(f"| Score = Ann/(Goal-Drawdown) | {Score:>23.4f} |")
+    Score1 = annualized_gain / (drawdown_goal_pct - worst_drawdown_pct) if worst_drawdown_pct != 0 else 0.0
+    Score2 = (annualized_gain + worst_year_pct * 15) / (drawdown_goal_pct - worst_drawdown_pct) 
+    print(f"| Score Result                | {Score2:>23.4f} |")
     print(f"|-----------------------------|-------------------------|")
     print()    
     
