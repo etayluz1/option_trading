@@ -2550,8 +2550,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
         # Adjusted separator for new Exit # column
         print("\n\n--- DETAILED CLOSED TRADE LOG (Full History) ---")
-        print("| Exit #  | Ticker | QtyIn |   Day In   | Price In   |   Amount In    |  Day Out   |Qty Out| Price Out |   Amount Out   | Reason Why Closed          |    Gain $  |   Gain %  |    Split   |")
-        print("|---------|--------|-------|------------|------------|----------------|------------|-------|-----------|----------------|----------------------------|------------|-----------|------------|")
+        print("| Exit #  | Ticker | QtyIn |   Day In   | Price In   |   Amount In    |  Day Out   |Qty Out| Price Out |   Amount Out   | Reason Why Closed          |    Gain $   |   Gain %  |    Split   |")
+        print("|---------|--------|-------|------------|------------|----------------|------------|-------|-----------|----------------|----------------------------|----------_--|-----------|------------|")
         
         for index, trade in enumerate(closed_trades_log):
             
@@ -2577,7 +2577,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             amount_in_str = f"${trade['AmountIn']:>13,.2f}"
             amount_out_str = f"${trade['AmountOut']:>13,.2f}"
 
-            gain_abs_str = f"{trade['Gain$']:>10.2f}"
+            gain_abs_str = f"{trade['Gain$']:>11.2f}"
             gain_pct_str = f"{trade['Gain%']:>7.2f}%"
 
             # Truncate reason if necessary (Reason is 26 chars) 

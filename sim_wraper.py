@@ -75,7 +75,7 @@ def _extract_float(patterns: Iterable[re.Pattern[str]], text: str) -> Optional[f
 
 
 def _format_money(value: Optional[float]) -> str:
-    return "N/A" if value is None else f"${value:,.3f}"
+    return "N/A" if value is None else f"${value:,.2f}"
 
 
 def _format_pct(value: Optional[float]) -> str:
@@ -143,13 +143,13 @@ def _parse_log_metrics(log_path: Path) -> tuple[Optional[float], Optional[float]
     win_rate = None
     new_score_str = None
     new_score_pct = None
+    worst_year_pct = None
+
 
     for raw_line in text.splitlines():
         line = raw_line.strip()
         if "Score Result" in line:
             new_score_str = line
-            # print(line)
-            # Try to extract the numeric value from the line (after the last '|')
             match = re.search(r"\|\s*([0-9]+\.[0-9]+|[0-9]+)\s*\|$", line)
             if match:
                 try:
@@ -190,6 +190,15 @@ def _parse_log_metrics(log_path: Path) -> tuple[Optional[float], Optional[float]
             if match:
                 win_rate = float(match.group(1))
 
+        # Extract worst_year_pct from summary table row (actual format: ':  XX.XX%')
+        if "Worst Year (Gain %)" in line:
+            match = re.search(r":\s*([-+]?\d*\.\d+|\d+)%", line)
+            if match:
+                try:
+                    worst_year_pct = float(match.group(1))
+                except Exception:
+                    worst_year_pct = None
+
     if nav is None:
         nav = _extract_float((FINAL_NAV_RE, DAILY_NAV_RE), text)
     if gain is None:
@@ -197,7 +206,7 @@ def _parse_log_metrics(log_path: Path) -> tuple[Optional[float], Optional[float]
     if annualized is None:
         annualized = _extract_float((ANNUALIZED_GAIN_RE,), text)
 
-    return nav, gain, annualized, drawdown, win_rate, new_score_pct
+    return nav, gain, annualized, drawdown, win_rate, new_score_pct, worst_year_pct
 
 
 def _run_simulation_once(run_id: int) -> dict:
@@ -228,7 +237,7 @@ def _run_simulation_once(run_id: int) -> dict:
         )
 
     log_path = _locate_log_file(result.stdout, before_logs, after_logs)
-    nav, gain, annualized, drawdown, win_rate, new_score_pct = _parse_log_metrics(log_path)
+    nav, gain, annualized, drawdown, win_rate, new_score_pct, worst_year_pct = _parse_log_metrics(log_path)
 
     return {
         "run_id": run_id,
@@ -242,6 +251,7 @@ def _run_simulation_once(run_id: int) -> dict:
         "log_name": log_path.name,
         "score": new_score_pct,
         "new_score_pct": new_score_pct,
+        "worst_year_pct": worst_year_pct,
         "param_value": None,
         "is_best": False,
     }
@@ -261,6 +271,7 @@ def _print_summary(rows: list[dict], param_name: str, emit: Callable[[str], None
         "Ann%",
         "Drawdown",
         "Score",
+        "Worst Year %",
         "Log File",
     ]
     # Tripple ID is now assigned per triplet in main()
@@ -275,6 +286,7 @@ def _print_summary(rows: list[dict], param_name: str, emit: Callable[[str], None
             _format_pct(row["annualized"]),
             _format_pct(row.get("drawdown")),
             _format_score(row.get("score")),
+            _format_pct(row.get("worst_year_pct")),
             row["log_name"],
         ]
         for row in rows
@@ -300,8 +312,8 @@ def _print_summary(rows: list[dict], param_name: str, emit: Callable[[str], None
         emit("Sim Total Run-time: (unknown)")
     _print_line(headers)
     emit("-+-".join("-" * width for width in widths))
-    for data in table_rows:
-        _print_line(data)
+    for data, row in zip(table_rows, rows):
+        _print_line(data) # Print Run1, Run2, Run3, Run4 in the table
 
 
 def format_percent(value: float) -> str:
@@ -552,8 +564,10 @@ def main() -> None:
                 drawdown_str = _format_pct(drawdown_val) if drawdown_val is not None else "-"
                 score_val = run_result.get("new_score_pct")
                 score_str = f"{score_val:.4f}" if score_val is not None else "-"
-                # Print results on the same line
-                print(f"    Ann: {ann_str}    Drawdown:{drawdown_str}    Score:{score_str}")
+                worst_year_val = run_result.get("worst_year_pct")
+                worst_year_str = f"{worst_year_val:.2f}%" if worst_year_val is not None else "N/A"
+                # Print results on the same line, including Worst Year [%]
+                print(f"    Ann: {ann_str}    Worst Year [%]: {worst_year_str}    Drawdown:{drawdown_str}    Score:{score_str}")
 
             # Check if Run2 or Run3 is best, and if so, add a Run4 with additional +5% or -5%
             best_value = evaluate_and_mark(results, base_value, param_type)
