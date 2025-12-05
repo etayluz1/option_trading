@@ -457,11 +457,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
                 # Consistent formatting widths across summaries
                 initial_cash_str = f"${float(rules['account_simulation']['initial_cash']):>13,.2f}"
-                min_rise_str     = f"{u_min_rise*100:>13.2f}%"  if u_min_rise  is not None else f"{'N/A':>14}"
-                min_above_str    = f"{u_min_above*100:>13.2f}%" if u_min_above is not None else f"{'N/A':>14}"
-                max_above_str    = f"{u_max_above*100:>13.2f}%" if u_max_above is not None else f"{'N/A':>14}"
+                min_rise_str     = f"{u_min_rise*100:>13.4f}%"  if u_min_rise  is not None else f"{'N/A':>14}"
+                min_above_str    = f"{u_min_above*100:>13.4f}%" if u_min_above is not None else f"{'N/A':>14}"
+                max_above_str    = f"{u_max_above*100:>13.4f}%" if u_max_above is not None else f"{'N/A':>14}"
                 min_slope_str    = f"{u_min_slope*100:>13.4f}%" if u_min_slope is not None else f"{'N/A':>14}"
-                min_price_str    = f"$ {u_min_price:>12.2f}"    if u_min_price is not None else f"{'N/A':>14}"
+                min_price_str    = f"$ {u_min_price:>12.4f}"    if u_min_price is not None else f"{'N/A':>14}"
             except Exception:
                 # Provide fallbacks if rules are missing or malformed
                 min_rise_str  = f"{'N/A':>14}"

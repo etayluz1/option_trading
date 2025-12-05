@@ -451,7 +451,7 @@ def main() -> None:
 
     try:
         param_specs = [
-            {"section": "account_simulation", "key": "max_puts_per_account", "label": "max_puts_per_account", "type": "int"},
+            # {"section": "account_simulation", "key": "max_puts_per_account", "label": "max_puts_per_account", "type": "int"},
             {"section": "account_simulation", "key": "max_puts_per_stock", "label": "max_puts_per_stock", "type": "int"},
             {"section": "account_simulation", "key": "max_puts_per_day", "label": "max_puts_per_day", "type": "int"},
             {"section": "underlying_stock", "key": "min_5_day_rise_pct", "label": "min_5_day_rise_pct", "type": "percent"},
@@ -670,11 +670,13 @@ def main() -> None:
         else:
             log_file.write("Score improvements counted: 0\n")
 
-    # Print to console as well
-    if 'score_improvements_count' in locals():
-        print(f"Score improvements counted: {score_improvements_count}")
-    else:
-        print("Score improvements counted: 0")
+        # Print to console as well
+        if 'score_improvements_count' in locals():
+            print(f"Score improvements counted: {score_improvements_count}")
+        else:
+            print("Score improvements counted: 0")
+            
+        log_file.write(f"LOG FILE: {optimize_log_path.name}\n")
 
 
 if __name__ == "__main__":
