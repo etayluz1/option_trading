@@ -2758,9 +2758,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     except Exception:
         # If for any reason the metric isn't available, skip gracefully
         pass
-    Score1 = annualized_gain / (drawdown_goal_pct - worst_drawdown_pct) if worst_drawdown_pct != 0 else 0.0
+    Score1 = annualized_gain / (drawdown_goal_pct - worst_drawdown_pct) 
     Score2 = (annualized_gain + worst_year_pct * 15) / (drawdown_goal_pct - worst_drawdown_pct) 
-    print(f"| Score Result                | {Score2:>23.4f} |")
+    Score3=(annualized_gain * worst_year_pct ) / (drawdown_goal_pct - worst_drawdown_pct) 
+    Score4=(annualized_gain * worst_year_pct * abs(worst_year_pct/20) ** 5 ) / (drawdown_goal_pct - worst_drawdown_pct) 
+    print(f"| Score Result                | {Score4:>23.4f} |")
     print(f"|-----------------------------|-------------------------|")
     print()    
     
