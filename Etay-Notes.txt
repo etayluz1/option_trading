@@ -1,0 +1,31 @@
+SETUP
+1. Download Visual Stodio Code (VSC) from https://code.visualstudio.com/download  
+2. Download git and Connect source control with Etay's Github to c:\option_trading
+3. Use FileZila to download ORATS zip files 2007 - 2025 to c:\option_trading\ORATS_zip 
+4. Run extract_zip.py (zip --> csv under c:\option_trading\ORATS_csv)
+   Note: The new files will not go to c:\option_trading\ORATS_csv\2025
+   but it is OK since make_data.py will find them anywhere.
+5. Run make_data.py (c:\option_trading\ORATS_csv --> c:\option_trading\ORATS_json)
+   This will keep only: "expirDate", "strike", "pBidPx", "pAskPx" and "putDelta"
+6. Open terminal and run these command:
+   pip install yfinance
+   git config --global user.email "etayluz@gmail.com"
+   git config --global user.name "Etay Luz"
+
+7. Run yahoo.py (download csv files from Yahoo.com to c:\option_trading\ticker_data\AAPL.csv)
+8. Run get_stock_history.py (ticker_data\ --> c:\option_trading\stock_history.json)
+9. Check visually the rules in rules.json, validate that you are happy
+10. Run sumulate_yuda.py
+11. Check the results in the latest log.txt under c:\option_trading\logs 
+12. Run sim_wraper.py to optimize the rules.json with better score
+
+
+
+SOURCE CONTROL
+1. Click on the folder icon on the top left to see the project source files
+2. Click on the 3rd button from the top to see the changes
+3. Anything modified under changes you may want to stage for saving click on + sign
+4. Click on Commit button to save the staged files
+5. To switch to Graph changes, click on Changes
+6. Use Up arrow button to push to the cloud (Github)
+7. From another machine, use Dn arrow button to pull latest changes 

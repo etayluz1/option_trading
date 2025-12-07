@@ -1,0 +1,16 @@
+.DS_Store
+My Naked Put Screener.xlsm
+ORATS_csv/
+ORATS_json/
+ORATS_zip/
+stock_history.json
+ticker_data/
+under_stock.json
+logs/*
+!logs/Summary.xlsm
+__pycache__/
+junk/
+*.tmp
+*.log
+*.bak
+*.pyc

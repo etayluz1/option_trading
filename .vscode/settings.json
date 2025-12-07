@@ -1,0 +1,4 @@
+{
+  // Set the workspace Python interpreter to the project's venv so VS Code shows it as the selected interpreter
+  "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
+}
