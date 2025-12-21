@@ -22,7 +22,7 @@ baseline_result = None  # Store baseline simulation result for reuse
 
 ROOT_DIR = Path(__file__).resolve().parent
 SIMULATOR_PATH = ROOT_DIR / "sim.py"
-LOGS_DIR = ROOT_DIR / "logs"
+LOGS_DIR = ROOT_DIR / "logs" 
 RULES_PATH = ROOT_DIR / "rules.json"
 
 # Match the console line emitted by sim.py with the generated log path.

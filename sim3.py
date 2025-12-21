@@ -691,47 +691,36 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         return
     
     # 2. Load the main ticker data from stock_history.json
-    # Check if stock_history is provided via environment variable (from wrap12n.py)
-    stock_history_json_str = os.environ.get("SIM_WRAPPER_STOCK_HISTORY_JSON")
+    print("Loading stock_history.json")
+    stock_history_dict = None
+    retry_interval = 0.5  # seconds
+    max_wait_time = 30  # seconds
+    start_time = time.time()
     
-    if stock_history_json_str:
-        print("Loading stock_history from wrapper (memory cache)")
+    while stock_history_dict is None:
         try:
-            stock_history_dict = orjson.loads(stock_history_json_str.encode('utf-8'))
+            with open(json_file_path, 'rb') as f:
+                stock_history_dict = orjson.loads(f.read())
+            break  # Success!
+        except FileNotFoundError:
+            elapsed = time.time() - start_time
+            if elapsed >= max_wait_time:
+                print(f"❌ Error: The data file '{json_file_path}' was not found after {max_wait_time}s.")
+                return
+            time.sleep(retry_interval)
+        except (orjson.JSONDecodeError, ValueError) as e:
+            elapsed = time.time() - start_time
+            if elapsed >= max_wait_time:
+                print(f"❌ Error: Could not decode JSON from '{json_file_path}' after {max_wait_time}s. Check file integrity.")
+                return
+            # Retry after a short delay
+            time.sleep(retry_interval)
         except Exception as e:
-            print(f"❌ Error parsing stock_history from wrapper: {e}")
-            return
-    else:
-        print("Loading stock_history.json")
-        stock_history_dict = None
-        retry_interval = 0.5  # seconds
-        max_wait_time = 30  # seconds
-        start_time = time.time()
-        
-        while stock_history_dict is None:
-            try:
-                with open(json_file_path, 'rb') as f:
-                    stock_history_dict = orjson.loads(f.read())
-                break  # Success!
-            except FileNotFoundError:
-                elapsed = time.time() - start_time
-                if elapsed >= max_wait_time:
-                    print(f"❌ Error: The data file '{json_file_path}' was not found after {max_wait_time}s.")
-                    return
-                time.sleep(retry_interval)
-            except (orjson.JSONDecodeError, ValueError) as e:
-                elapsed = time.time() - start_time
-                if elapsed >= max_wait_time:
-                    print(f"❌ Error: Could not decode JSON from '{json_file_path}' after {max_wait_time}s. Check file integrity.")
-                    return
-                # Retry after a short delay
-                time.sleep(retry_interval)
-            except Exception as e:
-                elapsed = time.time() - start_time
-                if elapsed >= max_wait_time:
-                    print(f"❌ Error: Failed to load '{json_file_path}' after {max_wait_time}s: {e}")
-                    return
-                time.sleep(retry_interval)
+            elapsed = time.time() - start_time
+            if elapsed >= max_wait_time:
+                print(f"❌ Error: Failed to load '{json_file_path}' after {max_wait_time}s: {e}")
+                return
+            time.sleep(retry_interval)
 
     # 3. Initialize Trackers 
     # Tracks count of open puts per ticker
