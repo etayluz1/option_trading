@@ -3023,7 +3023,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print(f"| Score Result                | {Score6:>23.4f} |")
     print(f"|-----------------------------|-------------------------|")
     print()    
-# Execute the main function
+# Execute the main function 
 if __name__ == "__main__":
     # Check if running from wrapper with custom rules path
     rules_path = os.environ.get("SIM_WRAPPER_RULES_PATH")

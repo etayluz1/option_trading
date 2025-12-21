@@ -15,7 +15,17 @@ from typing import Callable, Iterable, Optional
 # Lock for log file identification and renaming to prevent race conditions
 _log_file_lock = threading.Lock()
 
-wrapper_sweep_pct_set = [10, 2, 3]  # Percentages
+wrapper_sweep_pct_set = [0.3, 2, 3, 5, 8, 12, 16, 20, 24, 28, 32, 36, 40, 45, 50]  # Percentages
+#Version 1: $[40, 24, 45, 36, 16, 12, 20, 0.3, 2, 5, 3, 8, 32, 28, 50]$
+#Version 2: $[36, 32, 20, 12, 40, 3, 28, 8, 50, 0.3, 24, 16, 5, 45, 2]$
+#Version 3: $[24, 5, 28, 16, 8, 20, 3, 36, 12, 0.3, 50, 40, 2, 45, 32]$
+#Version 4: $[8, 40, 3, 45, 0.3, 50, 2, 36, 5, 20, 32, 16, 28, 24, 12]$
+#Version 5: $[28, 20, 5, 36, 45, 8, 2, 32, 0.3, 40, 50, 24, 16, 12, 3]$
+#Version 6: $[40, 28, 36, 32, 45, 2, 12, 8, 50, 3, 16, 5, 24, 20, 0.3]$
+#Version 7: $[40, 12, 8, 0.3, 16, 50, 45, 3, 20, 24, 32, 36, 5, 28, 2]$
+#ersion 8: $[12, 20, 50, 40, 28, 45, 8, 16, 36, 5, 32, 3, 0.3, 24, 2]$
+wrapper_sweep_pct_set = [24, 5, 28, 16, 8, 20]  # Percentages
+wrap_group_size = 4  # Group size for optimization sweeps (3 or 4)
 
 score_improvements_count = 0
 baseline_result = None  # Store baseline simulation result for reuse
@@ -596,7 +606,7 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
                         f.write(orjson.dumps(temp_rules, option=orjson.OPT_INDENT_2))
                     # Small staggered delay to ensure unique log file timestamps
                     # and prevent concurrent file access issues
-                    time.sleep((wrap_id * 3 + try_id) * 0.2)  # Increased from 0.05 to 0.2 seconds
+                    time.sleep((wrap_id * 3 + try_id) * 0.5)  # Increased from 0.05 to 0.5 seconds
                     # Display sweep indicator (show -->0% for baseline, +% for plus, -% for minus)
                     if try_id == 1:
                         sweep_display = f"{sweep_pct}% -->0%"
@@ -626,7 +636,7 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
             
             print(f"Starting {len(trial_tasks)}-trial set for Rule {rule_id}: {label}")
             
-            with ThreadPoolExecutor(max_workers=min(9, len(trial_tasks))) as executor:
+            with ThreadPoolExecutor(max_workers=min(wrap_group_size * 3, len(trial_tasks))) as executor:
                 future_to_task = {executor.submit(run_single_trial, task): task for task in trial_tasks}
                 for future in as_completed(future_to_task):
                     try:
@@ -707,10 +717,10 @@ if __name__ == "__main__":
     _wrap_start_time = time.perf_counter()
     # ...existing code...
     
-    # Break wrapper_sweep_pct_set into groups of 3
-    if len(wrapper_sweep_pct_set) > 3:
-        groups = [wrapper_sweep_pct_set[i:i+3] for i in range(0, len(wrapper_sweep_pct_set), 3)]
-        print(f"wrapper_sweep_pct_set has {len(wrapper_sweep_pct_set)} values, breaking into {len(groups)} groups of up to 3")
+    # Break wrapper_sweep_pct_set into groups of wrap_group_size
+    if len(wrapper_sweep_pct_set) > wrap_group_size:
+        groups = [wrapper_sweep_pct_set[i:i+wrap_group_size] for i in range(0, len(wrapper_sweep_pct_set), wrap_group_size)]
+        print(f"wrapper_sweep_pct_set has {len(wrapper_sweep_pct_set)} values, breaking into {len(groups)} groups of up to {wrap_group_size}")
     else:
         groups = [wrapper_sweep_pct_set]
     
