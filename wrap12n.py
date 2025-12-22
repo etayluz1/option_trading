@@ -322,7 +322,7 @@ def _print_summary(rows: list[dict], param_name: str, emit: Callable[[str], None
             _format_pct(row.get("worst_year_pct")),
             _format_pct(row.get("drawdown")),
             _format_score(row.get("score")),            
-            row["log_name"],
+            f"{row['log_name']}  (reused)" if row.get("is_reused") else row["log_name"],
         ]
         for row in rows
     ]
@@ -555,6 +555,9 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
             # Rotate wrap_id offset based on rule progress to vary testing pattern
             wrap_id_offset = (rule_id - 1) % wrap_group_size
             
+            # Check if we can reuse the x.1.1 result from previous rule (skip simulation)
+            reuse_11_trial = prev_best_result is not None and rule_id > 1
+            
             for wrap_idx, sweep_pct in enumerate(wrapper_sweep_pct_group, start=1):
                 # Apply offset to wrap_id (cycle through 1 to wrap_group_size)
                 wrap_id = ((wrap_idx - 1 + wrap_id_offset) % wrap_group_size) + 1
@@ -563,6 +566,11 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
 
                 # Prepare all three trial values for this wrap_id
                 for try_id, value in zip([1,2,3], [base_value, plus_value, minus_value]):
+                    # Check if this is the x.1.1 trial and we can reuse it
+                    if reuse_11_trial and wrap_id == 1 and try_id == 1:
+                        # Skip simulation for this trial; we'll add the reused result directly
+                        continue
+                    
                     # Use string representation for set to handle float/int/str uniformly
                     value_key = str(value)
                     if value_key in assigned_values:
@@ -659,6 +667,19 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
                             print(f"\n❌ Error in trial {task['rule_id']}.{task['wrap_id']}.{task['try_id']}: {e}")
                         # Continue with other trials instead of crashing
                         continue
+            
+            # If we skipped the x.1.1 trial for reuse, add it to results now with is_reused=True
+            if reuse_11_trial and prev_best_result:
+                # Find which wrap_id maps to 1 after offset rotation
+                wrap_id_for_reuse = ((0 + wrap_id_offset) % wrap_group_size) + 1
+                reused_result = prev_best_result.copy()
+                reused_result["rule_id"] = rule_id
+                reused_result["wrap_id"] = wrap_id_for_reuse
+                reused_result["try_id"] = 1
+                reused_result["trial_id"] = f"{rule_id}.{wrap_id_for_reuse}.1"
+                reused_result["is_reused"] = True
+                results.append(reused_result)
+                print(f"{rule_id}.{wrap_id_for_reuse}.1 --> {label}={reused_result['param_display']} (reused from Rule {prev_best_result['rule_id']})", flush=True)
             
             # Sort results by trial_id for consistent ordering
             results.sort(key=lambda x: (x["rule_id"], x["wrap_id"], x["try_id"]))
