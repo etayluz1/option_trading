@@ -25,7 +25,8 @@ wrapper_sweep_pct_set = [0.3, 2, 3, 5, 8, 12, 16, 20, 24, 28, 32, 36, 40, 45, 50
 #Version 7: $[40, 12, 8, 0.3, 16, 50, 45, 3, 20, 24, 32, 36, 5, 28, 2]$
 #ersion 8: $[12, 20, 50, 40, 28, 45, 8, 16, 36, 5, 32, 3, 0.3, 24, 2]$
 wrapper_sweep_pct_set = [24, 5, 28, 16, 8, 20]  # Percentages
-wrap_group_size = 4  # Group size for optimization sweeps (3 or 4)
+wrapper_sweep_pct_set = [0.5, 41, 51, 25, 17, 13, 4, 29, 21, 6, 37, 46, 9, 1, 33]  # Percentages
+wrap_group_size = 3  # Group size for optimization sweeps (3 or 4)
 
 score_improvements_count = 0
 baseline_result = None  # Store baseline simulation result for reuse
@@ -550,7 +551,13 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
             trial_tasks = []
             trial_timestamp = datetime.now().strftime("%Y-%m-%d %H-%M")
             assigned_values = set()
-            for wrap_id, sweep_pct in enumerate(wrapper_sweep_pct_group, start=1):
+            
+            # Rotate wrap_id offset based on rule progress to vary testing pattern
+            wrap_id_offset = (rule_id - 1) % wrap_group_size
+            
+            for wrap_idx, sweep_pct in enumerate(wrapper_sweep_pct_group, start=1):
+                # Apply offset to wrap_id (cycle through 1 to wrap_group_size)
+                wrap_id = ((wrap_idx - 1 + wrap_id_offset) % wrap_group_size) + 1
                 # Compute variants for this wrap_id
                 plus_value, minus_value = compute_variants_for_wrap_id(base_value, param_type, sweep_pct)
 
