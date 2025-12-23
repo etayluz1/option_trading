@@ -6,6 +6,7 @@ import subprocess
 import sys
 import time
 import threading
+import mmap
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from copy import deepcopy
@@ -26,6 +27,7 @@ wrapper_sweep_pct_set = [0.3, 2, 3, 5, 8, 12, 16, 20, 24, 28, 32, 36, 40, 45, 50
 #ersion 8: $[12, 20, 50, 40, 28, 45, 8, 16, 36, 5, 32, 3, 0.3, 24, 2]$
 wrapper_sweep_pct_set = [24, 5, 28, 16, 8, 20]  # Percentages
 wrapper_sweep_pct_set = [0.5, 41, 51, 25, 17, 13, 4, 29, 21, 6, 37, 46, 9, 1, 33]  # Percentages
+wrapper_sweep_pct_set = [40, 24, 45, 36, 16, 12, 20, 0.3, 2, 5, 3, 8, 32, 28, 50]  # Percentages
 wrap_group_size = 3  # Group size for optimization sweeps (3 or 4)
 
 score_improvements_count = 0
@@ -422,7 +424,8 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
     # Load stock_history.json once and serialize as JSON string for env transfer
     stock_history_path = ROOT_DIR / "stock_history.json"
     with stock_history_path.open("rb") as f:
-        stock_history_data = f.read()
+        with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mmapped_file:
+            stock_history_data = mmapped_file[:]
     stock_history_dict = orjson.loads(stock_history_data)
     stock_history_json_str = orjson.dumps(stock_history_dict).decode("utf-8")
     main.stock_history_json_str = stock_history_json_str
@@ -516,6 +519,7 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
 
         global score_improvements_count, baseline_result
         prev_best_result = baseline_result.copy() if baseline_result else None
+        baseline_score = baseline_result.get("new_score_pct") if baseline_result else None
         
         # For each Rule_ID (parameter)
         for rule_id, spec in enumerate(param_specs, start=1):
@@ -525,7 +529,10 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
             param_type = spec.get("type", "int")
             
             # Get base value from current rules
-            base_raw = current_rules.get(section, {}).get(key)
+            # CRITICAL: Read base value from ORIGINAL_RULES, not current_rules
+            # current_rules gets modified as we optimize each rule, so later rules would inherit
+            # the optimized values from earlier rules, causing values to "leak" between rules
+            base_raw = original_rules.get(section, {}).get(key)
             if base_raw is None:
                 raise KeyError(f"Missing '{label}' in rules.json")
             
@@ -555,9 +562,6 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
             # Rotate wrap_id offset based on rule progress to vary testing pattern
             wrap_id_offset = (rule_id - 1) % wrap_group_size
             
-            # Check if we can reuse the x.1.1 result from previous rule (skip simulation)
-            reuse_11_trial = prev_best_result is not None and rule_id > 1
-            
             for wrap_idx, sweep_pct in enumerate(wrapper_sweep_pct_group, start=1):
                 # Apply offset to wrap_id (cycle through 1 to wrap_group_size)
                 wrap_id = ((wrap_idx - 1 + wrap_id_offset) % wrap_group_size) + 1
@@ -566,9 +570,14 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
 
                 # Prepare all three trial values for this wrap_id
                 for try_id, value in zip([1,2,3], [base_value, plus_value, minus_value]):
-                    # Check if this is the x.1.1 trial and we can reuse it
-                    if reuse_11_trial and wrap_id == 1 and try_id == 1:
-                        # Skip simulation for this trial; we'll add the reused result directly
+                    # Skip try_id=1 (-->0%) for Rule 2+
+                    # Only include the FIRST try_id=1 as a reused fake run
+                    if rule_id > 1 and try_id == 1:
+                        if wrap_idx == 1:
+                            # First wrap: will inject as reused result
+                            serialized_value = serialize_value(value, param_type)
+                            print(f"{rule_id}.{wrap_id}.{try_id} --> {label}={serialized_value} (reused from Rule {prev_best_result['rule_id']})", flush=True)
+                        # Skip adding to trial_tasks (all other try_id=1 or first one will be injected)
                         continue
                     
                     # Use string representation for set to handle float/int/str uniformly
@@ -606,6 +615,27 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
                 
                 serialized_value = serialize_value(value, param_type)
                 trial_id = f"{rule_id}.{wrap_id}.{try_id}"
+                
+                # If this is a reused trial, skip simulation and use previous rule's result
+                if is_reused and prev_best_result:
+                    result = prev_best_result.copy()
+                    # Update fields to reflect current rule, but keep all metrics from previous rule
+                    result["rule_id"] = rule_id
+                    result["wrap_id"] = wrap_id
+                    result["try_id"] = try_id
+                    result["trial_id"] = trial_id
+                    result["param_value"] = value
+                    result["param_display"] = serialized_value
+                    result["is_reused"] = True
+                    # Ensure all required fields for table display are present
+                    if "runtime" not in result:
+                        result["runtime"] = result.get("runtime", "N/A")
+                    if "gain" not in result:
+                        result["gain"] = result.get("gain")
+                    if "score" not in result:
+                        result["score"] = result.get("score")
+                    print(f"{trial_id} --> {label}={serialized_value} (reused from Rule {prev_best_result['rule_id']})", flush=True)
+                    return result
                 
                 # Create temporary rules for this trial
                 temp_rules = deepcopy(current_rules)
@@ -668,21 +698,34 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
                         # Continue with other trials instead of crashing
                         continue
             
-            # If we skipped the x.1.1 trial for reuse, add it to results now with is_reused=True
-            if reuse_11_trial and prev_best_result:
-                # Find which wrap_id maps to 1 after offset rotation
-                wrap_id_for_reuse = ((0 + wrap_id_offset) % wrap_group_size) + 1
+            # If we skipped all try_id=1 for Rule 2+, inject the reused result for the first wrap
+            if rule_id > 1 and prev_best_result and len(wrapper_sweep_pct_group) > 0:
+                # The first wrap is at wrap_idx=1
+                first_wrap_idx = 1
+                first_wrap_id = ((first_wrap_idx - 1 + wrap_id_offset) % wrap_group_size) + 1
+                
+                base_raw = original_rules.get(section, {}).get(key)
+                if param_type == "percent":
+                    base_value = float(str(base_raw).replace("%", ""))
+                elif param_type == "currency":
+                    base_value = float(str(base_raw).replace("$", "").replace(",", ""))
+                else:
+                    base_value = float(base_raw)
+                
+                serialized_value = serialize_value(base_value, param_type)
                 reused_result = prev_best_result.copy()
                 reused_result["rule_id"] = rule_id
-                reused_result["wrap_id"] = wrap_id_for_reuse
+                reused_result["wrap_id"] = first_wrap_id
                 reused_result["try_id"] = 1
-                reused_result["trial_id"] = f"{rule_id}.{wrap_id_for_reuse}.1"
+                reused_result["trial_id"] = f"{rule_id}.{first_wrap_id}.1"
+                reused_result["param_value"] = base_value
+                reused_result["param_display"] = serialized_value
                 reused_result["is_reused"] = True
                 results.append(reused_result)
-                print(f"{rule_id}.{wrap_id_for_reuse}.1 --> {label}={reused_result['param_display']} (reused from Rule {prev_best_result['rule_id']})", flush=True)
             
-            # Sort results by trial_id for consistent ordering
-            results.sort(key=lambda x: (x["rule_id"], x["wrap_id"], x["try_id"]))
+            
+            # Sort results: prioritize try_id=1 first (reused baseline), then by trial_id order
+            results.sort(key=lambda x: (x["rule_id"], x["try_id"] != 1, x["wrap_id"], x["try_id"]))
             
             # Find best result
             best_result = None
@@ -692,6 +735,15 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
                 if score is not None and score > best_score:
                     best_score = score
                     best_result = result
+            
+            # If there's a reused baseline and all scores are the same, mark the reused as best
+            if rule_id > 1:
+                for result in results:
+                    if result.get("is_reused"):
+                        reused_score = result.get("new_score_pct")
+                        if reused_score == best_score:
+                            best_result = result
+                        break
             
             # Mark only the best result
             for result in results:
@@ -704,18 +756,15 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
                 current_rules[section][key] = best_serialized
                 # Save the current wrapper_sweep_pct value in rules.json
                 write_rules_file(wrapper_sweep_pct_value=best_result.get("sweep_pct"))
-                # Check if this is an improvement over baseline
-                initial_base_raw = original_rules.get(section, {}).get(key)
-                if param_type == "percent":
-                    initial_base_value = float(str(initial_base_raw).replace("%", ""))
-                    baseline_matched = math.isclose(best_value, initial_base_value, abs_tol=1e-9)
-                elif param_type == "currency":
-                    initial_base_value = float(str(initial_base_raw).replace("$", "").replace(",", ""))
-                    baseline_matched = best_value == initial_base_value
-                else:
-                    initial_base_value = float(initial_base_raw)
-                    baseline_matched = best_value == initial_base_value
-                if not baseline_matched:
+                # Check if this is an improvement over the baseline score (not just parameter change)
+                best_score = best_result.get("new_score_pct")
+                if rule_id == 1:
+                    # Store the first rule's best score as the baseline for all future comparisons
+                    baseline_result = best_result.copy()
+                    baseline_score = best_score
+                    # First rule doesn't count as an improvement (it's the baseline)
+                elif baseline_score is not None and best_score is not None and best_score > baseline_score and not best_result.get("is_reused"):
+                    # Only increment if this rule's best score beats the baseline score AND is not a reused (fake) baseline
                     score_improvements_count += 1
                 # Save best result for next rule
                 prev_best_result = best_result.copy()

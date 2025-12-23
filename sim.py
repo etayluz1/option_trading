@@ -40,6 +40,7 @@ from datetime import datetime
 import math
 import sys
 import time
+import mmap
 
 # ----- Constants for ORATS.json option data indices -----
 STRIKE_ID = 0
@@ -711,7 +712,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         while stock_history_dict is None:
             try:
                 with open(json_file_path, 'rb') as f:
-                    stock_history_dict = orjson.loads(f.read())
+                    with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mmapped_file:
+                        stock_history_dict = orjson.loads(mmapped_file[:])
                 break  # Success!
             except FileNotFoundError:
                 elapsed = time.time() - start_time
@@ -796,8 +798,9 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     # Track all drawdown periods
     drawdown_periods = []
     current_drawdown = None
-    # NEW: Track peak number of open positions across the account
-    peak_open_positions = 0
+    # NEW: Track peak number of open positions across the account, separated by mode
+    peak_open_positions_low = 0
+    peak_open_positions_high = 0
     min_DTE_result = int(9999)
     max_DTE_result = int(0)
 
@@ -1558,9 +1561,12 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     if prev_count - open_puts_tracker[trade['ticker']] > 1:
                         print(f"⚠️ **DEBUG:** Adjusted open_puts_tracker for {trade['ticker']} by {prev_count - open_puts_tracker[trade['ticker']]} (prev {prev_count} -> now {open_puts_tracker[trade['ticker']]})")
             
-            # Update peak open positions after processing exits and recoveries
-            if current_account_put_positions > peak_open_positions:
-                peak_open_positions = current_account_put_positions
+            # Update peak open positions after processing exits and recoveries (separate by mode)
+            if current_account_put_positions > (peak_open_positions_low if low_puts_mode else peak_open_positions_high):
+                if low_puts_mode:
+                    peak_open_positions_low = current_account_put_positions
+                else:
+                    peak_open_positions_high = current_account_put_positions
 
             # --- DIAGNOSTIC CHECK: Verify open_trades_log matches open_puts_tracker ---
             open_trades_count = len(open_trades_log)
@@ -1953,10 +1959,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                         
                         # 5. Update the position count
                         open_puts_tracker[ticker_to_enter] += 1
-                        # Update current and peak open positions after entry
+                        # Update current and peak open positions after entry (separate by mode)
                         current_account_put_positions = sum(open_puts_tracker.values())
-                        if current_account_put_positions > peak_open_positions:
-                            peak_open_positions = current_account_put_positions
+                        if current_account_put_positions > (peak_open_positions_low if low_puts_mode else peak_open_positions_high):
+                            if low_puts_mode:
+                                peak_open_positions_low = current_account_put_positions
+                            else:
+                                peak_open_positions_high = current_account_put_positions
                         
                         # 6. Log the trade details (include quantity)
                         # Determine the entry stock AdjClose for this ticker on entry day
@@ -2969,37 +2978,39 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     
     # Performance Summary
     print("📊 Final Performance")
-    print(f"|-----------------------------|-------------------------|") 
-    print(f"| Parameter                   |  Value                  |")
-    print(f"|-----------------------------|-------------------------|")
-    print(f"| Current Date/Time           | {datetime.now().strftime('%Y-%m-%d %H:%M'):>23} |")
-    print(f"| Annualized Gain             | {annualized_gain:>22.3f}% |")
-    print(f"| Total Gain                  | ${TOTAL_GAIN:>22,.2f} |")    
-    print(f"| Run Time                    | {runtime_str:>23} |")
+    print(f"|--------------------------------|-----------------------------------|") 
+    print(f"| Parameter                      |  Value                            |")
+    print(f"|--------------------------------|-----------------------------------|")
+    print(f"| Current Date/Time              | {datetime.now().strftime('%Y-%m-%d %H:%M'):>35} |")
+    print(f"| Annualized Gain                | {annualized_gain:>34.3f}% |")
+    print(f"| Total Gain                     | ${TOTAL_GAIN:>34,.2f} |")
+    print(f"| Run Time                       | {runtime_str:>35} |")
     # Print the worst year and its percentage gain
+    # Print current log file name (row ~2418 request)
     if worst_year is not None and worst_year_pct is not None:
-        print(f"| Worst Year (Gain %)         | {str(worst_year) + ':  ' + format(worst_year_pct, '.2f') + '%':>23} |")
-    print(f"| Peak Open Positions         | {peak_open_positions:>23} |")
-    print(f"| Min DTE (Open Positions)    | {min_DTE_result:>23} |")
-    print(f"| Max DTE (Open Positions)    | {max_DTE_result:>23} |")
-    print(f"| Total Entry Events          | {total_entry_events:>23} |")
-    print(f"| Win Ratio                   | {win_ratio_pct:>22.2f}% |")
+        print(f"| Worst Year (Gain %)            | {str(worst_year) + ':  ' + format(worst_year_pct, '.2f') + '%':>35} |")
+    print(f"| Peak Open Positions (low)      | {peak_open_positions_low:>33} |")
+    print(f"| Peak Open Positions (high)     | {peak_open_positions_high:>33} |")
+    print(f"| Min DTE (Open Positions)       | {min_DTE_result:>33} |")
+    print(f"| Max DTE (Open Positions)       | {max_DTE_result:>33} |")
+    print(f"| Total Entry Events             | {total_entry_events:>33} |")
+    print(f"| Win Ratio                      | {win_ratio_pct:>32.2f}% |")
     
     # Print current log file name (row ~2418 request)
     try:
         current_log_path = getattr(sys.stdout, 'logfile', None)
         if current_log_path and hasattr(current_log_path, 'name'):
             log_filename_only = os.path.basename(current_log_path.name)
-            print(f"| Log File                    | {log_filename_only:>23} |")
+            print(f"| Log File                       | {log_filename_only:>33} |")
         else:
             # Fallback if stdout has been restored or structure changed
-            print(f"| Log File                    | {'N/A':>23} |")
+            print(f"| Log File                       | {'N/A':>33} |")
     except Exception:
-        print(f"| Log File                    | {'ERR':>23} |")
+        print(f"| Log File                       | {'ERR':>33} |")
     
     # Worst drawdown across all simulated dates
     try:
-        print(f"| Worst Drawdown              | {worst_drawdown_pct:>22.3f}% |")
+        print(f"| Worst Drawdown                 | {worst_drawdown_pct:>32.3f}% |")
     except Exception:
         # If for any reason the metric isn't available, skip gracefully
         pass
@@ -3020,8 +3031,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         if annualized_gain < 0 and worst_year_pct < 0:
             Score6= -abs(Score6)
 
-    print(f"| Score Result                | {Score6:>23.4f} |")
-    print(f"|-----------------------------|-------------------------|")
+    print(f"| Score Result                   | {Score6:>35.4f} |")
+    print(f"|--------------------------------|-----------------------------------|")
     print()    
 # Execute the main function 
 if __name__ == "__main__":
