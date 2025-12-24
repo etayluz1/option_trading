@@ -1252,7 +1252,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     if premium_collected_gross is None:
                         # Fallback for legacy trades or missing field                        
                         premium_collected_gross = trade['premium_received'] * qty_in * 100.0 - entry_commission
-                    put_cost_to_close = current_price * trade['quantity'] * 100.0                   
+                    put_cost_to_close = current_price * trade['quantity'] * 100.0
+                    
+                    # Final fallback: Use most recent known ask price if current price is still None
+                    if current_ask_price is None and trade.get('last_known_ask') is not None:
+                        current_ask_price = trade.get('last_known_ask')
                     
                     
                     
@@ -1293,19 +1297,27 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                 # ITM/ASSIGNMENT SCENARIO (Loss)
                                 entry_commission = qty * FINAL_COMMISSION_PER_CONTRACT
                                 exit_commission = qty * FINAL_COMMISSION_PER_CONTRACT
-                                assignment_loss_gross = (trade['strike'] - current_adj_close) * qty * 100.0  + exit_commission 
-                                net_profit = premium_collected_gross  - assignment_loss_gross  # Gross includes entry_comission
+                                # assignment_loss_gross = (trade['strike'] - current_adj_close) * qty * 100.0  + exit_commission    <-- Yuda this is wrong
+                                # net_profit = premium_collected_gross  - assignment_loss_gross  # Gross includes entry_comission   <-- Yuda this is wrong
+                                
+                                cost_to_close_gross = current_ask_price * qty * 100.0 + exit_commission
+                                net_profit = premium_collected_gross - cost_to_close_gross  # Gross includes entry_comission                                
                                 
                                 # Count exit EVENTS (not contracts)
                                 expired_itm_count += 1
                                 expired_itm_gain += net_profit
                                 expired_itm_premium_collected += premium_collected_gross
                                 
-                                exit_details['PriceOut'] = current_adj_close # Stock price at assignment
-                                exit_details['AmountOut'] = assignment_loss_gross # Gross assignment loss
-                                exit_details['ReasonWhyClosed'] = "Expiration (ITM/Assigned)"
-                                cost_to_close_gross = assignment_loss_gross
+                                # exit_details['PriceOut'] = current_adj_close # Stock price at assignment
+                                # exit_details['AmountOut'] = assignment_loss_gross # Gross assignment loss
+                                # exit_details['ReasonWhyClosed'] = "Expiration (ITM/Assigned)"
+                                # cost_to_close_gross = assignment_loss_gross
                                 
+
+                                exit_details['PriceOut'] = current_ask_price # Option Ask Price on Exexpiration date
+                                exit_details['AmountOut'] = cost_to_close_gross # Gross cost to close
+                                exit_details['ReasonWhyClosed'] = "Expiration (ITM/Assigned)"                                
+
                             else:
                                 # OTM/MAX PROFIT SCENARIO
                                 cost_to_close_gross = 0.0 
@@ -2582,7 +2594,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("\n--- MONTHLY PORTFOLIO GAIN ---")
     # NEW COLUMN: % SPY Gain
     print("| Month   | Total Value EOD    |   $ Total Gain    |  % Gain | % SPY Gain |")
-    print("|---------|--------------------|-------------------|---------|------------|") 
+    print("|---------|----------------------|----------------------|---------|------------|") 
     
     for (year, month), data in monthly_performance.items():
         month_label = datetime(year, month, 1).strftime('%Y-%m')        
@@ -2595,7 +2607,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     # Cumulative monthly $ Gain total
     try:
         total_monthly_gain_abs = sum(d.get('gain_abs', 0.0) for d in monthly_performance.values())
-        print("|---------|--------------------|-------------------|---------|------------|")
+        print("|---------|----------------------|----------------------|---------|------------|")
         print(f"| {'TOTAL (Months)':<9} {' ':13} | $ {total_monthly_gain_abs:>15,.2f} |")
     except Exception:
         pass
@@ -2605,7 +2617,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     print("\n--- YEARLY PORTFOLIO GAIN ---")
     # NEW COLUMN: % SPY Gain    
     print("| Year    | Total Value EOD    |     $ Total Gain     |  % Gain | % SPY Gain |")
-    print("|---------|--------------------|----------------------|---------|------------|") 
+    print("|---------|----------------------|------------------------|---------|------------|") 
     
     for year in sorted(yearly_performance.keys()):
         data = yearly_performance[year]
@@ -2628,7 +2640,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             f"{yearly_gain_pct:>6.2f}% | {spy_yearly_return:>9.2f}% |"
         )
 
-    print(f"|---------|--------------------|----------------------|---------|------------|")
+    print(f"|---------|----------------------|------------------------|---------|------------|")
 
     worst_year = None
     worst_year_pct = None
@@ -2649,6 +2661,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     try:
         total_yearly_gain_abs = sum((data.get('end_value', 0.0) - data.get('start_value', 0.0)) for data in yearly_performance.values())        
         print(f"| {'TOTAL (Years)':<9} {' ':14} | $ {total_yearly_gain_abs:>18,.2f} | ")
+        print(f"|---------|----------------------|------------------------|---------|------------|")
     except Exception:
         pass
 
@@ -2774,7 +2787,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         # Adjusted separator for new Exit # column
         print("\n\n--- DETAILED CLOSED TRADE LOG (Full History) ---")
         print("| Exit #  | Ticker | QtyIn |   Day In   | Price In   |   Amount In    |  Day Out   |Qty Out| Price Out |   Amount Out   | Reason Why Closed          |    Gain $   |   Gain %  |    Split   |")
-        print("|---------|--------|-------|------------|------------|----------------|------------|-------|-----------|----------------|----------------------------|----------_--|-----------|------------|")
+        print("|---------|--------|-------|------------|------------|----------------|------------|-------|-----------|----------------|----------------------------|------------|-----------|------------|")
         
         for index, trade in enumerate(closed_trades_log):
             
@@ -3024,12 +3037,13 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         Score5= -abs(Score5)
 
     if annualized_gain == 0 or worst_year_pct ==0:
-        Score6 = -1e2*abs(worst_drawdown_pct)
+        Score6 = -1e2 * abs(worst_drawdown_pct)
     else:    
         Score6 =  annualized_gain * worst_year_pct / (drawdown_goal_pct - worst_drawdown_pct) 
-        Score6 =  1e2 * Score6 * (abs(worst_year_pct)) ** 2 / abs(drawdown_goal_pct - worst_drawdown_pct) ** 2    
+        Score6 =  Score6 * (abs(worst_year_pct)) ** 2 / abs(drawdown_goal_pct - worst_drawdown_pct) ** 2    
         if annualized_gain < 0 and worst_year_pct < 0:
             Score6= -abs(Score6)
+    Score6 = Score6 / 1e5 * (peak_open_positions_low + 1) * (peak_open_positions_high + 1) * total_entry_events ** 2
 
     print(f"| Score Result                   | {Score6:>35.4f} |")
     print(f"|--------------------------------|-----------------------------------|")
