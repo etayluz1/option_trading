@@ -1,0 +1,3458 @@
+{
+    "ABNB": {
+        "date": "2025-12-25",
+        "adj_close": 136.78,
+        "close": 136.78,
+        "5_day_rise": "2.082%",
+        "10_day_avg_slope": "0.036%",
+        "adj_price_above_avg_pct": "7.006%",
+        "sma150_adj_close": 127.8251
+    },
+    "ABBV": {
+        "date": "2025-12-25",
+        "adj_close": 229.89,
+        "close": 229.89,
+        "5_day_rise": "3.173%",
+        "10_day_avg_slope": "1.464%",
+        "adj_price_above_avg_pct": "9.827%",
+        "sma150_adj_close": 209.3209
+    },
+    "A": {
+        "date": "2025-12-25",
+        "adj_close": 138.32,
+        "close": 138.32,
+        "5_day_rise": "1.037%",
+        "10_day_avg_slope": "1.398%",
+        "adj_price_above_avg_pct": "7.046%",
+        "sma150_adj_close": 129.2152
+    },
+    "ACGL": {
+        "date": "2025-12-25",
+        "adj_close": 96.4,
+        "close": 96.4,
+        "5_day_rise": "-0.052%",
+        "10_day_avg_slope": "0.183%",
+        "adj_price_above_avg_pct": "6.238%",
+        "sma150_adj_close": 90.7395
+    },
+    "ACWI": {
+        "date": "2025-12-25",
+        "adj_close": 142.71,
+        "close": 142.71,
+        "5_day_rise": "2.147%",
+        "10_day_avg_slope": "1.018%",
+        "adj_price_above_avg_pct": "6.982%",
+        "sma150_adj_close": 133.3964
+    },
+    "ACWX": {
+        "date": "2025-12-25",
+        "adj_close": 67.25,
+        "close": 67.25,
+        "5_day_rise": "1.925%",
+        "10_day_avg_slope": "0.998%",
+        "adj_price_above_avg_pct": "7.437%",
+        "sma150_adj_close": 62.5948
+    },
+    "ADSK": {
+        "date": "2025-12-25",
+        "adj_close": 298.21,
+        "close": 298.21,
+        "5_day_rise": "-0.344%",
+        "10_day_avg_slope": "0.057%",
+        "adj_price_above_avg_pct": "-1.565%",
+        "sma150_adj_close": 302.9497
+    },
+    "ADM": {
+        "date": "2025-12-25",
+        "adj_close": 57.78,
+        "close": 57.78,
+        "5_day_rise": "-0.892%",
+        "10_day_avg_slope": "1.211%",
+        "adj_price_above_avg_pct": "1.181%",
+        "sma150_adj_close": 57.1055
+    },
+    "AEE": {
+        "date": "2025-12-25",
+        "adj_close": 99.84,
+        "close": 99.84,
+        "5_day_rise": "0.645%",
+        "10_day_avg_slope": "0.291%",
+        "adj_price_above_avg_pct": "0.578%",
+        "sma150_adj_close": 99.2663
+    },
+    "AES": {
+        "date": "2025-12-25",
+        "adj_close": 13.96,
+        "close": 13.96,
+        "5_day_rise": "2.047%",
+        "10_day_avg_slope": "1.327%",
+        "adj_price_above_avg_pct": "8.501%",
+        "sma150_adj_close": 12.8662
+    },
+    "AEP": {
+        "date": "2025-12-25",
+        "adj_close": 115.31,
+        "close": 115.31,
+        "5_day_rise": "-0.234%",
+        "10_day_avg_slope": "0.881%",
+        "adj_price_above_avg_pct": "4.023%",
+        "sma150_adj_close": 110.8508
+    },
+    "AGG": {
+        "date": "2025-12-25",
+        "adj_close": 100.02,
+        "close": 100.02,
+        "5_day_rise": "0.034%",
+        "10_day_avg_slope": "0.337%",
+        "adj_price_above_avg_pct": "1.907%",
+        "sma150_adj_close": 98.1482
+    },
+    "AFL": {
+        "date": "2025-12-25",
+        "adj_close": 110.62,
+        "close": 110.62,
+        "5_day_rise": "0.145%",
+        "10_day_avg_slope": "0.435%",
+        "adj_price_above_avg_pct": "4.234%",
+        "sma150_adj_close": 106.1262
+    },
+    "AIQ": {
+        "date": "2025-12-25",
+        "adj_close": 51.45,
+        "close": 51.45,
+        "5_day_rise": "3.313%",
+        "10_day_avg_slope": "1.464%",
+        "adj_price_above_avg_pct": "9.426%",
+        "sma150_adj_close": 47.018
+    },
+    "AIG": {
+        "date": "2025-12-25",
+        "adj_close": 86.52,
+        "close": 86.52,
+        "5_day_rise": "0.383%",
+        "10_day_avg_slope": "0.341%",
+        "adj_price_above_avg_pct": "8.207%",
+        "sma150_adj_close": 79.9582
+    },
+    "ALLE": {
+        "date": "2025-12-25",
+        "adj_close": 160.85,
+        "close": 160.85,
+        "5_day_rise": "0.582%",
+        "10_day_avg_slope": "0.759%",
+        "adj_price_above_avg_pct": "-0.525%",
+        "sma150_adj_close": 161.6984
+    },
+    "ALL": {
+        "date": "2025-12-25",
+        "adj_close": 209.05,
+        "close": 209.05,
+        "5_day_rise": "2.010%",
+        "10_day_avg_slope": "0.214%",
+        "adj_price_above_avg_pct": "3.739%",
+        "sma150_adj_close": 201.5147
+    },
+    "ANET": {
+        "date": "2025-12-25",
+        "adj_close": 130.77,
+        "close": 130.77,
+        "5_day_rise": "4.935%",
+        "10_day_avg_slope": "1.792%",
+        "adj_price_above_avg_pct": "3.269%",
+        "sma150_adj_close": 126.6307
+    },
+    "AMZN": {
+        "date": "2025-12-25",
+        "adj_close": 232.38,
+        "close": 232.38,
+        "5_day_rise": "2.478%",
+        "10_day_avg_slope": "0.667%",
+        "adj_price_above_avg_pct": "3.384%",
+        "sma150_adj_close": 224.7743
+    },
+    "AON": {
+        "date": "2025-12-25",
+        "adj_close": 356.65,
+        "close": 356.65,
+        "5_day_rise": "1.028%",
+        "10_day_avg_slope": "-0.055%",
+        "adj_price_above_avg_pct": "0.198%",
+        "sma150_adj_close": 355.9469
+    },
+    "AOS": {
+        "date": "2025-12-25",
+        "adj_close": 67.96,
+        "close": 67.96,
+        "5_day_rise": "-0.337%",
+        "10_day_avg_slope": "-0.031%",
+        "adj_price_above_avg_pct": "-0.538%",
+        "sma150_adj_close": 68.3275
+    },
+    "APO": {
+        "date": "2025-12-25",
+        "adj_close": 148.85,
+        "close": 148.85,
+        "5_day_rise": "1.743%",
+        "10_day_avg_slope": "0.456%",
+        "adj_price_above_avg_pct": "9.503%",
+        "sma150_adj_close": 135.9322
+    },
+    "APTV": {
+        "date": "2025-12-25",
+        "adj_close": 76.77,
+        "close": 76.77,
+        "5_day_rise": "-1.057%",
+        "10_day_avg_slope": "0.892%",
+        "adj_price_above_avg_pct": "0.779%",
+        "sma150_adj_close": 76.1766
+    },
+    "AVGO": {
+        "date": "2025-12-25",
+        "adj_close": 350.22,
+        "close": 350.22,
+        "5_day_rise": "6.369%",
+        "10_day_avg_slope": "2.496%",
+        "adj_price_above_avg_pct": "10.265%",
+        "sma150_adj_close": 317.617
+    },
+    "ATO": {
+        "date": "2025-12-25",
+        "adj_close": 168.4,
+        "close": 168.4,
+        "5_day_rise": "-0.602%",
+        "10_day_avg_slope": "0.590%",
+        "adj_price_above_avg_pct": "2.826%",
+        "sma150_adj_close": 163.7723
+    },
+    "AVLV": {
+        "date": "2025-12-25",
+        "adj_close": 76.71,
+        "close": 76.71,
+        "5_day_rise": "1.900%",
+        "10_day_avg_slope": "1.001%",
+        "adj_price_above_avg_pct": "8.442%",
+        "sma150_adj_close": 70.7382
+    },
+    "AVY": {
+        "date": "2025-12-25",
+        "adj_close": 181.71,
+        "close": 181.71,
+        "5_day_rise": "-0.835%",
+        "10_day_avg_slope": "0.161%",
+        "adj_price_above_avg_pct": "5.694%",
+        "sma150_adj_close": 171.9201
+    },
+    "BA": {
+        "date": "2025-12-25",
+        "adj_close": 218.16,
+        "close": 218.16,
+        "5_day_rise": "4.749%",
+        "10_day_avg_slope": "0.257%",
+        "adj_price_above_avg_pct": "1.957%",
+        "sma150_adj_close": 213.9723
+    },
+    "BBAX": {
+        "date": "2025-12-25",
+        "adj_close": 57.15,
+        "close": 57.15,
+        "5_day_rise": "2.481%",
+        "10_day_avg_slope": "0.700%",
+        "adj_price_above_avg_pct": "4.431%",
+        "sma150_adj_close": 54.7249
+    },
+    "BALL": {
+        "date": "2025-12-25",
+        "adj_close": 52.27,
+        "close": 52.27,
+        "5_day_rise": "-0.343%",
+        "10_day_avg_slope": "-0.102%",
+        "adj_price_above_avg_pct": "0.846%",
+        "sma150_adj_close": 51.8315
+    },
+    "BBEU": {
+        "date": "2025-12-25",
+        "adj_close": 73.39,
+        "close": 73.39,
+        "5_day_rise": "1.583%",
+        "10_day_avg_slope": "0.825%",
+        "adj_price_above_avg_pct": "7.294%",
+        "sma150_adj_close": 68.4008
+    },
+    "BBIN": {
+        "date": "2025-12-25",
+        "adj_close": 72.84,
+        "close": 72.84,
+        "5_day_rise": "1.908%",
+        "10_day_avg_slope": "0.885%",
+        "adj_price_above_avg_pct": "7.148%",
+        "sma150_adj_close": 67.9809
+    },
+    "BBJP": {
+        "date": "2025-12-25",
+        "adj_close": 66.07,
+        "close": 66.07,
+        "5_day_rise": "1.267%",
+        "10_day_avg_slope": "1.053%",
+        "adj_price_above_avg_pct": "6.949%",
+        "sma150_adj_close": 61.7771
+    },
+    "BBUS": {
+        "date": "2025-12-25",
+        "adj_close": 124.82,
+        "close": 124.82,
+        "5_day_rise": "2.298%",
+        "10_day_avg_slope": "1.044%",
+        "adj_price_above_avg_pct": "6.883%",
+        "sma150_adj_close": 116.7816
+    },
+    "BBY": {
+        "date": "2025-12-25",
+        "adj_close": 69.74,
+        "close": 69.74,
+        "5_day_rise": "-2.815%",
+        "10_day_avg_slope": "0.193%",
+        "adj_price_above_avg_pct": "-3.046%",
+        "sma150_adj_close": 71.9308
+    },
+    "BEN": {
+        "date": "2025-12-25",
+        "adj_close": 24.18,
+        "close": 24.18,
+        "5_day_rise": "1.172%",
+        "10_day_avg_slope": "0.772%",
+        "adj_price_above_avg_pct": "3.571%",
+        "sma150_adj_close": 23.3463
+    },
+    "BG": {
+        "date": "2025-12-25",
+        "adj_close": 88.69,
+        "close": 88.69,
+        "5_day_rise": "-3.304%",
+        "10_day_avg_slope": "1.005%",
+        "adj_price_above_avg_pct": "5.247%",
+        "sma150_adj_close": 84.2684
+    },
+    "BDX": {
+        "date": "2025-12-25",
+        "adj_close": 196.12,
+        "close": 196.12,
+        "5_day_rise": "0.729%",
+        "10_day_avg_slope": "0.956%",
+        "adj_price_above_avg_pct": "6.738%",
+        "sma150_adj_close": 183.7398
+    },
+    "BIL": {
+        "date": "2025-12-25",
+        "adj_close": 91.33,
+        "close": 91.33,
+        "5_day_rise": "0.066%",
+        "10_day_avg_slope": "0.162%",
+        "adj_price_above_avg_pct": "1.157%",
+        "sma150_adj_close": 90.2857
+    },
+    "BIO": {
+        "date": "2025-12-25",
+        "adj_close": 301.75,
+        "close": 301.75,
+        "5_day_rise": "0.630%",
+        "10_day_avg_slope": "1.446%",
+        "adj_price_above_avg_pct": "7.184%",
+        "sma150_adj_close": 281.5248
+    },
+    "BKNG": {
+        "date": "2025-12-25",
+        "adj_close": 5446.51,
+        "close": 5446.51,
+        "5_day_rise": "1.890%",
+        "10_day_avg_slope": "0.208%",
+        "adj_price_above_avg_pct": "1.485%",
+        "sma150_adj_close": 5366.8283
+    },
+    "BKR": {
+        "date": "2025-12-25",
+        "adj_close": 45.3,
+        "close": 45.3,
+        "5_day_rise": "1.866%",
+        "10_day_avg_slope": "1.284%",
+        "adj_price_above_avg_pct": "2.344%",
+        "sma150_adj_close": 44.2624
+    },
+    "BLK": {
+        "date": "2025-12-25",
+        "adj_close": 1088.96,
+        "close": 1088.96,
+        "5_day_rise": "2.251%",
+        "10_day_avg_slope": "0.753%",
+        "adj_price_above_avg_pct": "0.868%",
+        "sma150_adj_close": 1079.587
+    },
+    "BNDX": {
+        "date": "2025-12-25",
+        "adj_close": 48.42,
+        "close": 48.42,
+        "5_day_rise": "0.165%",
+        "10_day_avg_slope": "0.139%",
+        "adj_price_above_avg_pct": "0.640%",
+        "sma150_adj_close": 48.1122
+    },
+    "BND": {
+        "date": "2025-12-25",
+        "adj_close": 74.19,
+        "close": 74.19,
+        "5_day_rise": "0.054%",
+        "10_day_avg_slope": "0.331%",
+        "adj_price_above_avg_pct": "1.867%",
+        "sma150_adj_close": 72.8303
+    },
+    "BRK-B": {
+        "date": "2025-12-25",
+        "adj_close": 501.34,
+        "close": 501.34,
+        "5_day_rise": "-0.407%",
+        "10_day_avg_slope": "-0.116%",
+        "adj_price_above_avg_pct": "2.099%",
+        "sma150_adj_close": 491.0319
+    },
+    "BSV": {
+        "date": "2025-12-25",
+        "adj_close": 78.74,
+        "close": 78.74,
+        "5_day_rise": "-0.025%",
+        "10_day_avg_slope": "0.234%",
+        "adj_price_above_avg_pct": "1.455%",
+        "sma150_adj_close": 77.6109
+    },
+    "BUFR": {
+        "date": "2025-12-25",
+        "adj_close": 34.4,
+        "close": 34.4,
+        "5_day_rise": "1.117%",
+        "10_day_avg_slope": "0.727%",
+        "adj_price_above_avg_pct": "4.811%",
+        "sma150_adj_close": 32.8209
+    },
+    "BX": {
+        "date": "2025-12-25",
+        "adj_close": 155.57,
+        "close": 155.57,
+        "5_day_rise": "1.197%",
+        "10_day_avg_slope": "0.481%",
+        "adj_price_above_avg_pct": "-0.849%",
+        "sma150_adj_close": 156.9015
+    },
+    "BXP": {
+        "date": "2025-12-25",
+        "adj_close": 69.22,
+        "close": 69.22,
+        "5_day_rise": "0.043%",
+        "10_day_avg_slope": "0.482%",
+        "adj_price_above_avg_pct": "-1.427%",
+        "sma150_adj_close": 70.222
+    },
+    "CBOE": {
+        "date": "2025-12-25",
+        "adj_close": 255.96,
+        "close": 255.96,
+        "5_day_rise": "2.932%",
+        "10_day_avg_slope": "0.801%",
+        "adj_price_above_avg_pct": "6.057%",
+        "sma150_adj_close": 241.3408
+    },
+    "CB": {
+        "date": "2025-12-25",
+        "adj_close": 313.32,
+        "close": 313.32,
+        "5_day_rise": "0.759%",
+        "10_day_avg_slope": "0.544%",
+        "adj_price_above_avg_pct": "10.343%",
+        "sma150_adj_close": 283.9514
+    },
+    "CBRE": {
+        "date": "2025-12-25",
+        "adj_close": 164.94,
+        "close": 164.94,
+        "5_day_rise": "2.728%",
+        "10_day_avg_slope": "1.505%",
+        "adj_price_above_avg_pct": "8.728%",
+        "sma150_adj_close": 151.7001
+    },
+    "CCL": {
+        "date": "2025-12-25",
+        "adj_close": 31.25,
+        "close": 31.25,
+        "5_day_rise": "10.268%",
+        "10_day_avg_slope": "1.758%",
+        "adj_price_above_avg_pct": "10.811%",
+        "sma150_adj_close": 28.2011
+    },
+    "CDNS": {
+        "date": "2025-12-25",
+        "adj_close": 317.76,
+        "close": 317.76,
+        "5_day_rise": "0.844%",
+        "10_day_avg_slope": "0.007%",
+        "adj_price_above_avg_pct": "-3.604%",
+        "sma150_adj_close": 329.6412
+    },
+    "CEG": {
+        "date": "2025-12-25",
+        "adj_close": 363.95,
+        "close": 363.95,
+        "5_day_rise": "0.803%",
+        "10_day_avg_slope": "1.430%",
+        "adj_price_above_avg_pct": "8.231%",
+        "sma150_adj_close": 336.2717
+    },
+    "CGGO": {
+        "date": "2025-12-25",
+        "adj_close": 35.28,
+        "close": 35.28,
+        "5_day_rise": "2.678%",
+        "10_day_avg_slope": "0.991%",
+        "adj_price_above_avg_pct": "6.393%",
+        "sma150_adj_close": 33.1601
+    },
+    "CGGR": {
+        "date": "2025-12-25",
+        "adj_close": 45.18,
+        "close": 45.18,
+        "5_day_rise": "2.752%",
+        "10_day_avg_slope": "1.067%",
+        "adj_price_above_avg_pct": "6.414%",
+        "sma150_adj_close": 42.4567
+    },
+    "CINF": {
+        "date": "2025-12-25",
+        "adj_close": 165.87,
+        "close": 165.87,
+        "5_day_rise": "-0.699%",
+        "10_day_avg_slope": "0.869%",
+        "adj_price_above_avg_pct": "7.796%",
+        "sma150_adj_close": 153.8734
+    },
+    "CME": {
+        "date": "2025-12-25",
+        "adj_close": 276.38,
+        "close": 276.38,
+        "5_day_rise": "3.891%",
+        "10_day_avg_slope": "0.020%",
+        "adj_price_above_avg_pct": "2.133%",
+        "sma150_adj_close": 270.6084
+    },
+    "CMS": {
+        "date": "2025-12-25",
+        "adj_close": 70.11,
+        "close": 70.11,
+        "5_day_rise": "-0.708%",
+        "10_day_avg_slope": "0.039%",
+        "adj_price_above_avg_pct": "-1.659%",
+        "sma150_adj_close": 71.293
+    },
+    "CNP": {
+        "date": "2025-12-25",
+        "adj_close": 38.2,
+        "close": 38.2,
+        "5_day_rise": "-0.105%",
+        "10_day_avg_slope": "0.241%",
+        "adj_price_above_avg_pct": "1.005%",
+        "sma150_adj_close": 37.8199
+    },
+    "COP": {
+        "date": "2025-12-25",
+        "adj_close": 91.8,
+        "close": 91.8,
+        "5_day_rise": "-0.466%",
+        "10_day_avg_slope": "0.318%",
+        "adj_price_above_avg_pct": "0.836%",
+        "sma150_adj_close": 91.0387
+    },
+    "COR": {
+        "date": "2025-12-25",
+        "adj_close": 339.98,
+        "close": 339.98,
+        "5_day_rise": "-0.176%",
+        "10_day_avg_slope": "1.239%",
+        "adj_price_above_avg_pct": "8.869%",
+        "sma150_adj_close": 312.2829
+    },
+    "CRWD": {
+        "date": "2025-12-25",
+        "adj_close": 477.11,
+        "close": 477.11,
+        "5_day_rise": "-0.031%",
+        "10_day_avg_slope": "0.659%",
+        "adj_price_above_avg_pct": "-0.942%",
+        "sma150_adj_close": 481.6451
+    },
+    "CSX": {
+        "date": "2025-12-25",
+        "adj_close": 36.78,
+        "close": 36.78,
+        "5_day_rise": "0.464%",
+        "10_day_avg_slope": "1.270%",
+        "adj_price_above_avg_pct": "7.290%",
+        "sma150_adj_close": 34.281
+    },
+    "CTVA": {
+        "date": "2025-12-25",
+        "adj_close": 67.33,
+        "close": 67.33,
+        "5_day_rise": "0.553%",
+        "10_day_avg_slope": "-0.121%",
+        "adj_price_above_avg_pct": "-2.367%",
+        "sma150_adj_close": 68.9626
+    },
+    "CTRA": {
+        "date": "2025-12-25",
+        "adj_close": 25.69,
+        "close": 25.69,
+        "5_day_rise": "1.022%",
+        "10_day_avg_slope": "0.478%",
+        "adj_price_above_avg_pct": "4.646%",
+        "sma150_adj_close": 24.5495
+    },
+    "CVS": {
+        "date": "2025-12-25",
+        "adj_close": 79.12,
+        "close": 79.12,
+        "5_day_rise": "1.710%",
+        "10_day_avg_slope": "1.638%",
+        "adj_price_above_avg_pct": "10.537%",
+        "sma150_adj_close": 71.5775
+    },
+    "CVX": {
+        "date": "2025-12-25",
+        "adj_close": 150.5,
+        "close": 150.5,
+        "5_day_rise": "1.903%",
+        "10_day_avg_slope": "0.620%",
+        "adj_price_above_avg_pct": "0.527%",
+        "sma150_adj_close": 149.7105
+    },
+    "DASH": {
+        "date": "2025-12-25",
+        "adj_close": 232.06,
+        "close": 232.06,
+        "5_day_rise": "0.485%",
+        "10_day_avg_slope": "0.895%",
+        "adj_price_above_avg_pct": "-2.999%",
+        "sma150_adj_close": 239.2343
+    },
+    "D": {
+        "date": "2025-12-25",
+        "adj_close": 59.01,
+        "close": 59.01,
+        "5_day_rise": "-1.814%",
+        "10_day_avg_slope": "0.639%",
+        "adj_price_above_avg_pct": "1.294%",
+        "sma150_adj_close": 58.2562
+    },
+    "DAY": {
+        "date": "2025-12-25",
+        "adj_close": 69.14,
+        "close": 69.14,
+        "5_day_rise": "-0.188%",
+        "10_day_avg_slope": "1.089%",
+        "adj_price_above_avg_pct": "7.724%",
+        "sma150_adj_close": 64.1828
+    },
+    "DDOG": {
+        "date": "2025-12-25",
+        "adj_close": 138.04,
+        "close": 138.04,
+        "5_day_rise": "-0.181%",
+        "10_day_avg_slope": "1.162%",
+        "adj_price_above_avg_pct": "-4.108%",
+        "sma150_adj_close": 143.9536
+    },
+    "DELL": {
+        "date": "2025-12-25",
+        "adj_close": 128.38,
+        "close": 128.38,
+        "5_day_rise": "4.425%",
+        "10_day_avg_slope": "0.998%",
+        "adj_price_above_avg_pct": "-2.511%",
+        "sma150_adj_close": 131.6865
+    },
+    "DFAC": {
+        "date": "2025-12-25",
+        "adj_close": 40.13,
+        "close": 40.13,
+        "5_day_rise": "1.930%",
+        "10_day_avg_slope": "1.028%",
+        "adj_price_above_avg_pct": "7.206%",
+        "sma150_adj_close": 37.4326
+    },
+    "DGRO": {
+        "date": "2025-12-25",
+        "adj_close": 70.18,
+        "close": 70.18,
+        "5_day_rise": "1.431%",
+        "10_day_avg_slope": "0.900%",
+        "adj_price_above_avg_pct": "6.383%",
+        "sma150_adj_close": 65.969
+    },
+    "DGRW": {
+        "date": "2025-12-25",
+        "adj_close": 90.59,
+        "close": 90.59,
+        "5_day_rise": "2.039%",
+        "10_day_avg_slope": "0.751%",
+        "adj_price_above_avg_pct": "4.591%",
+        "sma150_adj_close": 86.6137
+    },
+    "DGX": {
+        "date": "2025-12-25",
+        "adj_close": 175.92,
+        "close": 175.92,
+        "5_day_rise": "-0.131%",
+        "10_day_avg_slope": "0.168%",
+        "adj_price_above_avg_pct": "-1.564%",
+        "sma150_adj_close": 178.7158
+    },
+    "DIA": {
+        "date": "2025-12-25",
+        "adj_close": 487.01,
+        "close": 487.01,
+        "5_day_rise": "1.573%",
+        "10_day_avg_slope": "0.973%",
+        "adj_price_above_avg_pct": "7.484%",
+        "sma150_adj_close": 453.1007
+    },
+    "DHI": {
+        "date": "2025-12-25",
+        "adj_close": 146.63,
+        "close": 146.63,
+        "5_day_rise": "-3.151%",
+        "10_day_avg_slope": "1.253%",
+        "adj_price_above_avg_pct": "-1.720%",
+        "sma150_adj_close": 149.1966
+    },
+    "DIVO": {
+        "date": "2025-12-25",
+        "adj_close": 46.14,
+        "close": 46.14,
+        "5_day_rise": "1.630%",
+        "10_day_avg_slope": "0.900%",
+        "adj_price_above_avg_pct": "6.857%",
+        "sma150_adj_close": 43.1793
+    },
+    "DIS": {
+        "date": "2025-12-25",
+        "adj_close": 114.48,
+        "close": 114.48,
+        "5_day_rise": "2.333%",
+        "10_day_avg_slope": "0.120%",
+        "adj_price_above_avg_pct": "0.784%",
+        "sma150_adj_close": 113.5892
+    },
+    "DLN": {
+        "date": "2025-12-25",
+        "adj_close": 89.16,
+        "close": 89.16,
+        "5_day_rise": "1.885%",
+        "10_day_avg_slope": "0.799%",
+        "adj_price_above_avg_pct": "5.360%",
+        "sma150_adj_close": 84.6239
+    },
+    "DOC": {
+        "date": "2025-12-25",
+        "adj_close": 16.03,
+        "close": 16.03,
+        "5_day_rise": "-1.705%",
+        "10_day_avg_slope": "-0.149%",
+        "adj_price_above_avg_pct": "-7.633%",
+        "sma150_adj_close": 17.3547
+    },
+    "DUHP": {
+        "date": "2025-12-25",
+        "adj_close": 38.51,
+        "close": 38.51,
+        "5_day_rise": "1.905%",
+        "10_day_avg_slope": "0.783%",
+        "adj_price_above_avg_pct": "4.981%",
+        "sma150_adj_close": 36.6828
+    },
+    "DUK": {
+        "date": "2025-12-25",
+        "adj_close": 117.48,
+        "close": 117.48,
+        "5_day_rise": "-0.060%",
+        "10_day_avg_slope": "0.173%",
+        "adj_price_above_avg_pct": "-1.831%",
+        "sma150_adj_close": 119.6708
+    },
+    "DVN": {
+        "date": "2025-12-25",
+        "adj_close": 36.2,
+        "close": 36.2,
+        "5_day_rise": "1.344%",
+        "10_day_avg_slope": "0.803%",
+        "adj_price_above_avg_pct": "7.164%",
+        "sma150_adj_close": 33.7799
+    },
+    "DYNF": {
+        "date": "2025-12-25",
+        "adj_close": 61.67,
+        "close": 61.67,
+        "5_day_rise": "2.510%",
+        "10_day_avg_slope": "1.131%",
+        "adj_price_above_avg_pct": "7.779%",
+        "sma150_adj_close": 57.2187
+    },
+    "EBAY": {
+        "date": "2025-12-25",
+        "adj_close": 84.6,
+        "close": 84.6,
+        "5_day_rise": "1.124%",
+        "10_day_avg_slope": "1.086%",
+        "adj_price_above_avg_pct": "-0.673%",
+        "sma150_adj_close": 85.1729
+    },
+    "ECL": {
+        "date": "2025-12-25",
+        "adj_close": 265.58,
+        "close": 265.58,
+        "5_day_rise": "1.012%",
+        "10_day_avg_slope": "0.215%",
+        "adj_price_above_avg_pct": "-0.672%",
+        "sma150_adj_close": 267.378
+    },
+    "EEM": {
+        "date": "2025-12-25",
+        "adj_close": 54.42,
+        "close": 54.42,
+        "5_day_rise": "2.293%",
+        "10_day_avg_slope": "1.156%",
+        "adj_price_above_avg_pct": "7.491%",
+        "sma150_adj_close": 50.6275
+    },
+    "EFA": {
+        "date": "2025-12-25",
+        "adj_close": 96.41,
+        "close": 96.41,
+        "5_day_rise": "1.677%",
+        "10_day_avg_slope": "0.838%",
+        "adj_price_above_avg_pct": "6.630%",
+        "sma150_adj_close": 90.4152
+    },
+    "EFAV": {
+        "date": "2025-12-25",
+        "adj_close": 86.54,
+        "close": 86.54,
+        "5_day_rise": "1.039%",
+        "10_day_avg_slope": "0.490%",
+        "adj_price_above_avg_pct": "3.622%",
+        "sma150_adj_close": 83.515
+    },
+    "EFG": {
+        "date": "2025-12-25",
+        "adj_close": 114.67,
+        "close": 114.67,
+        "5_day_rise": "1.820%",
+        "10_day_avg_slope": "0.509%",
+        "adj_price_above_avg_pct": "3.529%",
+        "sma150_adj_close": 110.7614
+    },
+    "EFV": {
+        "date": "2025-12-25",
+        "adj_close": 71.56,
+        "close": 71.56,
+        "5_day_rise": "1.532%",
+        "10_day_avg_slope": "1.147%",
+        "adj_price_above_avg_pct": "9.506%",
+        "sma150_adj_close": 65.3479
+    },
+    "EIX": {
+        "date": "2025-12-25",
+        "adj_close": 60.1,
+        "close": 60.1,
+        "5_day_rise": "-0.116%",
+        "10_day_avg_slope": "0.529%",
+        "adj_price_above_avg_pct": "10.585%",
+        "sma150_adj_close": 54.3475
+    },
+    "EMXC": {
+        "date": "2025-12-25",
+        "adj_close": 71.95,
+        "close": 71.95,
+        "5_day_rise": "2.947%",
+        "10_day_avg_slope": "1.331%",
+        "adj_price_above_avg_pct": "10.160%",
+        "sma150_adj_close": 65.314
+    },
+    "EMR": {
+        "date": "2025-12-25",
+        "adj_close": 136.3,
+        "close": 136.3,
+        "5_day_rise": "3.571%",
+        "10_day_avg_slope": "0.878%",
+        "adj_price_above_avg_pct": "2.987%",
+        "sma150_adj_close": 132.3474
+    },
+    "EQT": {
+        "date": "2025-12-25",
+        "adj_close": 53.89,
+        "close": 53.89,
+        "5_day_rise": "0.242%",
+        "10_day_avg_slope": "-0.151%",
+        "adj_price_above_avg_pct": "-1.555%",
+        "sma150_adj_close": 54.741
+    },
+    "ES": {
+        "date": "2025-12-25",
+        "adj_close": 67.16,
+        "close": 67.16,
+        "5_day_rise": "-1.206%",
+        "10_day_avg_slope": "0.578%",
+        "adj_price_above_avg_pct": "1.468%",
+        "sma150_adj_close": 66.1884
+    },
+    "ESGD": {
+        "date": "2025-12-25",
+        "adj_close": 95.53,
+        "close": 95.53,
+        "5_day_rise": "1.682%",
+        "10_day_avg_slope": "0.804%",
+        "adj_price_above_avg_pct": "6.271%",
+        "sma150_adj_close": 89.8929
+    },
+    "ESGE": {
+        "date": "2025-12-25",
+        "adj_close": 43.9515,
+        "close": 43.9515,
+        "5_day_rise": "2.118%",
+        "10_day_avg_slope": "1.201%",
+        "adj_price_above_avg_pct": "7.286%",
+        "sma150_adj_close": 40.9668
+    },
+    "ESGU": {
+        "date": "2025-12-25",
+        "adj_close": 150.88,
+        "close": 150.88,
+        "5_day_rise": "2.340%",
+        "10_day_avg_slope": "1.039%",
+        "adj_price_above_avg_pct": "6.971%",
+        "sma150_adj_close": 141.0481
+    },
+    "ESGV": {
+        "date": "2025-12-25",
+        "adj_close": 122.48,
+        "close": 122.48,
+        "5_day_rise": "2.361%",
+        "10_day_avg_slope": "1.057%",
+        "adj_price_above_avg_pct": "6.939%",
+        "sma150_adj_close": 114.5329
+    },
+    "ETSY": {
+        "date": "2025-12-25",
+        "adj_close": 55.97,
+        "close": 55.97,
+        "5_day_rise": "4.266%",
+        "10_day_avg_slope": "0.826%",
+        "adj_price_above_avg_pct": "-6.273%",
+        "sma150_adj_close": 59.7163
+    },
+    "ETN": {
+        "date": "2025-12-25",
+        "adj_close": 323.67,
+        "close": 323.67,
+        "5_day_rise": "2.443%",
+        "10_day_avg_slope": "-0.007%",
+        "adj_price_above_avg_pct": "-8.804%",
+        "sma150_adj_close": 354.9184
+    },
+    "EVRG": {
+        "date": "2025-12-25",
+        "adj_close": 73.01,
+        "close": 73.01,
+        "5_day_rise": "-0.382%",
+        "10_day_avg_slope": "0.844%",
+        "adj_price_above_avg_pct": "1.859%",
+        "sma150_adj_close": 71.6776
+    },
+    "ETR": {
+        "date": "2025-12-25",
+        "adj_close": 92.67,
+        "close": 92.67,
+        "5_day_rise": "0.499%",
+        "10_day_avg_slope": "0.854%",
+        "adj_price_above_avg_pct": "3.920%",
+        "sma150_adj_close": 89.1744
+    },
+    "EW": {
+        "date": "2025-12-25",
+        "adj_close": 86.29,
+        "close": 86.29,
+        "5_day_rise": "1.757%",
+        "10_day_avg_slope": "0.762%",
+        "adj_price_above_avg_pct": "8.743%",
+        "sma150_adj_close": 79.3525
+    },
+    "EWJ": {
+        "date": "2025-12-25",
+        "adj_close": 81.0,
+        "close": 81.0,
+        "5_day_rise": "1.288%",
+        "10_day_avg_slope": "1.026%",
+        "adj_price_above_avg_pct": "6.621%",
+        "sma150_adj_close": 75.9698
+    },
+    "EWT": {
+        "date": "2025-12-25",
+        "adj_close": 62.53,
+        "close": 62.53,
+        "5_day_rise": "2.727%",
+        "10_day_avg_slope": "1.208%",
+        "adj_price_above_avg_pct": "6.826%",
+        "sma150_adj_close": 58.5342
+    },
+    "EWZ": {
+        "date": "2025-12-25",
+        "adj_close": 31.55,
+        "close": 31.55,
+        "5_day_rise": "1.219%",
+        "10_day_avg_slope": "1.168%",
+        "adj_price_above_avg_pct": "9.523%",
+        "sma150_adj_close": 28.8069
+    },
+    "EXE": {
+        "date": "2025-12-25",
+        "adj_close": 109.17,
+        "close": 109.17,
+        "5_day_rise": "1.327%",
+        "10_day_avg_slope": "-0.107%",
+        "adj_price_above_avg_pct": "2.553%",
+        "sma150_adj_close": 106.4528
+    },
+    "EXC": {
+        "date": "2025-12-25",
+        "adj_close": 43.52,
+        "close": 43.52,
+        "5_day_rise": "-1.716%",
+        "10_day_avg_slope": "0.115%",
+        "adj_price_above_avg_pct": "-1.264%",
+        "sma150_adj_close": 44.0769
+    },
+    "EZU": {
+        "date": "2025-12-25",
+        "adj_close": 64.2,
+        "close": 64.2,
+        "5_day_rise": "1.182%",
+        "10_day_avg_slope": "0.821%",
+        "adj_price_above_avg_pct": "6.587%",
+        "sma150_adj_close": 60.2324
+    },
+    "FANG": {
+        "date": "2025-12-25",
+        "adj_close": 146.91,
+        "close": 146.91,
+        "5_day_rise": "-0.061%",
+        "10_day_avg_slope": "0.551%",
+        "adj_price_above_avg_pct": "2.567%",
+        "sma150_adj_close": 143.2332
+    },
+    "FAST": {
+        "date": "2025-12-25",
+        "adj_close": 41.83,
+        "close": 41.83,
+        "5_day_rise": "-1.205%",
+        "10_day_avg_slope": "0.282%",
+        "adj_price_above_avg_pct": "-4.966%",
+        "sma150_adj_close": 44.0157
+    },
+    "FDL": {
+        "date": "2025-12-25",
+        "adj_close": 44.42,
+        "close": 44.42,
+        "5_day_rise": "0.612%",
+        "10_day_avg_slope": "0.640%",
+        "adj_price_above_avg_pct": "4.791%",
+        "sma150_adj_close": 42.3893
+    },
+    "FDN": {
+        "date": "2025-12-25",
+        "adj_close": 272.1,
+        "close": 272.1,
+        "5_day_rise": "1.541%",
+        "10_day_avg_slope": "0.490%",
+        "adj_price_above_avg_pct": "0.289%",
+        "sma150_adj_close": 271.3159
+    },
+    "FDVV": {
+        "date": "2025-12-25",
+        "adj_close": 57.09,
+        "close": 57.09,
+        "5_day_rise": "1.770%",
+        "10_day_avg_slope": "0.941%",
+        "adj_price_above_avg_pct": "5.877%",
+        "sma150_adj_close": 53.9209
+    },
+    "FE": {
+        "date": "2025-12-25",
+        "adj_close": 44.85,
+        "close": 44.85,
+        "5_day_rise": "0.515%",
+        "10_day_avg_slope": "0.493%",
+        "adj_price_above_avg_pct": "3.790%",
+        "sma150_adj_close": 43.2123
+    },
+    "FNDF": {
+        "date": "2025-12-25",
+        "adj_close": 45.21,
+        "close": 45.21,
+        "5_day_rise": "1.733%",
+        "10_day_avg_slope": "1.282%",
+        "adj_price_above_avg_pct": "9.925%",
+        "sma150_adj_close": 41.128
+    },
+    "FNDE": {
+        "date": "2025-12-25",
+        "adj_close": 36.03,
+        "close": 36.03,
+        "5_day_rise": "1.924%",
+        "10_day_avg_slope": "1.013%",
+        "adj_price_above_avg_pct": "6.635%",
+        "sma150_adj_close": 33.7882
+    },
+    "FNDX": {
+        "date": "2025-12-25",
+        "adj_close": 27.46,
+        "close": 27.46,
+        "5_day_rise": "1.478%",
+        "10_day_avg_slope": "1.023%",
+        "adj_price_above_avg_pct": "7.590%",
+        "sma150_adj_close": 25.5228
+    },
+    "FRT": {
+        "date": "2025-12-25",
+        "adj_close": 102.33,
+        "close": 102.33,
+        "5_day_rise": "0.669%",
+        "10_day_avg_slope": "0.517%",
+        "adj_price_above_avg_pct": "6.248%",
+        "sma150_adj_close": 96.312
+    },
+    "FTV": {
+        "date": "2025-12-25",
+        "adj_close": 55.46,
+        "close": 55.46,
+        "5_day_rise": "1.445%",
+        "10_day_avg_slope": "0.137%",
+        "adj_price_above_avg_pct": "9.015%",
+        "sma150_adj_close": 50.8739
+    },
+    "FTEC": {
+        "date": "2025-12-25",
+        "adj_close": 228.54,
+        "close": 228.54,
+        "5_day_rise": "3.523%",
+        "10_day_avg_slope": "1.431%",
+        "adj_price_above_avg_pct": "7.995%",
+        "sma150_adj_close": 211.6204
+    },
+    "FTCS": {
+        "date": "2025-12-25",
+        "adj_close": 93.6543,
+        "close": 93.6543,
+        "5_day_rise": "1.248%",
+        "10_day_avg_slope": "0.214%",
+        "adj_price_above_avg_pct": "2.276%",
+        "sma150_adj_close": 91.5699
+    },
+    "FXI": {
+        "date": "2025-12-25",
+        "adj_close": 38.55,
+        "close": 38.55,
+        "5_day_rise": "0.890%",
+        "10_day_avg_slope": "0.600%",
+        "adj_price_above_avg_pct": "0.741%",
+        "sma150_adj_close": 38.2665
+    },
+    "GEHC": {
+        "date": "2025-12-25",
+        "adj_close": 83.39,
+        "close": 83.39,
+        "5_day_rise": "1.054%",
+        "10_day_avg_slope": "1.005%",
+        "adj_price_above_avg_pct": "10.634%",
+        "sma150_adj_close": 75.3745
+    },
+    "GEN": {
+        "date": "2025-12-25",
+        "adj_close": 27.64,
+        "close": 27.64,
+        "5_day_rise": "-0.181%",
+        "10_day_avg_slope": "-0.148%",
+        "adj_price_above_avg_pct": "-2.624%",
+        "sma150_adj_close": 28.3849
+    },
+    "GD": {
+        "date": "2025-12-25",
+        "adj_close": 345.39,
+        "close": 345.39,
+        "5_day_rise": "2.386%",
+        "10_day_avg_slope": "1.414%",
+        "adj_price_above_avg_pct": "8.364%",
+        "sma150_adj_close": 318.7308
+    },
+    "GILD": {
+        "date": "2025-12-25",
+        "adj_close": 125.67,
+        "close": 125.67,
+        "5_day_rise": "3.458%",
+        "10_day_avg_slope": "1.256%",
+        "adj_price_above_avg_pct": "9.343%",
+        "sma150_adj_close": 114.9323
+    },
+    "GL": {
+        "date": "2025-12-25",
+        "adj_close": 143.5,
+        "close": 143.5,
+        "5_day_rise": "3.588%",
+        "10_day_avg_slope": "1.044%",
+        "adj_price_above_avg_pct": "8.056%",
+        "sma150_adj_close": 132.8017
+    },
+    "GPN": {
+        "date": "2025-12-25",
+        "adj_close": 81.19,
+        "close": 81.19,
+        "5_day_rise": "-1.132%",
+        "10_day_avg_slope": "0.120%",
+        "adj_price_above_avg_pct": "0.049%",
+        "sma150_adj_close": 81.1503
+    },
+    "GPC": {
+        "date": "2025-12-25",
+        "adj_close": 125.49,
+        "close": 125.49,
+        "5_day_rise": "-0.349%",
+        "10_day_avg_slope": "0.266%",
+        "adj_price_above_avg_pct": "-2.799%",
+        "sma150_adj_close": 129.1031
+    },
+    "GRMN": {
+        "date": "2025-12-25",
+        "adj_close": 205.0,
+        "close": 205.0,
+        "5_day_rise": "1.385%",
+        "10_day_avg_slope": "0.192%",
+        "adj_price_above_avg_pct": "-6.734%",
+        "sma150_adj_close": 219.8004
+    },
+    "GSLC": {
+        "date": "2025-12-25",
+        "adj_close": 134.04,
+        "close": 134.04,
+        "5_day_rise": "2.206%",
+        "10_day_avg_slope": "0.945%",
+        "adj_price_above_avg_pct": "6.328%",
+        "sma150_adj_close": 126.0631
+    },
+    "GUNR": {
+        "date": "2025-12-25",
+        "adj_close": 46.08,
+        "close": 46.08,
+        "5_day_rise": "2.309%",
+        "10_day_avg_slope": "1.202%",
+        "adj_price_above_avg_pct": "9.574%",
+        "sma150_adj_close": 42.0536
+    },
+    "HAS": {
+        "date": "2025-12-25",
+        "adj_close": 81.63,
+        "close": 81.63,
+        "5_day_rise": "-0.488%",
+        "10_day_avg_slope": "1.531%",
+        "adj_price_above_avg_pct": "8.149%",
+        "sma150_adj_close": 75.479
+    },
+    "HBAN": {
+        "date": "2025-12-25",
+        "adj_close": 17.74,
+        "close": 17.74,
+        "5_day_rise": "0.853%",
+        "10_day_avg_slope": "0.930%",
+        "adj_price_above_avg_pct": "8.364%",
+        "sma150_adj_close": 16.3707
+    },
+    "HDV": {
+        "date": "2025-12-25",
+        "adj_close": 122.02,
+        "close": 122.02,
+        "5_day_rise": "0.643%",
+        "10_day_avg_slope": "0.514%",
+        "adj_price_above_avg_pct": "2.805%",
+        "sma150_adj_close": 118.6907
+    },
+    "HEFA": {
+        "date": "2025-12-25",
+        "adj_close": 41.38,
+        "close": 41.38,
+        "5_day_rise": "1.327%",
+        "10_day_avg_slope": "0.923%",
+        "adj_price_above_avg_pct": "8.177%",
+        "sma150_adj_close": 38.2521
+    },
+    "HIG": {
+        "date": "2025-12-25",
+        "adj_close": 139.72,
+        "close": 139.72,
+        "5_day_rise": "0.569%",
+        "10_day_avg_slope": "0.572%",
+        "adj_price_above_avg_pct": "8.550%",
+        "sma150_adj_close": 128.7155
+    },
+    "HLT": {
+        "date": "2025-12-25",
+        "adj_close": 293.3,
+        "close": 293.3,
+        "5_day_rise": "1.957%",
+        "10_day_avg_slope": "0.966%",
+        "adj_price_above_avg_pct": "9.655%",
+        "sma150_adj_close": 267.4747
+    },
+    "HOLX": {
+        "date": "2025-12-25",
+        "adj_close": 74.5,
+        "close": 74.5,
+        "5_day_rise": "-0.587%",
+        "10_day_avg_slope": "1.841%",
+        "adj_price_above_avg_pct": "8.575%",
+        "sma150_adj_close": 68.6159
+    },
+    "HSIC": {
+        "date": "2025-12-25",
+        "adj_close": 76.19,
+        "close": 76.19,
+        "5_day_rise": "-1.078%",
+        "10_day_avg_slope": "0.544%",
+        "adj_price_above_avg_pct": "8.919%",
+        "sma150_adj_close": 69.9509
+    },
+    "HSY": {
+        "date": "2025-12-25",
+        "adj_close": 184.8,
+        "close": 184.8,
+        "5_day_rise": "-1.786%",
+        "10_day_avg_slope": "1.103%",
+        "adj_price_above_avg_pct": "3.879%",
+        "sma150_adj_close": 177.8988
+    },
+    "HUM": {
+        "date": "2025-12-25",
+        "adj_close": 259.25,
+        "close": 259.25,
+        "5_day_rise": "-0.545%",
+        "10_day_avg_slope": "0.598%",
+        "adj_price_above_avg_pct": "0.743%",
+        "sma150_adj_close": 257.3387
+    },
+    "HUBB": {
+        "date": "2025-12-25",
+        "adj_close": 456.28,
+        "close": 456.28,
+        "5_day_rise": "4.928%",
+        "10_day_avg_slope": "1.040%",
+        "adj_price_above_avg_pct": "7.221%",
+        "sma150_adj_close": 425.5522
+    },
+    "IDEV": {
+        "date": "2025-12-25",
+        "adj_close": 82.91,
+        "close": 82.91,
+        "5_day_rise": "1.768%",
+        "10_day_avg_slope": "0.947%",
+        "adj_price_above_avg_pct": "7.347%",
+        "sma150_adj_close": 77.2356
+    },
+    "IDXX": {
+        "date": "2025-12-25",
+        "adj_close": 688.18,
+        "close": 688.18,
+        "5_day_rise": "-1.280%",
+        "10_day_avg_slope": "2.028%",
+        "adj_price_above_avg_pct": "10.461%",
+        "sma150_adj_close": 623.0059
+    },
+    "IBM": {
+        "date": "2025-12-25",
+        "adj_close": 304.56,
+        "close": 304.56,
+        "5_day_rise": "1.368%",
+        "10_day_avg_slope": "1.131%",
+        "adj_price_above_avg_pct": "9.705%",
+        "sma150_adj_close": 277.6175
+    },
+    "IEF": {
+        "date": "2025-12-25",
+        "adj_close": 96.35,
+        "close": 96.35,
+        "5_day_rise": "-0.111%",
+        "10_day_avg_slope": "0.339%",
+        "adj_price_above_avg_pct": "1.782%",
+        "sma150_adj_close": 94.6629
+    },
+    "IEFA": {
+        "date": "2025-12-25",
+        "adj_close": 89.8,
+        "close": 89.8,
+        "5_day_rise": "1.699%",
+        "10_day_avg_slope": "0.861%",
+        "adj_price_above_avg_pct": "6.567%",
+        "sma150_adj_close": 84.2664
+    },
+    "IEMG": {
+        "date": "2025-12-25",
+        "adj_close": 66.94,
+        "close": 66.94,
+        "5_day_rise": "2.355%",
+        "10_day_avg_slope": "1.142%",
+        "adj_price_above_avg_pct": "7.051%",
+        "sma150_adj_close": 62.5307
+    },
+    "IEUR": {
+        "date": "2025-12-25",
+        "adj_close": 71.05,
+        "close": 71.05,
+        "5_day_rise": "1.485%",
+        "10_day_avg_slope": "0.779%",
+        "adj_price_above_avg_pct": "6.637%",
+        "sma150_adj_close": 66.6282
+    },
+    "IGM": {
+        "date": "2025-12-25",
+        "adj_close": 131.2,
+        "close": 131.2,
+        "5_day_rise": "3.210%",
+        "10_day_avg_slope": "1.530%",
+        "adj_price_above_avg_pct": "8.761%",
+        "sma150_adj_close": 120.6318
+    },
+    "IGV": {
+        "date": "2025-12-25",
+        "adj_close": 108.23,
+        "close": 108.23,
+        "5_day_rise": "1.931%",
+        "10_day_avg_slope": "0.218%",
+        "adj_price_above_avg_pct": "-1.269%",
+        "sma150_adj_close": 109.6209
+    },
+    "IJH": {
+        "date": "2025-12-25",
+        "adj_close": 67.32,
+        "close": 67.32,
+        "5_day_rise": "1.523%",
+        "10_day_avg_slope": "0.711%",
+        "adj_price_above_avg_pct": "5.597%",
+        "sma150_adj_close": 63.7516
+    },
+    "IJR": {
+        "date": "2025-12-25",
+        "adj_close": 123.14,
+        "close": 123.14,
+        "5_day_rise": "0.827%",
+        "10_day_avg_slope": "1.019%",
+        "adj_price_above_avg_pct": "7.300%",
+        "sma150_adj_close": 114.7622
+    },
+    "INDA": {
+        "date": "2025-12-25",
+        "adj_close": 54.01,
+        "close": 54.01,
+        "5_day_rise": "1.370%",
+        "10_day_avg_slope": "-0.056%",
+        "adj_price_above_avg_pct": "0.314%",
+        "sma150_adj_close": 53.8409
+    },
+    "INTU": {
+        "date": "2025-12-25",
+        "adj_close": 674.83,
+        "close": 674.83,
+        "5_day_rise": "0.890%",
+        "10_day_avg_slope": "0.086%",
+        "adj_price_above_avg_pct": "-3.878%",
+        "sma150_adj_close": 702.0582
+    },
+    "IQLT": {
+        "date": "2025-12-25",
+        "adj_close": 45.72,
+        "close": 45.72,
+        "5_day_rise": "1.849%",
+        "10_day_avg_slope": "0.605%",
+        "adj_price_above_avg_pct": "5.586%",
+        "sma150_adj_close": 43.3012
+    },
+    "ITOT": {
+        "date": "2025-12-25",
+        "adj_close": 150.71,
+        "close": 150.71,
+        "5_day_rise": "2.273%",
+        "10_day_avg_slope": "1.046%",
+        "adj_price_above_avg_pct": "6.937%",
+        "sma150_adj_close": 140.934
+    },
+    "ITW": {
+        "date": "2025-12-25",
+        "adj_close": 251.95,
+        "close": 251.95,
+        "5_day_rise": "0.307%",
+        "10_day_avg_slope": "0.215%",
+        "adj_price_above_avg_pct": "-0.084%",
+        "sma150_adj_close": 252.1621
+    },
+    "IUSB": {
+        "date": "2025-12-25",
+        "adj_close": 46.62,
+        "close": 46.62,
+        "5_day_rise": "0.075%",
+        "10_day_avg_slope": "0.348%",
+        "adj_price_above_avg_pct": "2.026%",
+        "sma150_adj_close": 45.694
+    },
+    "IUSV": {
+        "date": "2025-12-25",
+        "adj_close": 103.66,
+        "close": 103.66,
+        "5_day_rise": "1.399%",
+        "10_day_avg_slope": "0.853%",
+        "adj_price_above_avg_pct": "6.431%",
+        "sma150_adj_close": 97.3962
+    },
+    "IUSG": {
+        "date": "2025-12-25",
+        "adj_close": 170.38,
+        "close": 170.38,
+        "5_day_rise": "3.079%",
+        "10_day_avg_slope": "1.193%",
+        "adj_price_above_avg_pct": "7.484%",
+        "sma150_adj_close": 158.517
+    },
+    "IVE": {
+        "date": "2025-12-25",
+        "adj_close": 214.23,
+        "close": 214.23,
+        "5_day_rise": "1.420%",
+        "10_day_avg_slope": "0.853%",
+        "adj_price_above_avg_pct": "6.429%",
+        "sma150_adj_close": 201.2897
+    },
+    "IVV": {
+        "date": "2025-12-25",
+        "adj_close": 693.39,
+        "close": 693.39,
+        "5_day_rise": "2.345%",
+        "10_day_avg_slope": "1.053%",
+        "adj_price_above_avg_pct": "7.061%",
+        "sma150_adj_close": 647.658
+    },
+    "IVW": {
+        "date": "2025-12-25",
+        "adj_close": 125.0,
+        "close": 125.0,
+        "5_day_rise": "3.127%",
+        "10_day_avg_slope": "1.216%",
+        "adj_price_above_avg_pct": "7.548%",
+        "sma150_adj_close": 116.2275
+    },
+    "IWB": {
+        "date": "2025-12-25",
+        "adj_close": 378.2,
+        "close": 378.2,
+        "5_day_rise": "2.310%",
+        "10_day_avg_slope": "1.024%",
+        "adj_price_above_avg_pct": "6.810%",
+        "sma150_adj_close": 354.0852
+    },
+    "IWD": {
+        "date": "2025-12-25",
+        "adj_close": 212.55,
+        "close": 212.55,
+        "5_day_rise": "1.669%",
+        "10_day_avg_slope": "0.831%",
+        "adj_price_above_avg_pct": "6.782%",
+        "sma150_adj_close": 199.0509
+    },
+    "IWF": {
+        "date": "2025-12-25",
+        "adj_close": 480.47,
+        "close": 480.47,
+        "5_day_rise": "2.827%",
+        "10_day_avg_slope": "1.182%",
+        "adj_price_above_avg_pct": "6.797%",
+        "sma150_adj_close": 449.8911
+    },
+    "IWM": {
+        "date": "2025-12-25",
+        "adj_close": 252.71,
+        "close": 252.71,
+        "5_day_rise": "1.608%",
+        "10_day_avg_slope": "1.352%",
+        "adj_price_above_avg_pct": "9.033%",
+        "sma150_adj_close": 231.7743
+    },
+    "IWR": {
+        "date": "2025-12-25",
+        "adj_close": 97.82,
+        "close": 97.82,
+        "5_day_rise": "1.452%",
+        "10_day_avg_slope": "0.633%",
+        "adj_price_above_avg_pct": "4.103%",
+        "sma150_adj_close": 93.9646
+    },
+    "IWY": {
+        "date": "2025-12-25",
+        "adj_close": 280.84,
+        "close": 280.84,
+        "5_day_rise": "2.909%",
+        "10_day_avg_slope": "1.220%",
+        "adj_price_above_avg_pct": "7.166%",
+        "sma150_adj_close": 262.0608
+    },
+    "IWV": {
+        "date": "2025-12-25",
+        "adj_close": 392.07,
+        "close": 392.07,
+        "5_day_rise": "2.285%",
+        "10_day_avg_slope": "1.036%",
+        "adj_price_above_avg_pct": "6.911%",
+        "sma150_adj_close": 366.7271
+    },
+    "IXN": {
+        "date": "2025-12-25",
+        "adj_close": 105.85,
+        "close": 105.85,
+        "5_day_rise": "3.501%",
+        "10_day_avg_slope": "1.421%",
+        "adj_price_above_avg_pct": "8.169%",
+        "sma150_adj_close": 97.8558
+    },
+    "IXUS": {
+        "date": "2025-12-25",
+        "adj_close": 84.93,
+        "close": 84.93,
+        "5_day_rise": "1.981%",
+        "10_day_avg_slope": "1.006%",
+        "adj_price_above_avg_pct": "7.281%",
+        "sma150_adj_close": 79.1658
+    },
+    "IYW": {
+        "date": "2025-12-25",
+        "adj_close": 202.72,
+        "close": 202.72,
+        "5_day_rise": "3.423%",
+        "10_day_avg_slope": "1.509%",
+        "adj_price_above_avg_pct": "8.620%",
+        "sma150_adj_close": 186.6318
+    },
+    "J": {
+        "date": "2025-12-25",
+        "adj_close": 136.11,
+        "close": 136.11,
+        "5_day_rise": "2.577%",
+        "10_day_avg_slope": "0.433%",
+        "adj_price_above_avg_pct": "-4.173%",
+        "sma150_adj_close": 142.0371
+    },
+    "JEPI": {
+        "date": "2025-12-25",
+        "adj_close": 57.97,
+        "close": 57.97,
+        "5_day_rise": "0.975%",
+        "10_day_avg_slope": "0.520%",
+        "adj_price_above_avg_pct": "4.170%",
+        "sma150_adj_close": 55.6494
+    },
+    "JEPQ": {
+        "date": "2025-12-25",
+        "adj_close": 59.29,
+        "close": 59.29,
+        "5_day_rise": "2.383%",
+        "10_day_avg_slope": "1.150%",
+        "adj_price_above_avg_pct": "8.446%",
+        "sma150_adj_close": 54.6725
+    },
+    "JGRO": {
+        "date": "2025-12-25",
+        "adj_close": 94.36,
+        "close": 94.36,
+        "5_day_rise": "2.957%",
+        "10_day_avg_slope": "0.983%",
+        "adj_price_above_avg_pct": "5.071%",
+        "sma150_adj_close": 89.8062
+    },
+    "JKHY": {
+        "date": "2025-12-25",
+        "adj_close": 185.18,
+        "close": 185.18,
+        "5_day_rise": "0.434%",
+        "10_day_avg_slope": "0.243%",
+        "adj_price_above_avg_pct": "10.560%",
+        "sma150_adj_close": 167.4923
+    },
+    "JPST": {
+        "date": "2025-12-25",
+        "adj_close": 50.73,
+        "close": 50.73,
+        "5_day_rise": "0.079%",
+        "10_day_avg_slope": "0.198%",
+        "adj_price_above_avg_pct": "1.365%",
+        "sma150_adj_close": 50.047
+    },
+    "JQUA": {
+        "date": "2025-12-25",
+        "adj_close": 64.03,
+        "close": 64.03,
+        "5_day_rise": "1.582%",
+        "10_day_avg_slope": "0.587%",
+        "adj_price_above_avg_pct": "4.566%",
+        "sma150_adj_close": 61.2339
+    },
+    "KIM": {
+        "date": "2025-12-25",
+        "adj_close": 20.42,
+        "close": 20.42,
+        "5_day_rise": "0.690%",
+        "10_day_avg_slope": "-0.073%",
+        "adj_price_above_avg_pct": "-2.097%",
+        "sma150_adj_close": 20.8573
+    },
+    "KKR": {
+        "date": "2025-12-25",
+        "adj_close": 130.78,
+        "close": 130.78,
+        "5_day_rise": "-0.902%",
+        "10_day_avg_slope": "0.463%",
+        "adj_price_above_avg_pct": "-0.538%",
+        "sma150_adj_close": 131.4877
+    },
+    "KMI": {
+        "date": "2025-12-25",
+        "adj_close": 27.19,
+        "close": 27.19,
+        "5_day_rise": "3.227%",
+        "10_day_avg_slope": "-0.067%",
+        "adj_price_above_avg_pct": "0.634%",
+        "sma150_adj_close": 27.0187
+    },
+    "KO": {
+        "date": "2025-12-25",
+        "adj_close": 70.11,
+        "close": 70.11,
+        "5_day_rise": "-0.355%",
+        "10_day_avg_slope": "0.098%",
+        "adj_price_above_avg_pct": "1.919%",
+        "sma150_adj_close": 68.7899
+    },
+    "LDOS": {
+        "date": "2025-12-25",
+        "adj_close": 186.63,
+        "close": 186.63,
+        "5_day_rise": "3.002%",
+        "10_day_avg_slope": "1.106%",
+        "adj_price_above_avg_pct": "6.215%",
+        "sma150_adj_close": 175.7095
+    },
+    "L": {
+        "date": "2025-12-25",
+        "adj_close": 107.33,
+        "close": 107.33,
+        "5_day_rise": "1.389%",
+        "10_day_avg_slope": "1.242%",
+        "adj_price_above_avg_pct": "10.592%",
+        "sma150_adj_close": 97.0505
+    },
+    "LH": {
+        "date": "2025-12-25",
+        "adj_close": 254.46,
+        "close": 254.46,
+        "5_day_rise": "0.964%",
+        "10_day_avg_slope": "0.288%",
+        "adj_price_above_avg_pct": "-3.733%",
+        "sma150_adj_close": 264.3278
+    },
+    "LHX": {
+        "date": "2025-12-25",
+        "adj_close": 298.14,
+        "close": 298.14,
+        "5_day_rise": "5.454%",
+        "10_day_avg_slope": "1.634%",
+        "adj_price_above_avg_pct": "8.948%",
+        "sma150_adj_close": 273.6524
+    },
+    "LMT": {
+        "date": "2025-12-25",
+        "adj_close": 485.75,
+        "close": 485.75,
+        "5_day_rise": "3.320%",
+        "10_day_avg_slope": "0.319%",
+        "adj_price_above_avg_pct": "5.128%",
+        "sma150_adj_close": 462.0569
+    },
+    "LNT": {
+        "date": "2025-12-25",
+        "adj_close": 65.45,
+        "close": 65.45,
+        "5_day_rise": "-0.365%",
+        "10_day_avg_slope": "0.487%",
+        "adj_price_above_avg_pct": "1.506%",
+        "sma150_adj_close": 64.4788
+    },
+    "LOW": {
+        "date": "2025-12-25",
+        "adj_close": 243.0,
+        "close": 243.0,
+        "5_day_rise": "-1.901%",
+        "10_day_avg_slope": "0.490%",
+        "adj_price_above_avg_pct": "1.992%",
+        "sma150_adj_close": 238.2551
+    },
+    "LYV": {
+        "date": "2025-12-25",
+        "adj_close": 145.31,
+        "close": 145.31,
+        "5_day_rise": "4.630%",
+        "10_day_avg_slope": "-0.103%",
+        "adj_price_above_avg_pct": "-3.017%",
+        "sma150_adj_close": 149.8301
+    },
+    "MA": {
+        "date": "2025-12-25",
+        "adj_close": 579.45,
+        "close": 579.45,
+        "5_day_rise": "2.338%",
+        "10_day_avg_slope": "-0.038%",
+        "adj_price_above_avg_pct": "2.323%",
+        "sma150_adj_close": 566.2939
+    },
+    "MAS": {
+        "date": "2025-12-25",
+        "adj_close": 64.75,
+        "close": 64.75,
+        "5_day_rise": "-0.553%",
+        "10_day_avg_slope": "-0.039%",
+        "adj_price_above_avg_pct": "-2.728%",
+        "sma150_adj_close": 66.5656
+    },
+    "MBB": {
+        "date": "2025-12-25",
+        "adj_close": 95.42,
+        "close": 95.42,
+        "5_day_rise": "0.193%",
+        "10_day_avg_slope": "0.403%",
+        "adj_price_above_avg_pct": "2.669%",
+        "sma150_adj_close": 92.9396
+    },
+    "MCHI": {
+        "date": "2025-12-25",
+        "adj_close": 60.61,
+        "close": 60.61,
+        "5_day_rise": "1.034%",
+        "10_day_avg_slope": "0.769%",
+        "adj_price_above_avg_pct": "1.762%",
+        "sma150_adj_close": 59.5604
+    },
+    "MCHP": {
+        "date": "2025-12-25",
+        "adj_close": 65.36,
+        "close": 65.36,
+        "5_day_rise": "2.029%",
+        "10_day_avg_slope": "0.723%",
+        "adj_price_above_avg_pct": "1.792%",
+        "sma150_adj_close": 64.2096
+    },
+    "MCK": {
+        "date": "2025-12-25",
+        "adj_close": 826.43,
+        "close": 826.43,
+        "5_day_rise": "1.958%",
+        "10_day_avg_slope": "1.028%",
+        "adj_price_above_avg_pct": "10.048%",
+        "sma150_adj_close": 750.9697
+    },
+    "MCD": {
+        "date": "2025-12-25",
+        "adj_close": 313.33,
+        "close": 313.33,
+        "5_day_rise": "-1.977%",
+        "10_day_avg_slope": "0.144%",
+        "adj_price_above_avg_pct": "3.672%",
+        "sma150_adj_close": 302.2319
+    },
+    "MCO": {
+        "date": "2025-12-25",
+        "adj_close": 517.28,
+        "close": 517.28,
+        "5_day_rise": "3.936%",
+        "10_day_avg_slope": "0.310%",
+        "adj_price_above_avg_pct": "5.148%",
+        "sma150_adj_close": 491.9522
+    },
+    "META": {
+        "date": "2025-12-25",
+        "adj_close": 667.55,
+        "close": 667.55,
+        "5_day_rise": "0.467%",
+        "10_day_avg_slope": "0.205%",
+        "adj_price_above_avg_pct": "-5.031%",
+        "sma150_adj_close": 702.9111
+    },
+    "MET": {
+        "date": "2025-12-25",
+        "adj_close": 81.05,
+        "close": 81.05,
+        "5_day_rise": "-0.808%",
+        "10_day_avg_slope": "0.267%",
+        "adj_price_above_avg_pct": "3.508%",
+        "sma150_adj_close": 78.3028
+    },
+    "MGM": {
+        "date": "2025-12-25",
+        "adj_close": 37.09,
+        "close": 37.09,
+        "5_day_rise": "0.870%",
+        "10_day_avg_slope": "0.690%",
+        "adj_price_above_avg_pct": "6.389%",
+        "sma150_adj_close": 34.8626
+    },
+    "MDT": {
+        "date": "2025-12-25",
+        "adj_close": 97.27,
+        "close": 97.27,
+        "5_day_rise": "-1.229%",
+        "10_day_avg_slope": "1.054%",
+        "adj_price_above_avg_pct": "5.133%",
+        "sma150_adj_close": 92.5206
+    },
+    "MHK": {
+        "date": "2025-12-25",
+        "adj_close": 110.03,
+        "close": 110.03,
+        "5_day_rise": "0.493%",
+        "10_day_avg_slope": "0.159%",
+        "adj_price_above_avg_pct": "-5.692%",
+        "sma150_adj_close": 116.6708
+    },
+    "MLM": {
+        "date": "2025-12-25",
+        "adj_close": 643.14,
+        "close": 643.14,
+        "5_day_rise": "2.512%",
+        "10_day_avg_slope": "0.900%",
+        "adj_price_above_avg_pct": "7.675%",
+        "sma150_adj_close": 597.2997
+    },
+    "MMM": {
+        "date": "2025-12-25",
+        "adj_close": 160.34,
+        "close": 160.34,
+        "5_day_rise": "-0.878%",
+        "10_day_avg_slope": "0.620%",
+        "adj_price_above_avg_pct": "2.785%",
+        "sma150_adj_close": 155.9956
+    },
+    "MO": {
+        "date": "2025-12-25",
+        "adj_close": 58.98,
+        "close": 58.98,
+        "5_day_rise": "1.010%",
+        "10_day_avg_slope": "0.252%",
+        "adj_price_above_avg_pct": "-3.251%",
+        "sma150_adj_close": 60.9622
+    },
+    "MPC": {
+        "date": "2025-12-25",
+        "adj_close": 165.73,
+        "close": 165.73,
+        "5_day_rise": "-1.416%",
+        "10_day_avg_slope": "0.534%",
+        "adj_price_above_avg_pct": "-6.726%",
+        "sma150_adj_close": 177.6817
+    },
+    "MSCI": {
+        "date": "2025-12-25",
+        "adj_close": 581.75,
+        "close": 581.75,
+        "5_day_rise": "3.441%",
+        "10_day_avg_slope": "0.050%",
+        "adj_price_above_avg_pct": "3.841%",
+        "sma150_adj_close": 560.229
+    },
+    "MSFT": {
+        "date": "2025-12-25",
+        "adj_close": 488.02,
+        "close": 488.02,
+        "5_day_rise": "0.835%",
+        "10_day_avg_slope": "0.430%",
+        "adj_price_above_avg_pct": "-2.335%",
+        "sma150_adj_close": 499.6881
+    },
+    "MTB": {
+        "date": "2025-12-25",
+        "adj_close": 207.24,
+        "close": 207.24,
+        "5_day_rise": "1.758%",
+        "10_day_avg_slope": "0.905%",
+        "adj_price_above_avg_pct": "9.122%",
+        "sma150_adj_close": 189.9158
+    },
+    "MTD": {
+        "date": "2025-12-25",
+        "adj_close": 1417.16,
+        "close": 1417.16,
+        "5_day_rise": "1.997%",
+        "10_day_avg_slope": "1.336%",
+        "adj_price_above_avg_pct": "9.230%",
+        "sma150_adj_close": 1297.4097
+    },
+    "MTCH": {
+        "date": "2025-12-25",
+        "adj_close": 32.89,
+        "close": 32.89,
+        "5_day_rise": "0.859%",
+        "10_day_avg_slope": "0.813%",
+        "adj_price_above_avg_pct": "-2.047%",
+        "sma150_adj_close": 33.5772
+    },
+    "MTUM": {
+        "date": "2025-12-25",
+        "adj_close": 255.47,
+        "close": 255.47,
+        "5_day_rise": "3.820%",
+        "10_day_avg_slope": "0.682%",
+        "adj_price_above_avg_pct": "4.542%",
+        "sma150_adj_close": 244.3709
+    },
+    "MUB": {
+        "date": "2025-12-25",
+        "adj_close": 106.96,
+        "close": 106.96,
+        "5_day_rise": "0.211%",
+        "10_day_avg_slope": "0.304%",
+        "adj_price_above_avg_pct": "2.498%",
+        "sma150_adj_close": 104.3528
+    },
+    "NCLH": {
+        "date": "2025-12-25",
+        "adj_close": 23.17,
+        "close": 23.17,
+        "5_day_rise": "7.120%",
+        "10_day_avg_slope": "1.170%",
+        "adj_price_above_avg_pct": "5.107%",
+        "sma150_adj_close": 22.0441
+    },
+    "NDAQ": {
+        "date": "2025-12-25",
+        "adj_close": 98.64,
+        "close": 98.64,
+        "5_day_rise": "4.150%",
+        "10_day_avg_slope": "1.139%",
+        "adj_price_above_avg_pct": "9.840%",
+        "sma150_adj_close": 89.8033
+    },
+    "NDSN": {
+        "date": "2025-12-25",
+        "adj_close": 243.47,
+        "close": 243.47,
+        "5_day_rise": "2.152%",
+        "10_day_avg_slope": "1.246%",
+        "adj_price_above_avg_pct": "8.885%",
+        "sma150_adj_close": 223.603
+    },
+    "NEE": {
+        "date": "2025-12-25",
+        "adj_close": 80.45,
+        "close": 80.45,
+        "5_day_rise": "-0.495%",
+        "10_day_avg_slope": "0.897%",
+        "adj_price_above_avg_pct": "5.774%",
+        "sma150_adj_close": 76.0584
+    },
+    "NI": {
+        "date": "2025-12-25",
+        "adj_close": 41.88,
+        "close": 41.88,
+        "5_day_rise": "0.891%",
+        "10_day_avg_slope": "0.521%",
+        "adj_price_above_avg_pct": "1.265%",
+        "sma150_adj_close": 41.3568
+    },
+    "NOBL": {
+        "date": "2025-12-25",
+        "adj_close": 105.09,
+        "close": 105.09,
+        "5_day_rise": "0.527%",
+        "10_day_avg_slope": "0.403%",
+        "adj_price_above_avg_pct": "3.204%",
+        "sma150_adj_close": 101.8279
+    },
+    "NOC": {
+        "date": "2025-12-25",
+        "adj_close": 582.35,
+        "close": 582.35,
+        "5_day_rise": "4.080%",
+        "10_day_avg_slope": "1.298%",
+        "adj_price_above_avg_pct": "4.578%",
+        "sma150_adj_close": 556.8577
+    },
+    "NRG": {
+        "date": "2025-12-25",
+        "adj_close": 160.56,
+        "close": 160.56,
+        "5_day_rise": "3.828%",
+        "10_day_avg_slope": "0.250%",
+        "adj_price_above_avg_pct": "0.793%",
+        "sma150_adj_close": 159.2961
+    },
+    "NTAP": {
+        "date": "2025-12-25",
+        "adj_close": 110.055,
+        "close": 110.055,
+        "5_day_rise": "-0.403%",
+        "10_day_avg_slope": "0.804%",
+        "adj_price_above_avg_pct": "-0.873%",
+        "sma150_adj_close": 111.0238
+    },
+    "NSC": {
+        "date": "2025-12-25",
+        "adj_close": 292.71,
+        "close": 292.71,
+        "5_day_rise": "0.302%",
+        "10_day_avg_slope": "1.367%",
+        "adj_price_above_avg_pct": "5.881%",
+        "sma150_adj_close": 276.4526
+    },
+    "NVDA": {
+        "date": "2025-12-25",
+        "adj_close": 188.61,
+        "close": 188.61,
+        "5_day_rise": "8.309%",
+        "10_day_avg_slope": "1.937%",
+        "adj_price_above_avg_pct": "8.429%",
+        "sma150_adj_close": 173.9478
+    },
+    "NVR": {
+        "date": "2025-12-25",
+        "adj_close": 7385.29,
+        "close": 7385.29,
+        "5_day_rise": "-2.332%",
+        "10_day_avg_slope": "0.195%",
+        "adj_price_above_avg_pct": "-3.258%",
+        "sma150_adj_close": 7633.9997
+    },
+    "NXPI": {
+        "date": "2025-12-25",
+        "adj_close": 225.26,
+        "close": 225.26,
+        "5_day_rise": "1.432%",
+        "10_day_avg_slope": "0.704%",
+        "adj_price_above_avg_pct": "4.142%",
+        "sma150_adj_close": 216.3007
+    },
+    "O": {
+        "date": "2025-12-25",
+        "adj_close": 56.67,
+        "close": 56.67,
+        "5_day_rise": "-0.176%",
+        "10_day_avg_slope": "0.366%",
+        "adj_price_above_avg_pct": "-0.703%",
+        "sma150_adj_close": 57.0711
+    },
+    "ON": {
+        "date": "2025-12-25",
+        "adj_close": 55.08,
+        "close": 55.08,
+        "5_day_rise": "1.362%",
+        "10_day_avg_slope": "1.438%",
+        "adj_price_above_avg_pct": "6.805%",
+        "sma150_adj_close": 51.5707
+    },
+    "OMC": {
+        "date": "2025-12-25",
+        "adj_close": 79.95,
+        "close": 79.95,
+        "5_day_rise": "-1.125%",
+        "10_day_avg_slope": "0.558%",
+        "adj_price_above_avg_pct": "7.900%",
+        "sma150_adj_close": 74.0961
+    },
+    "ONEQ": {
+        "date": "2025-12-25",
+        "adj_close": 92.88,
+        "close": 92.88,
+        "5_day_rise": "2.660%",
+        "10_day_avg_slope": "1.366%",
+        "adj_price_above_avg_pct": "8.481%",
+        "sma150_adj_close": 85.6186
+    },
+    "ORLY": {
+        "date": "2025-12-25",
+        "adj_close": 92.4,
+        "close": 92.4,
+        "5_day_rise": "0.665%",
+        "10_day_avg_slope": "0.129%",
+        "adj_price_above_avg_pct": "-5.500%",
+        "sma150_adj_close": 97.7781
+    },
+    "PANW": {
+        "date": "2025-12-25",
+        "adj_close": 187.22,
+        "close": 187.22,
+        "5_day_rise": "0.721%",
+        "10_day_avg_slope": "-0.110%",
+        "adj_price_above_avg_pct": "-4.879%",
+        "sma150_adj_close": 196.8234
+    },
+    "PBUS": {
+        "date": "2025-12-25",
+        "adj_close": 69.34,
+        "close": 69.34,
+        "5_day_rise": "2.332%",
+        "10_day_avg_slope": "1.041%",
+        "adj_price_above_avg_pct": "6.896%",
+        "sma150_adj_close": 64.8668
+    },
+    "PEG": {
+        "date": "2025-12-25",
+        "adj_close": 80.72,
+        "close": 80.72,
+        "5_day_rise": "0.074%",
+        "10_day_avg_slope": "0.296%",
+        "adj_price_above_avg_pct": "-1.029%",
+        "sma150_adj_close": 81.5594
+    },
+    "PEP": {
+        "date": "2025-12-25",
+        "adj_close": 143.74,
+        "close": 143.74,
+        "5_day_rise": "-3.769%",
+        "10_day_avg_slope": "1.001%",
+        "adj_price_above_avg_pct": "2.274%",
+        "sma150_adj_close": 140.5435
+    },
+    "PFE": {
+        "date": "2025-12-25",
+        "adj_close": 25.03,
+        "close": 25.03,
+        "5_day_rise": "-0.040%",
+        "10_day_avg_slope": "0.904%",
+        "adj_price_above_avg_pct": "2.876%",
+        "sma150_adj_close": 24.3302
+    },
+    "PKG": {
+        "date": "2025-12-25",
+        "adj_close": 207.33,
+        "close": 207.33,
+        "5_day_rise": "1.617%",
+        "10_day_avg_slope": "0.586%",
+        "adj_price_above_avg_pct": "3.354%",
+        "sma150_adj_close": 200.6024
+    },
+    "PHM": {
+        "date": "2025-12-25",
+        "adj_close": 119.35,
+        "close": 119.35,
+        "5_day_rise": "-1.899%",
+        "10_day_avg_slope": "1.102%",
+        "adj_price_above_avg_pct": "-0.160%",
+        "sma150_adj_close": 119.5414
+    },
+    "PNR": {
+        "date": "2025-12-25",
+        "adj_close": 105.38,
+        "close": 105.38,
+        "5_day_rise": "1.915%",
+        "10_day_avg_slope": "0.449%",
+        "adj_price_above_avg_pct": "0.031%",
+        "sma150_adj_close": 105.3475
+    },
+    "PNW": {
+        "date": "2025-12-25",
+        "adj_close": 88.36,
+        "close": 88.36,
+        "5_day_rise": "-0.215%",
+        "10_day_avg_slope": "-0.060%",
+        "adj_price_above_avg_pct": "-0.530%",
+        "sma150_adj_close": 88.8307
+    },
+    "PRF": {
+        "date": "2025-12-25",
+        "adj_close": 47.37,
+        "close": 47.37,
+        "5_day_rise": "1.561%",
+        "10_day_avg_slope": "1.041%",
+        "adj_price_above_avg_pct": "7.841%",
+        "sma150_adj_close": 43.9257
+    },
+    "PPL": {
+        "date": "2025-12-25",
+        "adj_close": 34.97,
+        "close": 34.97,
+        "5_day_rise": "0.633%",
+        "10_day_avg_slope": "0.144%",
+        "adj_price_above_avg_pct": "-0.847%",
+        "sma150_adj_close": 35.2689
+    },
+    "PRU": {
+        "date": "2025-12-25",
+        "adj_close": 114.55,
+        "close": 114.55,
+        "5_day_rise": "-0.865%",
+        "10_day_avg_slope": "0.872%",
+        "adj_price_above_avg_pct": "9.892%",
+        "sma150_adj_close": 104.2387
+    },
+    "PSX": {
+        "date": "2025-12-25",
+        "adj_close": 128.41,
+        "close": 128.41,
+        "5_day_rise": "-0.558%",
+        "10_day_avg_slope": "0.788%",
+        "adj_price_above_avg_pct": "0.428%",
+        "sma150_adj_close": 127.8625
+    },
+    "PTC": {
+        "date": "2025-12-25",
+        "adj_close": 176.47,
+        "close": 176.47,
+        "5_day_rise": "0.324%",
+        "10_day_avg_slope": "0.199%",
+        "adj_price_above_avg_pct": "-7.589%",
+        "sma150_adj_close": 190.9615
+    },
+    "PWR": {
+        "date": "2025-12-25",
+        "adj_close": 433.58,
+        "close": 433.58,
+        "5_day_rise": "2.912%",
+        "10_day_avg_slope": "1.539%",
+        "adj_price_above_avg_pct": "7.220%",
+        "sma150_adj_close": 404.3835
+    },
+    "QCOM": {
+        "date": "2025-12-25",
+        "adj_close": 174.77,
+        "close": 174.77,
+        "5_day_rise": "0.333%",
+        "10_day_avg_slope": "1.110%",
+        "adj_price_above_avg_pct": "8.121%",
+        "sma150_adj_close": 161.643
+    },
+    "QQQI": {
+        "date": "2025-12-25",
+        "adj_close": 54.55,
+        "close": 54.55,
+        "5_day_rise": "2.398%",
+        "10_day_avg_slope": "1.043%",
+        "adj_price_above_avg_pct": "7.033%",
+        "sma150_adj_close": 50.9655
+    },
+    "QQQ": {
+        "date": "2025-12-25",
+        "adj_close": 623.93,
+        "close": 623.93,
+        "5_day_rise": "2.565%",
+        "10_day_avg_slope": "1.190%",
+        "adj_price_above_avg_pct": "7.388%",
+        "sma150_adj_close": 581.006
+    },
+    "QQQM": {
+        "date": "2025-12-25",
+        "adj_close": 256.87,
+        "close": 256.87,
+        "5_day_rise": "2.567%",
+        "10_day_avg_slope": "1.192%",
+        "adj_price_above_avg_pct": "7.400%",
+        "sma150_adj_close": 239.1722
+    },
+    "QRVO": {
+        "date": "2025-12-25",
+        "adj_close": 86.14,
+        "close": 86.14,
+        "5_day_rise": "1.175%",
+        "10_day_avg_slope": "0.661%",
+        "adj_price_above_avg_pct": "-1.279%",
+        "sma150_adj_close": 87.256
+    },
+    "QUAL": {
+        "date": "2025-12-25",
+        "adj_close": 200.99,
+        "close": 200.99,
+        "5_day_rise": "1.628%",
+        "10_day_avg_slope": "0.842%",
+        "adj_price_above_avg_pct": "6.417%",
+        "sma150_adj_close": 188.8699
+    },
+    "QYLD": {
+        "date": "2025-12-25",
+        "adj_close": 17.73,
+        "close": 17.73,
+        "5_day_rise": "1.874%",
+        "10_day_avg_slope": "0.981%",
+        "adj_price_above_avg_pct": "8.336%",
+        "sma150_adj_close": 16.3657
+    },
+    "RDVY": {
+        "date": "2025-12-25",
+        "adj_close": 70.73,
+        "close": 70.73,
+        "5_day_rise": "1.872%",
+        "10_day_avg_slope": "1.020%",
+        "adj_price_above_avg_pct": "8.514%",
+        "sma150_adj_close": 65.1808
+    },
+    "RCL": {
+        "date": "2025-12-25",
+        "adj_close": 294.12,
+        "close": 294.12,
+        "5_day_rise": "2.577%",
+        "10_day_avg_slope": "1.001%",
+        "adj_price_above_avg_pct": "-2.608%",
+        "sma150_adj_close": 301.9957
+    },
+    "RJF": {
+        "date": "2025-12-25",
+        "adj_close": 165.8,
+        "close": 165.8,
+        "5_day_rise": "3.483%",
+        "10_day_avg_slope": "0.564%",
+        "adj_price_above_avg_pct": "3.184%",
+        "sma150_adj_close": 160.6841
+    },
+    "RMD": {
+        "date": "2025-12-25",
+        "adj_close": 244.44,
+        "close": 244.44,
+        "5_day_rise": "0.779%",
+        "10_day_avg_slope": "-0.008%",
+        "adj_price_above_avg_pct": "-6.662%",
+        "sma150_adj_close": 261.886
+    },
+    "ROL": {
+        "date": "2025-12-25",
+        "adj_close": 60.66,
+        "close": 60.66,
+        "5_day_rise": "0.781%",
+        "10_day_avg_slope": "0.498%",
+        "adj_price_above_avg_pct": "5.637%",
+        "sma150_adj_close": 57.4229
+    },
+    "RSP": {
+        "date": "2025-12-25",
+        "adj_close": 193.79,
+        "close": 193.79,
+        "5_day_rise": "1.239%",
+        "10_day_avg_slope": "0.635%",
+        "adj_price_above_avg_pct": "4.694%",
+        "sma150_adj_close": 185.1009
+    },
+    "RVTY": {
+        "date": "2025-12-25",
+        "adj_close": 96.78,
+        "close": 96.78,
+        "5_day_rise": "0.540%",
+        "10_day_avg_slope": "0.330%",
+        "adj_price_above_avg_pct": "3.681%",
+        "sma150_adj_close": 93.3438
+    },
+    "RWL": {
+        "date": "2025-12-25",
+        "adj_close": 115.4,
+        "close": 115.4,
+        "5_day_rise": "1.272%",
+        "10_day_avg_slope": "0.936%",
+        "adj_price_above_avg_pct": "7.228%",
+        "sma150_adj_close": 107.6208
+    },
+    "SBUX": {
+        "date": "2025-12-25",
+        "adj_close": 84.57,
+        "close": 84.57,
+        "5_day_rise": "-5.424%",
+        "10_day_avg_slope": "0.178%",
+        "adj_price_above_avg_pct": "-2.491%",
+        "sma150_adj_close": 86.7309
+    },
+    "SCHB": {
+        "date": "2025-12-25",
+        "adj_close": 26.58,
+        "close": 26.58,
+        "5_day_rise": "2.231%",
+        "10_day_avg_slope": "1.043%",
+        "adj_price_above_avg_pct": "6.874%",
+        "sma150_adj_close": 24.8703
+    },
+    "SCHD": {
+        "date": "2025-12-25",
+        "adj_close": 27.66,
+        "close": 27.66,
+        "5_day_rise": "0.655%",
+        "10_day_avg_slope": "0.528%",
+        "adj_price_above_avg_pct": "3.682%",
+        "sma150_adj_close": 26.6777
+    },
+    "SCHE": {
+        "date": "2025-12-25",
+        "adj_close": 32.68,
+        "close": 32.68,
+        "5_day_rise": "1.775%",
+        "10_day_avg_slope": "0.885%",
+        "adj_price_above_avg_pct": "5.022%",
+        "sma150_adj_close": 31.1174
+    },
+    "SCHF": {
+        "date": "2025-12-25",
+        "adj_close": 24.14,
+        "close": 24.14,
+        "5_day_rise": "1.857%",
+        "10_day_avg_slope": "1.032%",
+        "adj_price_above_avg_pct": "8.179%",
+        "sma150_adj_close": 22.3148
+    },
+    "SCHG": {
+        "date": "2025-12-25",
+        "adj_close": 33.11,
+        "close": 33.11,
+        "5_day_rise": "2.794%",
+        "10_day_avg_slope": "1.175%",
+        "adj_price_above_avg_pct": "7.300%",
+        "sma150_adj_close": 30.8573
+    },
+    "SCHV": {
+        "date": "2025-12-25",
+        "adj_close": 29.95,
+        "close": 29.95,
+        "5_day_rise": "1.629%",
+        "10_day_avg_slope": "0.799%",
+        "adj_price_above_avg_pct": "5.943%",
+        "sma150_adj_close": 28.2698
+    },
+    "SCHX": {
+        "date": "2025-12-25",
+        "adj_close": 27.25,
+        "close": 27.25,
+        "5_day_rise": "2.367%",
+        "10_day_avg_slope": "1.032%",
+        "adj_price_above_avg_pct": "6.774%",
+        "sma150_adj_close": 25.5213
+    },
+    "SCHW": {
+        "date": "2025-12-25",
+        "adj_close": 101.85,
+        "close": 101.85,
+        "5_day_rise": "4.752%",
+        "10_day_avg_slope": "0.853%",
+        "adj_price_above_avg_pct": "9.013%",
+        "sma150_adj_close": 93.4296
+    },
+    "SGOV": {
+        "date": "2025-12-25",
+        "adj_close": 100.31,
+        "close": 100.31,
+        "5_day_rise": "0.073%",
+        "10_day_avg_slope": "0.164%",
+        "adj_price_above_avg_pct": "1.173%",
+        "sma150_adj_close": 99.1469
+    },
+    "SLB": {
+        "date": "2025-12-25",
+        "adj_close": 37.97,
+        "close": 37.97,
+        "5_day_rise": "-0.420%",
+        "10_day_avg_slope": "0.775%",
+        "adj_price_above_avg_pct": "8.820%",
+        "sma150_adj_close": 34.8924
+    },
+    "SOLV": {
+        "date": "2025-12-25",
+        "adj_close": 80.18,
+        "close": 80.18,
+        "5_day_rise": "-0.620%",
+        "10_day_avg_slope": "0.690%",
+        "adj_price_above_avg_pct": "7.352%",
+        "sma150_adj_close": 74.6892
+    },
+    "SNA": {
+        "date": "2025-12-25",
+        "adj_close": 353.11,
+        "close": 353.11,
+        "5_day_rise": "2.073%",
+        "10_day_avg_slope": "0.615%",
+        "adj_price_above_avg_pct": "7.555%",
+        "sma150_adj_close": 328.3068
+    },
+    "SO": {
+        "date": "2025-12-25",
+        "adj_close": 87.17,
+        "close": 87.17,
+        "5_day_rise": "-0.057%",
+        "10_day_avg_slope": "-0.022%",
+        "adj_price_above_avg_pct": "-4.281%",
+        "sma150_adj_close": 91.0687
+    },
+    "SPDW": {
+        "date": "2025-12-25",
+        "adj_close": 44.55,
+        "close": 44.55,
+        "5_day_rise": "1.897%",
+        "10_day_avg_slope": "1.043%",
+        "adj_price_above_avg_pct": "7.861%",
+        "sma150_adj_close": 41.3032
+    },
+    "SPEM": {
+        "date": "2025-12-25",
+        "adj_close": 46.73,
+        "close": 46.73,
+        "5_day_rise": "1.953%",
+        "10_day_avg_slope": "0.897%",
+        "adj_price_above_avg_pct": "5.442%",
+        "sma150_adj_close": 44.3183
+    },
+    "SPLV": {
+        "date": "2025-12-25",
+        "adj_close": 71.9,
+        "close": 71.9,
+        "5_day_rise": "0.496%",
+        "10_day_avg_slope": "-0.024%",
+        "adj_price_above_avg_pct": "-0.180%",
+        "sma150_adj_close": 72.03
+    },
+    "SPHQ": {
+        "date": "2025-12-25",
+        "adj_close": 76.34,
+        "close": 76.34,
+        "5_day_rise": "1.712%",
+        "10_day_avg_slope": "0.618%",
+        "adj_price_above_avg_pct": "5.509%",
+        "sma150_adj_close": 72.3543
+    },
+    "SPG": {
+        "date": "2025-12-25",
+        "adj_close": 188.29,
+        "close": 188.29,
+        "5_day_rise": "1.740%",
+        "10_day_avg_slope": "1.122%",
+        "adj_price_above_avg_pct": "10.056%",
+        "sma150_adj_close": 171.0859
+    },
+    "SPGI": {
+        "date": "2025-12-25",
+        "adj_close": 525.74,
+        "close": 525.74,
+        "5_day_rise": "3.756%",
+        "10_day_avg_slope": "-0.009%",
+        "adj_price_above_avg_pct": "2.439%",
+        "sma150_adj_close": 513.2243
+    },
+    "SPMO": {
+        "date": "2025-12-25",
+        "adj_close": 121.45,
+        "close": 121.45,
+        "5_day_rise": "3.438%",
+        "10_day_avg_slope": "0.951%",
+        "adj_price_above_avg_pct": "4.764%",
+        "sma150_adj_close": 115.9267
+    },
+    "SPYD": {
+        "date": "2025-12-25",
+        "adj_close": 43.44,
+        "close": 43.44,
+        "5_day_rise": "0.327%",
+        "10_day_avg_slope": "0.348%",
+        "adj_price_above_avg_pct": "2.141%",
+        "sma150_adj_close": 42.5296
+    },
+    "SPY": {
+        "date": "2025-12-25",
+        "adj_close": 690.38,
+        "close": 690.38,
+        "5_day_rise": "2.358%",
+        "10_day_avg_slope": "1.049%",
+        "adj_price_above_avg_pct": "7.038%",
+        "sma150_adj_close": 644.9878
+    },
+    "SPTM": {
+        "date": "2025-12-25",
+        "adj_close": 83.57,
+        "close": 83.57,
+        "5_day_rise": "2.280%",
+        "10_day_avg_slope": "1.033%",
+        "adj_price_above_avg_pct": "6.981%",
+        "sma150_adj_close": 78.1164
+    },
+    "SPYI": {
+        "date": "2025-12-25",
+        "adj_close": 52.98,
+        "close": 52.98,
+        "5_day_rise": "2.086%",
+        "10_day_avg_slope": "0.946%",
+        "adj_price_above_avg_pct": "6.829%",
+        "sma150_adj_close": 49.5933
+    },
+    "SPYG": {
+        "date": "2025-12-25",
+        "adj_close": 108.21,
+        "close": 108.21,
+        "5_day_rise": "3.125%",
+        "10_day_avg_slope": "1.219%",
+        "adj_price_above_avg_pct": "7.571%",
+        "sma150_adj_close": 100.5943
+    },
+    "SRE": {
+        "date": "2025-12-25",
+        "adj_close": 88.84,
+        "close": 88.84,
+        "5_day_rise": "1.822%",
+        "10_day_avg_slope": "1.071%",
+        "adj_price_above_avg_pct": "6.631%",
+        "sma150_adj_close": 83.3153
+    },
+    "SPYV": {
+        "date": "2025-12-25",
+        "adj_close": 57.37,
+        "close": 57.37,
+        "5_day_rise": "1.419%",
+        "10_day_avg_slope": "0.855%",
+        "adj_price_above_avg_pct": "6.447%",
+        "sma150_adj_close": 53.8953
+    },
+    "STE": {
+        "date": "2025-12-25",
+        "adj_close": 255.68,
+        "close": 255.68,
+        "5_day_rise": "1.642%",
+        "10_day_avg_slope": "0.385%",
+        "adj_price_above_avg_pct": "4.759%",
+        "sma150_adj_close": 244.0651
+    },
+    "SWK": {
+        "date": "2025-12-25",
+        "adj_close": 74.87,
+        "close": 74.87,
+        "5_day_rise": "2.646%",
+        "10_day_avg_slope": "0.648%",
+        "adj_price_above_avg_pct": "7.329%",
+        "sma150_adj_close": 69.7574
+    },
+    "SYY": {
+        "date": "2025-12-25",
+        "adj_close": 74.25,
+        "close": 74.25,
+        "5_day_rise": "-1.092%",
+        "10_day_avg_slope": "0.318%",
+        "adj_price_above_avg_pct": "-3.635%",
+        "sma150_adj_close": 77.0506
+    },
+    "TDG": {
+        "date": "2025-12-25",
+        "adj_close": 1313.57,
+        "close": 1313.57,
+        "5_day_rise": "4.022%",
+        "10_day_avg_slope": "-0.149%",
+        "adj_price_above_avg_pct": "-2.110%",
+        "sma150_adj_close": 1341.8884
+    },
+    "TDY": {
+        "date": "2025-12-25",
+        "adj_close": 520.4,
+        "close": 520.4,
+        "5_day_rise": "3.160%",
+        "10_day_avg_slope": "0.259%",
+        "adj_price_above_avg_pct": "-1.979%",
+        "sma150_adj_close": 530.9067
+    },
+    "TECH": {
+        "date": "2025-12-25",
+        "adj_close": 59.19,
+        "close": 59.19,
+        "5_day_rise": "3.660%",
+        "10_day_avg_slope": "1.111%",
+        "adj_price_above_avg_pct": "6.027%",
+        "sma150_adj_close": 55.8255
+    },
+    "TFX": {
+        "date": "2025-12-25",
+        "adj_close": 122.33,
+        "close": 122.33,
+        "5_day_rise": "-1.743%",
+        "10_day_avg_slope": "-0.049%",
+        "adj_price_above_avg_pct": "1.361%",
+        "sma150_adj_close": 120.6875
+    },
+    "TGT": {
+        "date": "2025-12-25",
+        "adj_close": 96.53,
+        "close": 96.53,
+        "5_day_rise": "-2.544%",
+        "10_day_avg_slope": "0.174%",
+        "adj_price_above_avg_pct": "2.598%",
+        "sma150_adj_close": 94.086
+    },
+    "TLT": {
+        "date": "2025-12-25",
+        "adj_close": 88.03,
+        "close": 88.03,
+        "5_day_rise": "0.173%",
+        "10_day_avg_slope": "0.336%",
+        "adj_price_above_avg_pct": "1.445%",
+        "sma150_adj_close": 86.7758
+    },
+    "TRGP": {
+        "date": "2025-12-25",
+        "adj_close": 183.73,
+        "close": 183.73,
+        "5_day_rise": "2.872%",
+        "10_day_avg_slope": "0.791%",
+        "adj_price_above_avg_pct": "10.733%",
+        "sma150_adj_close": 165.9214
+    },
+    "TRMB": {
+        "date": "2025-12-25",
+        "adj_close": 80.01,
+        "close": 80.01,
+        "5_day_rise": "0.125%",
+        "10_day_avg_slope": "0.790%",
+        "adj_price_above_avg_pct": "0.904%",
+        "sma150_adj_close": 79.2931
+    },
+    "TROW": {
+        "date": "2025-12-25",
+        "adj_close": 104.68,
+        "close": 104.68,
+        "5_day_rise": "1.316%",
+        "10_day_avg_slope": "0.741%",
+        "adj_price_above_avg_pct": "4.069%",
+        "sma150_adj_close": 100.5875
+    },
+    "TRV": {
+        "date": "2025-12-25",
+        "adj_close": 293.84,
+        "close": 293.84,
+        "5_day_rise": "0.065%",
+        "10_day_avg_slope": "0.611%",
+        "adj_price_above_avg_pct": "8.167%",
+        "sma150_adj_close": 271.6538
+    },
+    "TSCO": {
+        "date": "2025-12-25",
+        "adj_close": 51.65,
+        "close": 51.65,
+        "5_day_rise": "-1.299%",
+        "10_day_avg_slope": "0.124%",
+        "adj_price_above_avg_pct": "-6.617%",
+        "sma150_adj_close": 55.3097
+    },
+    "TSN": {
+        "date": "2025-12-25",
+        "adj_close": 58.26,
+        "close": 58.26,
+        "5_day_rise": "0.017%",
+        "10_day_avg_slope": "0.532%",
+        "adj_price_above_avg_pct": "7.124%",
+        "sma150_adj_close": 54.3858
+    },
+    "TTWO": {
+        "date": "2025-12-25",
+        "adj_close": 251.6,
+        "close": 251.6,
+        "5_day_rise": "2.007%",
+        "10_day_avg_slope": "0.482%",
+        "adj_price_above_avg_pct": "4.304%",
+        "sma150_adj_close": 241.2182
+    },
+    "UNH": {
+        "date": "2025-12-25",
+        "adj_close": 327.58,
+        "close": 327.58,
+        "5_day_rise": "-0.171%",
+        "10_day_avg_slope": "0.405%",
+        "adj_price_above_avg_pct": "4.127%",
+        "sma150_adj_close": 314.5973
+    },
+    "UNP": {
+        "date": "2025-12-25",
+        "adj_close": 235.05,
+        "close": 235.05,
+        "5_day_rise": "0.269%",
+        "10_day_avg_slope": "0.390%",
+        "adj_price_above_avg_pct": "4.730%",
+        "sma150_adj_close": 224.4339
+    },
+    "UPS": {
+        "date": "2025-12-25",
+        "adj_close": 100.66,
+        "close": 100.66,
+        "5_day_rise": "-1.391%",
+        "10_day_avg_slope": "0.476%",
+        "adj_price_above_avg_pct": "10.448%",
+        "sma150_adj_close": 91.1378
+    },
+    "URTH": {
+        "date": "2025-12-25",
+        "adj_close": 187.72,
+        "close": 187.72,
+        "5_day_rise": "2.205%",
+        "10_day_avg_slope": "1.004%",
+        "adj_price_above_avg_pct": "7.033%",
+        "sma150_adj_close": 175.3847
+    },
+    "URI": {
+        "date": "2025-12-25",
+        "adj_close": 824.77,
+        "close": 824.77,
+        "5_day_rise": "3.028%",
+        "10_day_avg_slope": "0.848%",
+        "adj_price_above_avg_pct": "-3.096%",
+        "sma150_adj_close": 851.1177
+    },
+    "VB": {
+        "date": "2025-12-25",
+        "adj_close": 263.28,
+        "close": 263.28,
+        "5_day_rise": "1.730%",
+        "10_day_avg_slope": "0.891%",
+        "adj_price_above_avg_pct": "6.514%",
+        "sma150_adj_close": 247.1777
+    },
+    "VCIT": {
+        "date": "2025-12-25",
+        "adj_close": 83.9,
+        "close": 83.9,
+        "5_day_rise": "0.143%",
+        "10_day_avg_slope": "0.429%",
+        "adj_price_above_avg_pct": "2.382%",
+        "sma150_adj_close": 81.9478
+    },
+    "VCR": {
+        "date": "2025-12-25",
+        "adj_close": 403.8,
+        "close": 403.8,
+        "5_day_rise": "0.316%",
+        "10_day_avg_slope": "0.849%",
+        "adj_price_above_avg_pct": "6.325%",
+        "sma150_adj_close": 379.7778
+    },
+    "VCSH": {
+        "date": "2025-12-25",
+        "adj_close": 79.64,
+        "close": 79.64,
+        "5_day_rise": "0.013%",
+        "10_day_avg_slope": "0.271%",
+        "adj_price_above_avg_pct": "1.649%",
+        "sma150_adj_close": 78.3481
+    },
+    "VDC": {
+        "date": "2025-12-25",
+        "adj_close": 212.61,
+        "close": 212.61,
+        "5_day_rise": "-0.673%",
+        "10_day_avg_slope": "-0.081%",
+        "adj_price_above_avg_pct": "-1.012%",
+        "sma150_adj_close": 214.7827
+    },
+    "VEA": {
+        "date": "2025-12-25",
+        "adj_close": 62.68,
+        "close": 62.68,
+        "5_day_rise": "1.968%",
+        "10_day_avg_slope": "1.053%",
+        "adj_price_above_avg_pct": "8.178%",
+        "sma150_adj_close": 57.9418
+    },
+    "VEU": {
+        "date": "2025-12-25",
+        "adj_close": 73.74,
+        "close": 73.74,
+        "5_day_rise": "1.989%",
+        "10_day_avg_slope": "1.001%",
+        "adj_price_above_avg_pct": "7.464%",
+        "sma150_adj_close": 68.6185
+    },
+    "VGK": {
+        "date": "2025-12-25",
+        "adj_close": 83.73,
+        "close": 83.73,
+        "5_day_rise": "1.601%",
+        "10_day_avg_slope": "0.811%",
+        "adj_price_above_avg_pct": "6.990%",
+        "sma150_adj_close": 78.2595
+    },
+    "VGIT": {
+        "date": "2025-12-25",
+        "adj_close": 59.93,
+        "close": 59.93,
+        "5_day_rise": "-0.150%",
+        "10_day_avg_slope": "0.286%",
+        "adj_price_above_avg_pct": "1.539%",
+        "sma150_adj_close": 59.0217
+    },
+    "VFH": {
+        "date": "2025-12-25",
+        "adj_close": 136.0,
+        "close": 136.0,
+        "5_day_rise": "2.363%",
+        "10_day_avg_slope": "0.673%",
+        "adj_price_above_avg_pct": "6.552%",
+        "sma150_adj_close": 127.6376
+    },
+    "VGT": {
+        "date": "2025-12-25",
+        "adj_close": 766.32,
+        "close": 766.32,
+        "5_day_rise": "3.470%",
+        "10_day_avg_slope": "1.415%",
+        "adj_price_above_avg_pct": "7.796%",
+        "sma150_adj_close": 710.8976
+    },
+    "VIGI": {
+        "date": "2025-12-25",
+        "adj_close": 92.0719,
+        "close": 92.0719,
+        "5_day_rise": "1.358%",
+        "10_day_avg_slope": "0.386%",
+        "adj_price_above_avg_pct": "3.515%",
+        "sma150_adj_close": 88.945
+    },
+    "VIG": {
+        "date": "2025-12-25",
+        "adj_close": 222.39,
+        "close": 222.39,
+        "5_day_rise": "1.784%",
+        "10_day_avg_slope": "0.837%",
+        "adj_price_above_avg_pct": "5.734%",
+        "sma150_adj_close": 210.33
+    },
+    "VLTO": {
+        "date": "2025-12-25",
+        "adj_close": 102.29,
+        "close": 102.29,
+        "5_day_rise": "1.508%",
+        "10_day_avg_slope": "0.037%",
+        "adj_price_above_avg_pct": "-0.369%",
+        "sma150_adj_close": 102.6687
+    },
+    "VLO": {
+        "date": "2025-12-25",
+        "adj_close": 164.47,
+        "close": 164.47,
+        "5_day_rise": "1.562%",
+        "10_day_avg_slope": "1.557%",
+        "adj_price_above_avg_pct": "7.047%",
+        "sma150_adj_close": 153.6432
+    },
+    "VNQ": {
+        "date": "2025-12-25",
+        "adj_close": 88.76,
+        "close": 88.76,
+        "5_day_rise": "0.720%",
+        "10_day_avg_slope": "0.153%",
+        "adj_price_above_avg_pct": "-0.042%",
+        "sma150_adj_close": 88.7971
+    },
+    "VMC": {
+        "date": "2025-12-25",
+        "adj_close": 293.64,
+        "close": 293.64,
+        "5_day_rise": "1.838%",
+        "10_day_avg_slope": "0.522%",
+        "adj_price_above_avg_pct": "3.469%",
+        "sma150_adj_close": 283.7956
+    },
+    "VONE": {
+        "date": "2025-12-25",
+        "adj_close": 313.0051,
+        "close": 313.0051,
+        "5_day_rise": "2.304%",
+        "10_day_avg_slope": "1.026%",
+        "adj_price_above_avg_pct": "6.859%",
+        "sma150_adj_close": 292.9149
+    },
+    "VO": {
+        "date": "2025-12-25",
+        "adj_close": 294.32,
+        "close": 294.32,
+        "5_day_rise": "1.260%",
+        "10_day_avg_slope": "0.606%",
+        "adj_price_above_avg_pct": "3.429%",
+        "sma150_adj_close": 284.5637
+    },
+    "VONG": {
+        "date": "2025-12-25",
+        "adj_close": 123.62,
+        "close": 123.62,
+        "5_day_rise": "2.850%",
+        "10_day_avg_slope": "1.185%",
+        "adj_price_above_avg_pct": "6.817%",
+        "sma150_adj_close": 115.7307
+    },
+    "VONV": {
+        "date": "2025-12-25",
+        "adj_close": 93.26,
+        "close": 93.26,
+        "5_day_rise": "1.668%",
+        "10_day_avg_slope": "0.835%",
+        "adj_price_above_avg_pct": "6.812%",
+        "sma150_adj_close": 87.3126
+    },
+    "VOO": {
+        "date": "2025-12-25",
+        "adj_close": 634.78,
+        "close": 634.78,
+        "5_day_rise": "2.342%",
+        "10_day_avg_slope": "1.052%",
+        "adj_price_above_avg_pct": "7.047%",
+        "sma150_adj_close": 592.9909
+    },
+    "VOOG": {
+        "date": "2025-12-25",
+        "adj_close": 451.0,
+        "close": 451.0,
+        "5_day_rise": "3.172%",
+        "10_day_avg_slope": "1.219%",
+        "adj_price_above_avg_pct": "7.612%",
+        "sma150_adj_close": 419.0993
+    },
+    "VOOV": {
+        "date": "2025-12-25",
+        "adj_close": 207.07,
+        "close": 207.07,
+        "5_day_rise": "1.462%",
+        "10_day_avg_slope": "0.858%",
+        "adj_price_above_avg_pct": "6.507%",
+        "sma150_adj_close": 194.4193
+    },
+    "VOX": {
+        "date": "2025-12-25",
+        "adj_close": 194.57,
+        "close": 194.57,
+        "5_day_rise": "1.704%",
+        "10_day_avg_slope": "1.374%",
+        "adj_price_above_avg_pct": "8.848%",
+        "sma150_adj_close": 178.7541
+    },
+    "VPL": {
+        "date": "2025-12-25",
+        "adj_close": 90.52,
+        "close": 90.52,
+        "5_day_rise": "2.177%",
+        "10_day_avg_slope": "1.206%",
+        "adj_price_above_avg_pct": "7.900%",
+        "sma150_adj_close": 83.8923
+    },
+    "VSGX": {
+        "date": "2025-12-25",
+        "adj_close": 71.82,
+        "close": 71.82,
+        "5_day_rise": "1.735%",
+        "10_day_avg_slope": "0.987%",
+        "adj_price_above_avg_pct": "7.234%",
+        "sma150_adj_close": 66.9752
+    },
+    "VRTX": {
+        "date": "2025-12-25",
+        "adj_close": 462.99,
+        "close": 462.99,
+        "5_day_rise": "3.489%",
+        "10_day_avg_slope": "0.334%",
+        "adj_price_above_avg_pct": "8.291%",
+        "sma150_adj_close": 427.5434
+    },
+    "VT": {
+        "date": "2025-12-25",
+        "adj_close": 142.36,
+        "close": 142.36,
+        "5_day_rise": "2.178%",
+        "10_day_avg_slope": "1.020%",
+        "adj_price_above_avg_pct": "7.016%",
+        "sma150_adj_close": 133.0266
+    },
+    "VTEB": {
+        "date": "2025-12-25",
+        "adj_close": 50.23,
+        "close": 50.23,
+        "5_day_rise": "0.140%",
+        "10_day_avg_slope": "0.320%",
+        "adj_price_above_avg_pct": "2.511%",
+        "sma150_adj_close": 48.9996
+    },
+    "VTI": {
+        "date": "2025-12-25",
+        "adj_close": 339.88,
+        "close": 339.88,
+        "5_day_rise": "2.279%",
+        "10_day_avg_slope": "1.052%",
+        "adj_price_above_avg_pct": "7.014%",
+        "sma150_adj_close": 317.6033
+    },
+    "VTV": {
+        "date": "2025-12-25",
+        "adj_close": 192.87,
+        "close": 192.87,
+        "5_day_rise": "1.577%",
+        "10_day_avg_slope": "0.857%",
+        "adj_price_above_avg_pct": "6.583%",
+        "sma150_adj_close": 180.9578
+    },
+    "VUG": {
+        "date": "2025-12-25",
+        "adj_close": 495.07,
+        "close": 495.07,
+        "5_day_rise": "2.832%",
+        "10_day_avg_slope": "1.157%",
+        "adj_price_above_avg_pct": "6.929%",
+        "sma150_adj_close": 462.989
+    },
+    "VV": {
+        "date": "2025-12-25",
+        "adj_close": 318.71,
+        "close": 318.71,
+        "5_day_rise": "2.351%",
+        "10_day_avg_slope": "1.057%",
+        "adj_price_above_avg_pct": "6.966%",
+        "sma150_adj_close": 297.9552
+    },
+    "VWO": {
+        "date": "2025-12-25",
+        "adj_close": 53.68,
+        "close": 53.68,
+        "5_day_rise": "2.156%",
+        "10_day_avg_slope": "0.898%",
+        "adj_price_above_avg_pct": "5.236%",
+        "sma150_adj_close": 51.0093
+    },
+    "VYMI": {
+        "date": "2025-12-25",
+        "adj_close": 90.22,
+        "close": 90.22,
+        "5_day_rise": "1.724%",
+        "10_day_avg_slope": "1.128%",
+        "adj_price_above_avg_pct": "9.298%",
+        "sma150_adj_close": 82.5451
+    },
+    "VYM": {
+        "date": "2025-12-25",
+        "adj_close": 145.06,
+        "close": 145.06,
+        "5_day_rise": "1.538%",
+        "10_day_avg_slope": "0.891%",
+        "adj_price_above_avg_pct": "6.079%",
+        "sma150_adj_close": 136.7468
+    },
+    "VXUS": {
+        "date": "2025-12-25",
+        "adj_close": 75.61,
+        "close": 75.61,
+        "5_day_rise": "1.891%",
+        "10_day_avg_slope": "1.009%",
+        "adj_price_above_avg_pct": "7.335%",
+        "sma150_adj_close": 70.4431
+    },
+    "WAB": {
+        "date": "2025-12-25",
+        "adj_close": 219.76,
+        "close": 219.76,
+        "5_day_rise": "2.884%",
+        "10_day_avg_slope": "0.498%",
+        "adj_price_above_avg_pct": "9.236%",
+        "sma150_adj_close": 201.1783
+    },
+    "WEC": {
+        "date": "2025-12-25",
+        "adj_close": 105.55,
+        "close": 105.55,
+        "5_day_rise": "0.285%",
+        "10_day_avg_slope": "0.072%",
+        "adj_price_above_avg_pct": "-2.174%",
+        "sma150_adj_close": 107.8956
+    },
+    "WELL": {
+        "date": "2025-12-25",
+        "adj_close": 187.7,
+        "close": 187.7,
+        "5_day_rise": "0.112%",
+        "10_day_avg_slope": "1.655%",
+        "adj_price_above_avg_pct": "9.941%",
+        "sma150_adj_close": 170.7276
+    },
+    "WMB": {
+        "date": "2025-12-25",
+        "adj_close": 59.46,
+        "close": 59.46,
+        "5_day_rise": "1.364%",
+        "10_day_avg_slope": "0.269%",
+        "adj_price_above_avg_pct": "0.869%",
+        "sma150_adj_close": 58.9475
+    },
+    "WMT": {
+        "date": "2025-12-25",
+        "adj_close": 111.61,
+        "close": 111.61,
+        "5_day_rise": "-2.804%",
+        "10_day_avg_slope": "1.162%",
+        "adj_price_above_avg_pct": "9.490%",
+        "sma150_adj_close": 101.9361
+    },
+    "WRB": {
+        "date": "2025-12-25",
+        "adj_close": 70.64,
+        "close": 70.64,
+        "5_day_rise": "1.567%",
+        "10_day_avg_slope": "-0.116%",
+        "adj_price_above_avg_pct": "-1.126%",
+        "sma150_adj_close": 71.4448
+    },
+    "WSM": {
+        "date": "2025-12-25",
+        "adj_close": 189.47,
+        "close": 189.47,
+        "5_day_rise": "0.058%",
+        "10_day_avg_slope": "0.710%",
+        "adj_price_above_avg_pct": "3.057%",
+        "sma150_adj_close": 183.8491
+    },
+    "WTW": {
+        "date": "2025-12-25",
+        "adj_close": 334.52,
+        "close": 334.52,
+        "5_day_rise": "1.477%",
+        "10_day_avg_slope": "0.499%",
+        "adj_price_above_avg_pct": "4.087%",
+        "sma150_adj_close": 321.385
+    },
+    "WST": {
+        "date": "2025-12-25",
+        "adj_close": 276.66,
+        "close": 276.66,
+        "5_day_rise": "2.978%",
+        "10_day_avg_slope": "1.600%",
+        "adj_price_above_avg_pct": "10.242%",
+        "sma150_adj_close": 250.9575
+    },
+    "WYNN": {
+        "date": "2025-12-25",
+        "adj_close": 125.02,
+        "close": 125.02,
+        "5_day_rise": "-1.178%",
+        "10_day_avg_slope": "1.890%",
+        "adj_price_above_avg_pct": "9.550%",
+        "sma150_adj_close": 114.1216
+    },
+    "XLC": {
+        "date": "2025-12-25",
+        "adj_close": 118.09,
+        "close": 118.09,
+        "5_day_rise": "1.719%",
+        "10_day_avg_slope": "1.036%",
+        "adj_price_above_avg_pct": "6.539%",
+        "sma150_adj_close": 110.842
+    },
+    "XLE": {
+        "date": "2025-12-25",
+        "adj_close": 44.37,
+        "close": 44.37,
+        "5_day_rise": "1.401%",
+        "10_day_avg_slope": "0.507%",
+        "adj_price_above_avg_pct": "2.606%",
+        "sma150_adj_close": 43.2432
+    },
+    "XLB": {
+        "date": "2025-12-25",
+        "adj_close": 45.84,
+        "close": 45.84,
+        "5_day_rise": "2.007%",
+        "10_day_avg_slope": "0.427%",
+        "adj_price_above_avg_pct": "3.832%",
+        "sma150_adj_close": 44.1483
+    },
+    "XLF": {
+        "date": "2025-12-25",
+        "adj_close": 55.73,
+        "close": 55.73,
+        "5_day_rise": "2.539%",
+        "10_day_avg_slope": "0.585%",
+        "adj_price_above_avg_pct": "6.281%",
+        "sma150_adj_close": 52.4366
+    },
+    "XEL": {
+        "date": "2025-12-25",
+        "adj_close": 74.09,
+        "close": 74.09,
+        "5_day_rise": "0.652%",
+        "10_day_avg_slope": "0.438%",
+        "adj_price_above_avg_pct": "0.011%",
+        "sma150_adj_close": 74.0821
+    },
+    "XLK": {
+        "date": "2025-12-25",
+        "adj_close": 146.3,
+        "close": 146.3,
+        "5_day_rise": "3.520%",
+        "10_day_avg_slope": "1.441%",
+        "adj_price_above_avg_pct": "8.454%",
+        "sma150_adj_close": 134.8961
+    },
+    "XLI": {
+        "date": "2025-12-25",
+        "adj_close": 157.5,
+        "close": 157.5,
+        "5_day_rise": "2.271%",
+        "10_day_avg_slope": "0.713%",
+        "adj_price_above_avg_pct": "4.836%",
+        "sma150_adj_close": 150.2352
+    },
+    "XLP": {
+        "date": "2025-12-25",
+        "adj_close": 78.12,
+        "close": 78.12,
+        "5_day_rise": "-0.560%",
+        "10_day_avg_slope": "-0.095%",
+        "adj_price_above_avg_pct": "-0.869%",
+        "sma150_adj_close": 78.8046
+    },
+    "XLU": {
+        "date": "2025-12-25",
+        "adj_close": 42.81,
+        "close": 42.81,
+        "5_day_rise": "-0.114%",
+        "10_day_avg_slope": "0.482%",
+        "adj_price_above_avg_pct": "1.075%",
+        "sma150_adj_close": 42.3545
+    },
+    "XLY": {
+        "date": "2025-12-25",
+        "adj_close": 122.59,
+        "close": 122.59,
+        "5_day_rise": "0.403%",
+        "10_day_avg_slope": "0.911%",
+        "adj_price_above_avg_pct": "7.083%",
+        "sma150_adj_close": 114.4818
+    },
+    "XYL": {
+        "date": "2025-12-25",
+        "adj_close": 138.73,
+        "close": 138.73,
+        "5_day_rise": "1.492%",
+        "10_day_avg_slope": "0.619%",
+        "adj_price_above_avg_pct": "0.239%",
+        "sma150_adj_close": 138.3991
+    },
+    "XOM": {
+        "date": "2025-12-25",
+        "adj_close": 119.22,
+        "close": 119.22,
+        "5_day_rise": "2.300%",
+        "10_day_avg_slope": "0.795%",
+        "adj_price_above_avg_pct": "7.182%",
+        "sma150_adj_close": 111.2311
+    },
+    "YUM": {
+        "date": "2025-12-25",
+        "adj_close": 154.32,
+        "close": 154.32,
+        "5_day_rise": "-0.246%",
+        "10_day_avg_slope": "0.397%",
+        "adj_price_above_avg_pct": "5.684%",
+        "sma150_adj_close": 146.0203
+    }
+}
