@@ -431,14 +431,32 @@ def get_puts_for_ticker(stock_ticker, rules_file="rules_all.json"):
     print(f"[PROCESSING] {stock_ticker}")
     print(f"{'='*50}")
     
+    # Create put_data directory if it doesn't exist
+    os.makedirs("put_data", exist_ok=True)
+    output_file = f"put_data/{stock_ticker}.json"
+    
     stock_data = process_ticker(stock_ticker)
     if stock_data is None:
+        # Save empty result for failed/delisted stocks
+        result = {"ticker": stock_ticker, "status": "no_data", "puts": []}
+        with open(output_file, 'w') as f:
+            json.dump(result, f, indent=4)
         return None
     
     # Step 2: Test stock against rules
     passes, failed_rules = test_stock_against_rules(stock_data, rules)
     if not passes:
         print(f"[FAIL] {stock_ticker} failed stock rules: {', '.join(failed_rules)}")
+        # Save result with failure reason
+        result = {
+            "ticker": stock_ticker,
+            "status": "failed_stock_rules",
+            "failed_rules": failed_rules,
+            "stock_data": stock_data,
+            "puts": []
+        }
+        with open(output_file, 'w') as f:
+            json.dump(result, f, indent=4)
         return None
     
     print(f"[PASS] {stock_ticker} passed stock filter")
@@ -447,6 +465,15 @@ def get_puts_for_ticker(stock_ticker, rules_file="rules_all.json"):
     expiration_dates = get_option_expirations(stock_ticker)
     if not expiration_dates:
         print(f"[FAIL] No expiration dates found for {stock_ticker}")
+        # Save result with no expirations
+        result = {
+            "ticker": stock_ticker,
+            "status": "no_expirations",
+            "stock_data": stock_data,
+            "puts": []
+        }
+        with open(output_file, 'w') as f:
+            json.dump(result, f, indent=4)
         return None
     
     print(f"[INFO] Found {len(expiration_dates)} expiration dates")
@@ -482,17 +509,13 @@ def get_puts_for_ticker(stock_ticker, rules_file="rules_all.json"):
     
     # Build result
     result = {
-        stock_ticker: {
-            **stock_data,
-            "puts": filtered_puts
-        }
+        "ticker": stock_ticker,
+        "status": "success",
+        "stock_data": stock_data,
+        "puts": filtered_puts
     }
     
-    # Create put_data directory if it doesn't exist
-    os.makedirs("put_data", exist_ok=True)
-    
-    # Save to put_data/{ticker}.json
-    output_file = f"put_data/{stock_ticker}.json"
+    # Save to put_data/{ticker}.json (directory already created at start)
     with open(output_file, 'w') as f:
         json.dump(result, f, indent=4)
     

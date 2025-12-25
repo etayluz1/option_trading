@@ -522,6 +522,7 @@ print(f"{'='*60}")
 successful_tickers = []
 failed_tickers = []
 skipped_tickers = []
+total_puts = 0
 
 # Process tickers in groups
 for i in range(0, len(tickers), TICKER_GROUP):
@@ -539,6 +540,7 @@ for i in range(0, len(tickers), TICKER_GROUP):
             ticker, success, result_info = future.result()
             if success:
                 successful_tickers.append(ticker)
+                total_puts += result_info
                 print(f"  [OK] {ticker}: {result_info} puts")
             elif isinstance(result_info, str) and ("insufficient data" in result_info or "failed stock rules" in result_info or "No expiration dates" in result_info):
                 skipped_tickers.append(ticker)
@@ -546,12 +548,15 @@ for i in range(0, len(tickers), TICKER_GROUP):
             else:
                 failed_tickers.append(ticker)
                 print(f"  [FAIL] {ticker}: {result_info}")
+    
+    print(f"  [TOTAL] {total_puts} puts so far")
 
 print(f"\n{'='*60}")
 print(f"[SUMMARY] Processing complete:")
 print(f"   Successful: {len(successful_tickers)} tickers")
 print(f"   Skipped (filtered out): {len(skipped_tickers)} tickers")
 print(f"   Failed: {len(failed_tickers)} tickers")
+print(f"   Total puts: {total_puts}")
 if failed_tickers:
     print(f"   Failed tickers: {', '.join(failed_tickers)}")
 print(f"{'='*60}")
