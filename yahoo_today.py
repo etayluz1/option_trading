@@ -25,10 +25,101 @@ SMA_PERIOD = 150
 SMA_SLOPE_PERIOD = 10 
 RISE_PERIOD = 5
 
+# --- Step 1: Generate rules_all.json with extreme values ---
+import json
+import glob
 
-stock_today_dict = {}
-skipped_tickers = []
-SPY500_dict = {}
+def generate_rules_all():
+    """Generate rules_all.json with extreme (least restrictive) values from all rules files"""
+    rules_files = glob.glob("rules*.json")
+    # Exclude rules_all.json (output) and rules.json (different project)
+    rules_files = [f for f in rules_files if f not in ["rules_all.json", "rules.json"]]
+    
+    if not rules_files:
+        print("⚠️ No rules files found")
+        return
+    
+    all_rules = []
+    for rf in rules_files:
+        with open(rf, 'r') as f:
+            all_rules.append(json.load(f))
+    
+    def parse_val(v):
+        if v is None:
+            return None
+        if isinstance(v, (int, float, bool)):
+            return v
+        if isinstance(v, str):
+            # Skip date strings and other non-numeric strings
+            if '/' in v and v.count('/') == 2:  # Date format like 01/01/2017
+                return None
+            try:
+                return float(v.replace('%', '').replace('$', ''))
+            except ValueError:
+                return None
+        return v
+    
+    def format_val(v, original):
+        if v is None:
+            return original  # Return original if value is None
+        if isinstance(original, str):
+            if '%' in original:
+                return f"{v}%"
+            if '$' in original:
+                return f"${v}"
+            if '.' in original or '.' in str(v):
+                return str(v)
+            try:
+                return str(int(v)) if v == int(v) else str(v)
+            except (ValueError, TypeError):
+                return str(v)
+        return v
+    
+    def get_extreme(key, values, original_vals):
+        """Get min for 'min_' keys, max for 'max_' keys"""
+        parsed = [parse_val(v) for v in values if parse_val(v) is not None]
+        if not parsed:
+            return values[0] if values else None
+        
+        # For min_ rules, take the minimum (least restrictive)
+        # For max_ rules, take the maximum (least restrictive)
+        if 'min_' in key or key.startswith('min'):
+            result = min(parsed)
+        elif 'max_' in key or key.startswith('max'):
+            result = max(parsed)
+        else:
+            result = parsed[0]  # Non min/max rules - take first
+        
+        # Find original format
+        for orig in original_vals:
+            if orig is not None:
+                return format_val(result, orig)
+        return result
+    
+    # Build rules_all from extremes
+    rules_all = {}
+    base = all_rules[0]
+    
+    for section, section_data in base.items():
+        rules_all[section] = {}
+        if isinstance(section_data, dict):
+            for key, val in section_data.items():
+                values = [r.get(section, {}).get(key) for r in all_rules]
+                if any(isinstance(v, bool) for v in values):
+                    rules_all[section][key] = val  # Keep booleans as-is
+                elif any(isinstance(v, str) and not any(c in v for c in '%$0123456789.-') for v in values if v):
+                    rules_all[section][key] = val  # Keep non-numeric strings as-is
+                else:
+                    rules_all[section][key] = get_extreme(key, values, values)
+        else:
+            rules_all[section] = section_data
+    
+    with open("rules_all.json", 'w') as f:
+        json.dump(rules_all, f, indent=4)
+    
+    print(f"✅ Generated rules_all.json from {len(rules_files)} rules files: {', '.join(rules_files)}")
+    return rules_all
+
 
 def get_tradier_quote(ticker_symbol):
     """Get current quote from Tradier API"""
@@ -237,37 +328,6 @@ def process_ticker(ticker_symbol):
         print(f"✅ Processed {ticker_symbol} for {date_str}")
     return {date_str: date_metrics}
 
-# Load tickers
-with open('tickers.json', 'rb') as f:
-    tickers = orjson.loads(f.read())
-
-# Process all tickers concurrently (5 at a time)
-print(f"Processing {len(tickers)} tickers with 5 parallel workers...")
-with ThreadPoolExecutor(max_workers=5) as executor:
-    # Submit all tasks
-    future_to_ticker = {executor.submit(process_ticker, ticker): ticker for ticker in tickers}
-    
-    # Collect results as they complete
-    for future in as_completed(future_to_ticker):
-        ticker = future_to_ticker[future]
-        try:
-            result = future.result()
-            if result:
-                stock_today_dict[ticker] = result
-            else:
-                skipped_tickers.append(ticker)
-        except Exception as e:
-            print(f"❌ Error processing {ticker}: {e}")
-            skipped_tickers.append(ticker)
-
-# Save to stock_today.json
-import json
-with open("stock_today.json", "w") as f:
-    json.dump(stock_today_dict, f, indent=4, sort_keys=False)
-
-print(f"✅ Saved stock_today.json with {len(stock_today_dict)} tickers")
-if skipped_tickers:
-    print(f"⚠️  {len(skipped_tickers)} tickers possibly delisted: {', '.join(sorted(skipped_tickers))}")
 
 # --- Filter stocks against rules ---
 
@@ -411,14 +471,124 @@ def filter_puts(result_file, rules_file):
     print(f"✅ Updated {result_file} with puts for {len(results)} tickers")
     return results
 
+
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
+
+# Step 1: Generate rules_all.json with extreme values
+generate_rules_all()
+
+# Initialize global tracking variables
+stock_today_dict = {}
+skipped_tickers = []
+SPY500_dict = {}
+
+# Load tickers
+with open('tickers.json', 'rb') as f:
+    tickers = orjson.loads(f.read())
+
+
+
+# Process all tickers concurrently (10 at a time)
+print(f"Processing {len(tickers)} tickers with 10 parallel workers...")
+with ThreadPoolExecutor(max_workers=10) as executor:
+    # Submit all tasks
+    future_to_ticker = {executor.submit(process_ticker, ticker): ticker for ticker in tickers}
+    
+    # Collect results as they complete
+    for future in as_completed(future_to_ticker):
+        ticker = future_to_ticker[future]
+        try:
+            result = future.result()
+            if result:
+                stock_today_dict[ticker] = result
+            else:
+                skipped_tickers.append(ticker)
+        except Exception as e:
+            print(f"❌ Error processing {ticker}: {e}")
+            skipped_tickers.append(ticker)
+
+# Save to stock_today.json
+with open("stock_today.json", "w") as f:
+    json.dump(stock_today_dict, f, indent=4, sort_keys=False)
+
+print(f"✅ Saved stock_today.json with {len(stock_today_dict)} tickers")
+if skipped_tickers:
+    print(f"⚠️  {len(skipped_tickers)} tickers possibly delisted: {', '.join(sorted(skipped_tickers))}")
+
 # Generate result files
 filter_stocks("rules1.json", stock_today_dict, "result1.json")
 filter_stocks("rules2.json", stock_today_dict, "result2.json")
 
-# Get option expiration dates
-ExpirationDates = get_option_expirations("AAPL")
-print(f"📅 Found {len(ExpirationDates)} option expiration dates")
+# Filter stocks with rules_all.json to get all investable tickers for put processing
+filter_stocks("rules_all.json", stock_today_dict, "result_all.json")
 
+# Load investable tickers from result_all.json
+with open("result_all.json", 'r') as f:
+    result_all = json.load(f)
+investable_tickers = list(result_all.keys())
+print(f"📈 {len(investable_tickers)} tickers pass rules_all.json filter")
+
+# --- Concurrent put data generation using get_puts.py ---
+import subprocess
+
+TICKER_GROUP = 6  # Number of concurrent workers
+DELAY_BETWEEN_WORKERS = 0.5  # Seconds delay between starting workers
+
+def run_get_puts(stock_ticker):
+    """Run get_puts.py for a single ticker and wait for completion"""
+    try:
+        result = subprocess.run(
+            ["python", "get_puts.py", stock_ticker],
+            capture_output=True,
+            text=True,
+            timeout=120  # 2 minute timeout per ticker
+        )
+        if result.returncode == 0:
+            return stock_ticker, True, None
+        else:
+            return stock_ticker, False, result.stderr
+    except subprocess.TimeoutExpired:
+        return stock_ticker, False, "Timeout"
+    except Exception as e:
+        return stock_ticker, False, str(e)
+
+print(f"\n{'='*60}")
+print(f"📊 Processing {len(investable_tickers)} tickers with {TICKER_GROUP} parallel workers")
+print(f"{'='*60}")
+
+successful_tickers = []
+failed_tickers = []
+
+# Process tickers in groups
+for i in range(0, len(investable_tickers), TICKER_GROUP):
+    group = investable_tickers[i:i + TICKER_GROUP]
+    print(f"\n🔄 Processing group {i//TICKER_GROUP + 1}: {', '.join(group)}")
+    
+    with ThreadPoolExecutor(max_workers=TICKER_GROUP) as executor:
+        futures = {}
+        for idx, ticker in enumerate(group):
+            if idx > 0:
+                time.sleep(DELAY_BETWEEN_WORKERS)
+            futures[executor.submit(run_get_puts, ticker)] = ticker
+        
+        for future in as_completed(futures):
+            ticker, success, error = future.result()
+            if success:
+                successful_tickers.append(ticker)
+                print(f"  ✅ {ticker} completed")
+            else:
+                failed_tickers.append(ticker)
+                print(f"  ❌ {ticker} failed: {error}")
+
+print(f"\n{'='*60}")
+print(f"📊 Put data generation complete:")
+print(f"   ✅ Successful: {len(successful_tickers)} tickers")
+print(f"   ❌ Failed: {len(failed_tickers)} tickers")
+if failed_tickers:
+    print(f"   Failed tickers: {', '.join(failed_tickers)}")
+print(f"{'='*60}")
 
 # Calculate and print runtime
 end_time = time.time()
