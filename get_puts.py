@@ -356,8 +356,11 @@ def test_put_against_rules(put_data, stock_data, rules):
         failed_rules.append("rlMinBid")
     
     # Delta checks (convert to percentage if needed)
+    # Puts with null delta are invalid - we need delta for risk assessment
     delta_pct = None
-    if delta is not None:
+    if delta is None:
+        failed_rules.append("rlNoDelta")
+    else:
         delta_pct = delta * 100 if abs(delta) <= 1 else delta
         if min_delta is not None and delta_pct < min_delta:
             failed_rules.append("rlMinDelta")

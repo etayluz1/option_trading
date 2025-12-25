@@ -33,12 +33,25 @@ import glob
 def generate_rules_all():
     """Generate rules_all.json with extreme (least restrictive) values from all rules files"""
     rules_files = glob.glob("rules*.json")
-    # Exclude rules_all.json (output) and rules.json (different project)
-    rules_files = [f for f in rules_files if f not in ["rules_all.json", "rules.json"]]
+    # Exclude rules_all.json (output)
+    rules_files = [f for f in rules_files if f != "rules_all.json"]
     
     if not rules_files:
-        print("⚠️ No rules files found")
+        print("[WARN] No rules files found")
         return
+    
+    # If only rules.json exists, just copy it
+    if rules_files == ["rules.json"]:
+        with open("rules.json", 'r') as f:
+            rules = json.load(f)
+        with open("rules_all.json", 'w') as f:
+            json.dump(rules, f, indent=4)
+        print(f"[OK] Generated rules_all.json from rules.json")
+        return rules
+    
+    # Multiple rules files - merge with extreme values
+    # Exclude rules.json if other rules files exist
+    rules_files = [f for f in rules_files if f != "rules.json"]
     
     all_rules = []
     for rf in rules_files:
@@ -84,9 +97,10 @@ def generate_rules_all():
         
         # For min_ rules, take the minimum (least restrictive)
         # For max_ rules, take the maximum (least restrictive)
+        # Special cases: position_stop_loss is a max rule (higher = less restrictive)
         if 'min_' in key or key.startswith('min'):
             result = min(parsed)
-        elif 'max_' in key or key.startswith('max'):
+        elif 'max_' in key or key.startswith('max') or 'stop_loss' in key:
             result = max(parsed)
         else:
             result = parsed[0]  # Non min/max rules - take first
@@ -98,22 +112,46 @@ def generate_rules_all():
         return result
     
     # Build rules_all from extremes
+    # Collect ALL sections and keys from ALL rules files
     rules_all = {}
-    base = all_rules[0]
+    all_sections = set()
+    for r in all_rules:
+        all_sections.update(r.keys())
     
-    for section, section_data in base.items():
+    for section in all_sections:
+        # Find first file that has this section to use as template
+        section_template = None
+        for r in all_rules:
+            if section in r and isinstance(r[section], dict):
+                section_template = r[section]
+                break
+        
+        if section_template is None:
+            # Non-dict section, take from first file that has it
+            for r in all_rules:
+                if section in r:
+                    rules_all[section] = r[section]
+                    break
+            continue
+        
+        # Collect all keys from all files for this section
+        all_keys = set()
+        for r in all_rules:
+            if section in r and isinstance(r[section], dict):
+                all_keys.update(r[section].keys())
+        
         rules_all[section] = {}
-        if isinstance(section_data, dict):
-            for key, val in section_data.items():
-                values = [r.get(section, {}).get(key) for r in all_rules]
-                if any(isinstance(v, bool) for v in values):
-                    rules_all[section][key] = val  # Keep booleans as-is
-                elif any(isinstance(v, str) and not any(c in v for c in '%$0123456789.-') for v in values if v):
-                    rules_all[section][key] = val  # Keep non-numeric strings as-is
-                else:
-                    rules_all[section][key] = get_extreme(key, values, values)
-        else:
-            rules_all[section] = section_data
+        for key in all_keys:
+            values = [r.get(section, {}).get(key) for r in all_rules]
+            # Get first non-None value as template
+            template_val = next((v for v in values if v is not None), None)
+            
+            if any(isinstance(v, bool) for v in values if v is not None):
+                rules_all[section][key] = template_val  # Keep booleans as-is
+            elif any(isinstance(v, str) and not any(c in v for c in '%$0123456789.-') for v in values if v):
+                rules_all[section][key] = template_val  # Keep non-numeric strings as-is
+            else:
+                rules_all[section][key] = get_extreme(key, values, values)
     
     with open("rules_all.json", 'w') as f:
         json.dump(rules_all, f, indent=4)
