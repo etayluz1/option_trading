@@ -7,6 +7,7 @@ from collections import OrderedDict
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
+import subprocess
 
 # Tradier API configuration
 TRADIER_API_KEY = "6IyR6wDsuQ2tzm9mGxzLDQY1GrTF"
@@ -117,7 +118,7 @@ def generate_rules_all():
     with open("rules_all.json", 'w') as f:
         json.dump(rules_all, f, indent=4)
     
-    print(f"✅ Generated rules_all.json from {len(rules_files)} rules files: {', '.join(rules_files)}")
+    print(f"[OK] Generated rules_all.json from {len(rules_files)} rules files: {', '.join(rules_files)}")
     return rules_all
 
 
@@ -323,9 +324,9 @@ def process_ticker(ticker_symbol):
     if ticker_symbol == "SPY":
         SPY500_dict[date_str] = date_metrics
     if used_tradier:
-        print(f"📡 Processed {ticker_symbol} for {date_str} (+Tradier)")
+        print(f"[OK+T] Processed {ticker_symbol} for {date_str} (+Tradier)")
     else:
-        print(f"✅ Processed {ticker_symbol} for {date_str}")
+        print(f"[OK] Processed {ticker_symbol} for {date_str}")
     return {date_str: date_metrics}
 
 
@@ -409,7 +410,7 @@ def filter_stocks(rules_file, stocks_dict, output_file):
             }
     with open(output_file, 'w') as f:
         json.dump(passing_stocks, f, indent=4)
-    print(f"✅ {output_file}: {len(passing_stocks)} stocks pass rules")
+    print(f"[OK] {output_file}: {len(passing_stocks)} stocks pass rules")
     return passing_stocks
 
 def filter_puts(result_file, rules_file):
@@ -462,76 +463,17 @@ def filter_puts(result_file, rules_file):
                 put["days_to_expiration"] = days_to_exp
                 stock_data["puts"].append(put)
         
-        print(f"📊 {stock_ticker}: {len(stock_data['puts'])} puts")
+        print(f"[INFO] {stock_ticker}: {len(stock_data['puts'])} puts")
     
     # Save updated results
     with open(result_file, 'w') as f:
         json.dump(results, f, indent=4)
     
-    print(f"✅ Updated {result_file} with puts for {len(results)} tickers")
+    print(f"[OK] Updated {result_file} with puts for {len(results)} tickers")
     return results
 
 
-# =============================================================================
-# MAIN EXECUTION
-# =============================================================================
-
-# Step 1: Generate rules_all.json with extreme values
-generate_rules_all()
-
-# Initialize global tracking variables
-stock_today_dict = {}
-skipped_tickers = []
-SPY500_dict = {}
-
-# Load tickers
-with open('tickers.json', 'rb') as f:
-    tickers = orjson.loads(f.read())
-
-
-
-# Process all tickers concurrently (10 at a time)
-print(f"Processing {len(tickers)} tickers with 10 parallel workers...")
-with ThreadPoolExecutor(max_workers=10) as executor:
-    # Submit all tasks
-    future_to_ticker = {executor.submit(process_ticker, ticker): ticker for ticker in tickers}
-    
-    # Collect results as they complete
-    for future in as_completed(future_to_ticker):
-        ticker = future_to_ticker[future]
-        try:
-            result = future.result()
-            if result:
-                stock_today_dict[ticker] = result
-            else:
-                skipped_tickers.append(ticker)
-        except Exception as e:
-            print(f"❌ Error processing {ticker}: {e}")
-            skipped_tickers.append(ticker)
-
-# Save to stock_today.json
-with open("stock_today.json", "w") as f:
-    json.dump(stock_today_dict, f, indent=4, sort_keys=False)
-
-print(f"✅ Saved stock_today.json with {len(stock_today_dict)} tickers")
-if skipped_tickers:
-    print(f"⚠️  {len(skipped_tickers)} tickers possibly delisted: {', '.join(sorted(skipped_tickers))}")
-
-# Generate result files
-filter_stocks("rules1.json", stock_today_dict, "result1.json")
-filter_stocks("rules2.json", stock_today_dict, "result2.json")
-
-# Filter stocks with rules_all.json to get all investable tickers for put processing
-filter_stocks("rules_all.json", stock_today_dict, "result_all.json")
-
-# Load investable tickers from result_all.json
-with open("result_all.json", 'r') as f:
-    result_all = json.load(f)
-investable_tickers = list(result_all.keys())
-print(f"📈 {len(investable_tickers)} tickers pass rules_all.json filter")
-
-# --- Concurrent put data generation using get_puts.py ---
-import subprocess
+# --- Concurrent processing helper ---
 
 TICKER_GROUP = 6  # Number of concurrent workers
 DELAY_BETWEEN_WORKERS = 0.5  # Seconds delay between starting workers
@@ -546,7 +488,14 @@ def run_get_puts(stock_ticker):
             timeout=120  # 2 minute timeout per ticker
         )
         if result.returncode == 0:
-            return stock_ticker, True, None
+            # Extract put count from stdout (format: [RESULT] TICKER COUNT)
+            put_count = 0
+            for line in result.stdout.split('\n'):
+                if line.startswith('[RESULT]'):
+                    parts = line.split()
+                    if len(parts) >= 3 and parts[2].isdigit():
+                        put_count = int(parts[2])
+            return stock_ticker, True, put_count
         else:
             return stock_ticker, False, result.stderr
     except subprocess.TimeoutExpired:
@@ -554,17 +503,30 @@ def run_get_puts(stock_ticker):
     except Exception as e:
         return stock_ticker, False, str(e)
 
+
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
+
+# Step 1: Generate rules_all.json with extreme values
+generate_rules_all()
+
+# Load tickers
+with open('tickers.json', 'rb') as f:
+    tickers = orjson.loads(f.read())
+
 print(f"\n{'='*60}")
-print(f"📊 Processing {len(investable_tickers)} tickers with {TICKER_GROUP} parallel workers")
+print(f"[INFO] Processing {len(tickers)} tickers with {TICKER_GROUP} parallel workers")
 print(f"{'='*60}")
 
 successful_tickers = []
 failed_tickers = []
+skipped_tickers = []
 
 # Process tickers in groups
-for i in range(0, len(investable_tickers), TICKER_GROUP):
-    group = investable_tickers[i:i + TICKER_GROUP]
-    print(f"\n🔄 Processing group {i//TICKER_GROUP + 1}: {', '.join(group)}")
+for i in range(0, len(tickers), TICKER_GROUP):
+    group = tickers[i:i + TICKER_GROUP]
+    print(f"\n[GROUP] Processing group {i//TICKER_GROUP + 1}/{(len(tickers) + TICKER_GROUP - 1)//TICKER_GROUP}: {', '.join(group)}")
     
     with ThreadPoolExecutor(max_workers=TICKER_GROUP) as executor:
         futures = {}
@@ -574,18 +536,22 @@ for i in range(0, len(investable_tickers), TICKER_GROUP):
             futures[executor.submit(run_get_puts, ticker)] = ticker
         
         for future in as_completed(futures):
-            ticker, success, error = future.result()
+            ticker, success, result_info = future.result()
             if success:
                 successful_tickers.append(ticker)
-                print(f"  ✅ {ticker} completed")
+                print(f"  [OK] {ticker}: {result_info} puts")
+            elif isinstance(result_info, str) and ("insufficient data" in result_info or "failed stock rules" in result_info or "No expiration dates" in result_info):
+                skipped_tickers.append(ticker)
+                print(f"  [SKIP] {ticker}")
             else:
                 failed_tickers.append(ticker)
-                print(f"  ❌ {ticker} failed: {error}")
+                print(f"  [FAIL] {ticker}: {result_info}")
 
 print(f"\n{'='*60}")
-print(f"📊 Put data generation complete:")
-print(f"   ✅ Successful: {len(successful_tickers)} tickers")
-print(f"   ❌ Failed: {len(failed_tickers)} tickers")
+print(f"[SUMMARY] Processing complete:")
+print(f"   Successful: {len(successful_tickers)} tickers")
+print(f"   Skipped (filtered out): {len(skipped_tickers)} tickers")
+print(f"   Failed: {len(failed_tickers)} tickers")
 if failed_tickers:
     print(f"   Failed tickers: {', '.join(failed_tickers)}")
 print(f"{'='*60}")
@@ -596,4 +562,4 @@ elapsed_time = end_time - start_time
 hours = int(elapsed_time // 3600)
 minutes = int((elapsed_time % 3600) // 60)
 seconds = int(elapsed_time % 60)
-print(f"⏱️  Total runtime: {hours:02d}:{minutes:02d}:{seconds:02d}")
+print(f"Total runtime: {hours:02d}:{minutes:02d}:{seconds:02d}")

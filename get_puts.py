@@ -155,7 +155,7 @@ def process_ticker(stock_ticker):
     hist_original = yf_ticker.history(start=start_date, end=end_date)
     
     if len(hist_original) < 160:
-        print(f"❌ Skipped {stock_ticker} (insufficient data: {len(hist_original)} days)")
+        print(f"[SKIP] {stock_ticker} (insufficient data: {len(hist_original)} days)")
         return None
     
     hist = hist_original.copy()
@@ -254,9 +254,9 @@ def process_ticker(stock_ticker):
     date_str = str(last_row['Date'])
     
     if used_tradier:
-        print(f"📡 Processed {stock_ticker} for {date_str} (+Tradier)")
+        print(f"[OK+T] Processed {stock_ticker} for {date_str} (+Tradier)")
     else:
-        print(f"✅ Processed {stock_ticker} for {date_str}")
+        print(f"[OK] Processed {stock_ticker} for {date_str}")
     
     return {"date": date_str, **date_metrics}
 
@@ -331,8 +331,8 @@ def test_put_against_rules(put_data, stock_data, rules):
     sma150 = stock_data.get("sma150_adj_close") or adj_close
     
     # Get rule thresholds
-    min_days = int(entry_rules.get("min_days_for_expiration", "0"))
-    max_days = int(entry_rules.get("max_days_for_expiration", "9999"))
+    min_days = int(float(entry_rules.get("min_days_for_expiration", "0")))
+    max_days = int(float(entry_rules.get("max_days_for_expiration", "9999")))
     min_bid = parse_pct(entry_rules.get("min_put_bid_price", "0"))
     min_delta = parse_pct(entry_rules.get("min_put_delta", "-100"))
     max_delta = parse_pct(entry_rules.get("max_put_delta", "0"))
@@ -428,7 +428,7 @@ def get_puts_for_ticker(stock_ticker, rules_file="rules_all.json"):
     
     # Step 1: Get stock data
     print(f"\n{'='*50}")
-    print(f"📈 Processing {stock_ticker}")
+    print(f"[PROCESSING] {stock_ticker}")
     print(f"{'='*50}")
     
     stock_data = process_ticker(stock_ticker)
@@ -438,23 +438,23 @@ def get_puts_for_ticker(stock_ticker, rules_file="rules_all.json"):
     # Step 2: Test stock against rules
     passes, failed_rules = test_stock_against_rules(stock_data, rules)
     if not passes:
-        print(f"❌ {stock_ticker} failed stock rules: {', '.join(failed_rules)}")
+        print(f"[FAIL] {stock_ticker} failed stock rules: {', '.join(failed_rules)}")
         return None
     
-    print(f"✅ {stock_ticker} passed stock filter")
+    print(f"[PASS] {stock_ticker} passed stock filter")
     
     # Step 3: Get expiration dates
     expiration_dates = get_option_expirations(stock_ticker)
     if not expiration_dates:
-        print(f"❌ No expiration dates found for {stock_ticker}")
+        print(f"[FAIL] No expiration dates found for {stock_ticker}")
         return None
     
-    print(f"📅 Found {len(expiration_dates)} expiration dates")
+    print(f"[INFO] Found {len(expiration_dates)} expiration dates")
     
     # Step 4: Get and filter puts
     entry_rules = rules.get("entry_put_position", {})
-    min_days = int(entry_rules.get("min_days_for_expiration", "0"))
-    max_days = int(entry_rules.get("max_days_for_expiration", "9999"))
+    min_days = int(float(entry_rules.get("min_days_for_expiration", "0")))
+    max_days = int(float(entry_rules.get("max_days_for_expiration", "9999")))
     
     today = datetime.now().date()
     filtered_puts = []
@@ -478,7 +478,7 @@ def get_puts_for_ticker(stock_ticker, rules_file="rules_all.json"):
             if passes:
                 filtered_puts.append(put)
     
-    print(f"📊 {stock_ticker}: {len(filtered_puts)} puts pass filter")
+    print(f"[PUTS] {stock_ticker}: {len(filtered_puts)} puts pass filter")
     
     # Build result
     result = {
@@ -496,7 +496,7 @@ def get_puts_for_ticker(stock_ticker, rules_file="rules_all.json"):
     with open(output_file, 'w') as f:
         json.dump(result, f, indent=4)
     
-    print(f"💾 Saved to {output_file}")
+    print(f"[SAVED] {output_file}")
     
     return result
 
@@ -513,13 +513,14 @@ if __name__ == "__main__":
     result = get_puts_for_ticker(ticker)
     
     if result:
-        print(f"\n✅ Successfully processed {ticker}")
+        put_count = len(result.get("puts", []))
+        print(f"\n[RESULT] {ticker} {put_count}")
     else:
-        print(f"\n❌ Failed to process {ticker}")
+        print(f"\n[RESULT] {ticker} FAIL")
     
     # Calculate and print runtime
     elapsed_time = time.time() - start_time
     hours = int(elapsed_time // 3600)
     minutes = int((elapsed_time % 3600) // 60)
     seconds = int(elapsed_time % 60)
-    print(f"⏱️  Runtime: {hours:02d}:{minutes:02d}:{seconds:02d}")
+    print(f"Runtime: {hours:02d}:{minutes:02d}:{seconds:02d}")
