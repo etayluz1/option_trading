@@ -1,3 +1,5 @@
+# Version 12/26/2025 11:21 PM
+# x.y.z is now doing y = 1, 2 to 15
 import orjson
 import math
 import os
@@ -26,8 +28,8 @@ wrapper_sweep_pct_set = [0.3, 2, 3, 5, 8, 12, 16, 20, 24, 28, 32, 36, 40, 45, 50
 #Version 7: $[40, 12, 8, 0.3, 16, 50, 45, 3, 20, 24, 32, 36, 5, 28, 2]$
 #ersion 8: $[12, 20, 50, 40, 28, 45, 8, 16, 36, 5, 32, 3, 0.3, 24, 2]$
 wrapper_sweep_pct_set = [24, 5, 28, 16, 8, 20]  # Percentages
-wrapper_sweep_pct_set = [0.5, 41, 51, 25, 17, 13, 4, 29, 21, 6, 37, 46, 9, 1, 33]  # Percentages
 wrapper_sweep_pct_set = [40, 24, 45, 36, 16, 12, 20, 0.3, 2, 5, 3, 8, 32, 28, 50]  # Percentages
+wrapper_sweep_pct_set = [0.5, 41, 51, 25, 17, 13, 4, 29, 21, 6, 37, 46, 9, 1, 33]  # Percentages
 wrap_group_size = 3  # Group size for optimization sweeps (3 or 4)
 
 score_improvements_count = 0
@@ -420,7 +422,7 @@ def compute_variants_for_wrap_id(base_value: float, param_type: str, sweep_pct: 
     return plus, minus
 
 
-def main(wrapper_sweep_pct_group: list[float]) -> None:
+def main(wrapper_sweep_pct_group: list[float], global_wrap_idx_start: int = 1) -> None:
     # Load stock_history.json once and serialize as JSON string for env transfer
     stock_history_path = ROOT_DIR / "stock_history.json"
     with stock_history_path.open("rb") as f:
@@ -556,39 +558,41 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
             # All trials run concurrently
             
             trial_tasks = []
-            trial_timestamp = datetime.now().strftime("%Y-%m-%d %H-%M")
+            trial_timestamp = datetime.now().strftime("%y-%m-%d %H-%M")
             assigned_values = set()
             
             # Rotate wrap_id offset based on rule progress to vary testing pattern
             wrap_id_offset = (rule_id - 1) % wrap_group_size
             
-            for wrap_idx, sweep_pct in enumerate(wrapper_sweep_pct_group, start=1):
-                # Apply offset to wrap_id (cycle through 1 to wrap_group_size)
-                wrap_id = ((wrap_idx - 1 + wrap_id_offset) % wrap_group_size) + 1
-                # Compute variants for this wrap_id
+            for local_idx, sweep_pct in enumerate(wrapper_sweep_pct_group, start=1):
+                # Find the 1-based index of sweep_pct in the full wrapper_sweep_pct_set
+                try:
+                    sweep_y = wrapper_sweep_pct_set.index(sweep_pct) + 1
+                except ValueError:
+                    sweep_y = local_idx  # fallback to local_idx if not found
+                # Compute variants for this sweep_pct
                 plus_value, minus_value = compute_variants_for_wrap_id(base_value, param_type, sweep_pct)
 
-                # Prepare all three trial values for this wrap_id
+                # Prepare all three trial values for this sweep_pct
                 for try_id, value in zip([1,2,3], [base_value, plus_value, minus_value]):
                     # Skip try_id=1 (-->0%) for Rule 2+
                     # Only include the FIRST try_id=1 as a reused fake run
                     if rule_id > 1 and try_id == 1:
-                        if wrap_idx == 1:
+                        if local_idx == 1:
                             # First wrap: will inject as reused result
                             serialized_value = serialize_value(value, param_type)
-                            print(f"{rule_id}.{wrap_id}.{try_id} --> {label}={serialized_value} (reused from Rule {prev_best_result['rule_id']})", flush=True)
+                            print(f"{rule_id}.{sweep_y}.{try_id} --> {label}={serialized_value} (reused from Rule {prev_best_result['rule_id']})", flush=True)
                         # Skip adding to trial_tasks (all other try_id=1 or first one will be injected)
                         continue
-                    
                     # Use string representation for set to handle float/int/str uniformly
                     value_key = str(value)
                     if value_key in assigned_values:
                         continue  # Skip if this value was already assigned in this trial set
                     assigned_values.add(value_key)
                     trial_tasks.append({
-                        "rule_id": rule_id,
-                        "wrap_id": wrap_id,
-                        "try_id": try_id,
+                        "rule_id": rule_id,  # x: 1 to 46
+                        "wrap_id": sweep_y,  # y: 1 to 15 (index in wrapper_sweep_pct_set)
+                        "try_id": try_id,    # z: 1 to 3
                         "value": value,
                         "sweep_pct": sweep_pct,
                         "label": label,
@@ -602,9 +606,9 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
             results = []
             
             def run_single_trial(task):
-                rule_id = task["rule_id"]
-                wrap_id = task["wrap_id"]
-                try_id = task["try_id"]
+                rule_id = task["rule_id"]  # x
+                wrap_id = task["wrap_id"]  # y (should be 1-15, index in wrapper_sweep_pct_set)
+                try_id = task["try_id"]    # z
                 value = task["value"]
                 sweep_pct = task["sweep_pct"]
                 label = task["label"]
@@ -612,10 +616,11 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
                 key = task["key"]
                 param_type = task["param_type"]
                 is_reused = task["is_reused"]
-                
+
                 serialized_value = serialize_value(value, param_type)
+                # y is always the 1-based index in wrapper_sweep_pct_set
                 trial_id = f"{rule_id}.{wrap_id}.{try_id}"
-                
+
                 # If this is a reused trial, skip simulation and use previous rule's result
                 if is_reused and prev_best_result:
                     result = prev_best_result.copy()
@@ -636,7 +641,7 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
                         result["score"] = result.get("score")
                     print(f"{trial_id} --> {label}={serialized_value} (reused from Rule {prev_best_result['rule_id']})", flush=True)
                     return result
-                
+
                 # Create temporary rules for this trial
                 temp_rules = deepcopy(current_rules)
                 temp_rules[section][key] = serialized_value
@@ -661,9 +666,8 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
                         sweep_display = f"-{sweep_pct}%"
                     print(f"{trial_id} --> {label}={serialized_value} (sweep={sweep_display})", flush=True)
                     # Run simulation with temp rules file (passed via environment variable)
-                    # Pass the log filename with wrapper_sweep_pct in the name
                     result = _run_simulation_once(
-                        rule_id, wrap_id, try_id, f"{trial_timestamp} {sweep_pct_str}pct", temp_rules_path
+                        rule_id, wrap_id, try_id, trial_timestamp, temp_rules_path
                     )
                     result["param_value"] = value
                     result["param_display"] = serialized_value
@@ -700,10 +704,12 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
             
             # If we skipped all try_id=1 for Rule 2+, inject the reused result for the first wrap
             if rule_id > 1 and prev_best_result and len(wrapper_sweep_pct_group) > 0:
-                # The first wrap is at wrap_idx=1
-                first_wrap_idx = 1
-                first_wrap_id = ((first_wrap_idx - 1 + wrap_id_offset) % wrap_group_size) + 1
-                
+                # The first sweep_pct in the group
+                first_sweep_pct = wrapper_sweep_pct_group[0]
+                try:
+                    first_sweep_y = wrapper_sweep_pct_set.index(first_sweep_pct) + 1
+                except ValueError:
+                    first_sweep_y = 1
                 base_raw = original_rules.get(section, {}).get(key)
                 if param_type == "percent":
                     base_value = float(str(base_raw).replace("%", ""))
@@ -711,13 +717,12 @@ def main(wrapper_sweep_pct_group: list[float]) -> None:
                     base_value = float(str(base_raw).replace("$", "").replace(",", ""))
                 else:
                     base_value = float(base_raw)
-                
                 serialized_value = serialize_value(base_value, param_type)
                 reused_result = prev_best_result.copy()
                 reused_result["rule_id"] = rule_id
-                reused_result["wrap_id"] = first_wrap_id
+                reused_result["wrap_id"] = first_sweep_y
                 reused_result["try_id"] = 1
-                reused_result["trial_id"] = f"{rule_id}.{first_wrap_id}.1"
+                reused_result["trial_id"] = f"{rule_id}.{first_sweep_y}.1"
                 reused_result["param_value"] = base_value
                 reused_result["param_display"] = serialized_value
                 reused_result["is_reused"] = True
@@ -801,11 +806,13 @@ if __name__ == "__main__":
     else:
         groups = [wrapper_sweep_pct_set]
     
+    global_wrap_idx = 1  # Track global wrap index across all groups
     for group_idx, group in enumerate(groups, start=1):
         print()
         print(f"Starting optimization group {group_idx}/{len(groups)}: sweep percentages = {group}")
         print()
-        main(group)
+        main(group, global_wrap_idx_start=global_wrap_idx)
+        global_wrap_idx += len(group)  # Increment for next group
     
     elapsed = time.perf_counter() - _wrap_start_time
     hh = int(elapsed // 3600)

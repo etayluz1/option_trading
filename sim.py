@@ -3043,9 +3043,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         Score6 =  Score6 * (abs(worst_year_pct)) ** 2 / abs(drawdown_goal_pct - worst_drawdown_pct) ** 2    
         if annualized_gain < 0 and worst_year_pct < 0:
             Score6= -abs(Score6)
-    Score6 = Score6 / 1e5 * (peak_open_positions_low + 1) * (peak_open_positions_high + 1) * total_entry_events ** 2
+            
+    Score7 = Score6 / 1e7 * ((peak_open_positions_low + 1) * (peak_open_positions_high + 1) * total_entry_events) ** 5
 
-    print(f"| Score Result                   | {Score6:>35.4f} |")
+    print(f"| Score Result                   | {Score7:>35.4f} |")
     print(f"|--------------------------------|-----------------------------------|")
     print()    
 # Execute the main function 
