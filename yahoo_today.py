@@ -528,12 +528,181 @@ def convert_timestamp_to_local(ts_ms, tz_offset=-6):
         return None
 
 
+def test_put_against_high_mode(put, stock_data, rules):
+    """Test a put against high mode (entry_put_position) rules. Returns True if passes."""
+    entry_rules = rules.get("entry_put_position", {})
+    
+    # Get put values
+    bid = put.get("bid", 0)
+    delta = put.get("delta")
+    ask = put.get("ask", 0)
+    strike = put.get("strike", 0)
+    days_to_exp = put.get("days_to_expiration", 0)
+    adj_close = stock_data.get("adj_close", 0)
+    
+    # Get rule thresholds
+    min_bid = parse_pct(entry_rules.get("min_put_bid_price", "0"))
+    min_delta = parse_pct(entry_rules.get("min_put_delta", "-100"))
+    max_delta = parse_pct(entry_rules.get("max_put_delta", "0"))
+    max_ask_above_bid = parse_pct(entry_rules.get("max_ask_above_bid_pct", "100"))
+    min_avg_above_strike = parse_pct(entry_rules.get("min_avg_above_strike", "-100"))
+    min_rr_ratio = parse_pct(entry_rules.get("min_risk_reward_ratio", "-1000000"))
+    min_annual_rr = parse_pct(entry_rules.get("min_annual_risk_reward_ratio", "-1000000"))
+    min_rev_annual_rr = parse_pct(entry_rules.get("min_rev_annual_rr_ratio", "-1000000"))
+    max_days = int(float(entry_rules.get("max_days_for_expiration", "9999")))
+    
+    # Test rules
+    if min_bid is not None and bid < min_bid:
+        return False
+    
+    if delta is not None:
+        delta_pct = delta * 100 if abs(delta) <= 1 else delta
+        if min_delta is not None and delta_pct < min_delta:
+            return False
+        if max_delta is not None and delta_pct > max_delta:
+            return False
+    
+    if bid > 0 and ask > 0:
+        ask_above_bid_pct = ((ask - bid) / bid) * 100
+        if max_ask_above_bid is not None and ask_above_bid_pct > max_ask_above_bid:
+            return False
+    
+    if strike > 0 and adj_close > 0:
+        avg_above_strike_pct = ((adj_close - strike) / strike) * 100
+        if min_avg_above_strike is not None and avg_above_strike_pct < min_avg_above_strike:
+            return False
+    
+    if days_to_exp > max_days:
+        return False
+    
+    # Risk/reward ratio tests
+    if bid > 0 and strike > bid and days_to_exp > 0:
+        risk_reward_ratio = -((strike - bid) / bid)
+        if min_rr_ratio is not None and risk_reward_ratio < min_rr_ratio:
+            return False
+        
+        annual_rr = risk_reward_ratio * (365.0 / days_to_exp)
+        if min_annual_rr is not None and annual_rr < min_annual_rr:
+            return False
+        
+        rev_annual_rr = risk_reward_ratio * (days_to_exp / 365.0)
+        if min_rev_annual_rr is not None and rev_annual_rr < min_rev_annual_rr:
+            return False
+    
+    return True
+
+
+def test_put_against_low_mode(put, stock_data, rules):
+    """Test a put against low mode (low_put_mode) rules. Returns True if passes."""
+    low_rules = rules.get("low_put_mode", {})
+    
+    if not low_rules:
+        return False  # No low mode rules defined
+    
+    # Get put values
+    bid = put.get("bid", 0)
+    delta = put.get("delta")
+    ask = put.get("ask", 0)
+    strike = put.get("strike", 0)
+    days_to_exp = put.get("days_to_expiration", 0)
+    adj_close = stock_data.get("adj_close", 0)
+    
+    # Get rule thresholds (low mode uses "low_" prefix)
+    min_bid = parse_pct(low_rules.get("low_min_put_bid_price", "0"))
+    min_delta = parse_pct(low_rules.get("low_min_put_delta", "-100"))
+    max_delta = parse_pct(low_rules.get("low_max_put_delta", "0"))
+    max_ask_above_bid = parse_pct(low_rules.get("low_max_ask_above_bid_pct", "100"))
+    min_rr_ratio = parse_pct(low_rules.get("low_min_risk_reward_ratio", "-1000000"))
+    min_annual_rr = parse_pct(low_rules.get("low_min_annual_risk_reward_ratio", "-1000000"))
+    min_rev_annual_rr = parse_pct(low_rules.get("low_min_rev_annual_rr_ratio", "-1000000"))
+    max_days = int(float(low_rules.get("low_max_days_for_expiration", "9999")))
+    
+    # Test rules
+    if min_bid is not None and bid < min_bid:
+        return False
+    
+    if delta is not None:
+        delta_pct = delta * 100 if abs(delta) <= 1 else delta
+        if min_delta is not None and delta_pct < min_delta:
+            return False
+        if max_delta is not None and delta_pct > max_delta:
+            return False
+    
+    if bid > 0 and ask > 0:
+        ask_above_bid_pct = ((ask - bid) / bid) * 100
+        if max_ask_above_bid is not None and ask_above_bid_pct > max_ask_above_bid:
+            return False
+    
+    if days_to_exp > max_days:
+        return False
+    
+    # Risk/reward ratio tests
+    if bid > 0 and strike > bid and days_to_exp > 0:
+        risk_reward_ratio = -((strike - bid) / bid)
+        if min_rr_ratio is not None and risk_reward_ratio < min_rr_ratio:
+            return False
+        
+        annual_rr = risk_reward_ratio * (365.0 / days_to_exp)
+        if min_annual_rr is not None and annual_rr < min_annual_rr:
+            return False
+        
+        rev_annual_rr = risk_reward_ratio * (days_to_exp / 365.0)
+        if min_rev_annual_rr is not None and rev_annual_rr < min_rev_annual_rr:
+            return False
+    
+    return True
+
+
+def test_stock_against_low_mode(stock_data, rules):
+    """Test a stock against low mode (low_put_mode) stock rules. Returns True if passes."""
+    low_rules = rules.get("low_put_mode", {})
+    
+    if not low_rules:
+        return False  # No low mode rules defined
+    
+    # Get stock values
+    adj_close = stock_data.get("adj_close")
+    five_day_rise = parse_pct(stock_data.get("5_day_rise"))
+    avg_slope = parse_pct(stock_data.get("10_day_avg_slope"))
+    above_avg_pct = parse_pct(stock_data.get("adj_price_above_avg_pct"))
+    
+    # Get rule thresholds (low mode uses "low_" prefix)
+    min_5_day_rise = parse_pct(low_rules.get("low_min_5_day_rise_pct"))
+    min_above_avg = parse_pct(low_rules.get("low_min_above_avg_pct"))
+    max_above_avg = parse_pct(low_rules.get("low_max_above_avg_pct"))
+    min_avg_slope = parse_pct(low_rules.get("low_min_avg_up_slope_pct"))
+    min_stock_price = parse_pct(low_rules.get("low_min_stock_price"))
+    
+    # Test rules
+    if min_5_day_rise is not None and five_day_rise is not None:
+        if five_day_rise < min_5_day_rise:
+            return False
+    
+    if min_above_avg is not None and above_avg_pct is not None:
+        if above_avg_pct < min_above_avg:
+            return False
+    
+    if max_above_avg is not None and above_avg_pct is not None:
+        if above_avg_pct > max_above_avg:
+            return False
+    
+    if min_avg_slope is not None and avg_slope is not None:
+        if avg_slope < min_avg_slope:
+            return False
+    
+    if min_stock_price is not None and adj_close is not None:
+        if adj_close < min_stock_price:
+            return False
+    
+    return True
+
+
 def generate_results_from_put_data():
-    """Generate result1.json through result6.json by filtering put_data/ against each rules file"""
+    """Generate result1.json through result6.json by filtering put_data_today/ against each rules file"""
     import os
     
-    # Load all put_data files
-    put_data_dir = "put_data"
+    # Load all put_data_today files
+    put_data_dir = "put_data_today"
     if not os.path.exists(put_data_dir):
         print(f"[WARN] {put_data_dir} directory not found")
         return
@@ -551,7 +720,7 @@ def generate_results_from_put_data():
             except Exception as e:
                 print(f"[WARN] Error loading {filepath}: {e}")
     
-    print(f"[INFO] Loaded {len(all_put_data)} tickers from put_data/")
+    print(f"[INFO] Loaded {len(all_put_data)} tickers from put_data_today/")
     
     # Process each rules file
     for i in range(1, 7):
@@ -572,21 +741,38 @@ def generate_results_from_put_data():
             stock_data = data.get("stock_data", {})
             puts = data.get("puts", [])
             
-            # Test stock against this rules file
-            passes_stock, _ = test_stock_against_rules(stock_data, rules)
-            if not passes_stock:
+            # Test stock against high mode (underlying_stock) rules
+            passes_stock_high = test_stock_against_rules(stock_data, rules)[0]
+            
+            # Test stock against low mode rules
+            passes_stock_low = test_stock_against_low_mode(stock_data, rules)
+            
+            # If stock fails both modes, skip entirely
+            if not passes_stock_high and not passes_stock_low:
                 continue
             
-            # Filter puts against this rules file's entry_put_position
-            # (puts are already filtered by rules_all, so they should pass most rules)
+            # Filter puts against this rules file's high and low modes
             filtered_puts = []
             tz_offset = -time.timezone // 3600  # Calculate local timezone offset
+            
             for put in puts:
                 # Convert bid_date and ask_date to local time format
-                if put.get("bid_date"):
+                if put.get("bid_date") and isinstance(put.get("bid_date"), (int, float)):
                     put["bid_date"] = convert_timestamp_to_local(put["bid_date"], tz_offset)
-                if put.get("ask_date"):
+                if put.get("ask_date") and isinstance(put.get("ask_date"), (int, float)):
                     put["ask_date"] = convert_timestamp_to_local(put["ask_date"], tz_offset)
+                
+                # Test put against both modes
+                passes_high = passes_stock_high and test_put_against_high_mode(put, stock_data, rules)
+                passes_low = passes_stock_low and test_put_against_low_mode(put, stock_data, rules)
+                
+                # If put fails both modes, skip it
+                if not passes_high and not passes_low:
+                    continue
+                
+                # Add mode pass flags to put
+                put["passed_high_put_mode"] = passes_high
+                put["passed_low_put_mode"] = passes_low
                 filtered_puts.append(put)
             
             if filtered_puts:
@@ -611,9 +797,8 @@ def generate_results_from_put_data():
 def generate_result_all():
     """Generate result_all.json with unique puts ranked by rev_annual_rr_ratio (highest first)"""
     
-    # Collect all puts from result1.json through result6.json
-    all_puts = []
-    seen_symbols = set()
+    # First pass: collect which rules files each put passes for low and high modes
+    put_rules_map = {}  # symbol -> {"low": [rules files], "high": [rules files], "put_data": {...}}
     
     for i in range(1, 7):
         result_file = f"result{i}.json"
@@ -628,21 +813,51 @@ def generate_result_all():
             puts = stock_data.get("puts", [])
             for put in puts:
                 symbol = put.get("symbol")
-                if symbol and symbol not in seen_symbols:
-                    seen_symbols.add(symbol)
-                    # Add stock info to put, with source_rules at the end
-                    put_entry = {
+                if not symbol:
+                    continue
+                
+                if symbol not in put_rules_map:
+                    put_rules_map[symbol] = {
+                        "low": [],
+                        "high": [],
                         "stock_ticker": stock_ticker,
                         "stock_close": stock_data.get("close"),
                         "stock_adj_close": stock_data.get("adj_close"),
-                        **put,
-                        "source_rules": rules_file
+                        "put_data": {k: v for k, v in put.items() if k not in ["passed_high_put_mode", "passed_low_put_mode"]}
                     }
-                    all_puts.append(put_entry)
+                
+                # Track which rules files this put passed for each mode
+                if put.get("passed_low_put_mode"):
+                    if rules_file not in put_rules_map[symbol]["low"]:
+                        put_rules_map[symbol]["low"].append(rules_file)
+                if put.get("passed_high_put_mode"):
+                    if rules_file not in put_rules_map[symbol]["high"]:
+                        put_rules_map[symbol]["high"].append(rules_file)
+    
+    # Build final list, filtering out puts that passed neither mode in any rules file
+    all_puts = []
+    for symbol, data in put_rules_map.items():
+        # If both low and high lists are empty, skip this put
+        if not data["low"] and not data["high"]:
+            continue
+        
+        put_entry = {
+            "stock_ticker": data["stock_ticker"],
+            "stock_close": data["stock_close"],
+            "stock_adj_close": data["stock_adj_close"],
+            **data["put_data"],
+            "source_low_rules": ", ".join(data["low"]) if data["low"] else "",
+            "source_high_rules": ", ".join(data["high"]) if data["high"] else ""
+        }
+        all_puts.append(put_entry)
     
     # Sort by rev_annual_rr_ratio descending (highest first = best)
     # Puts without the ratio go to the end
     all_puts.sort(key=lambda x: x.get("rev_annual_rr_ratio") or float('-inf'), reverse=True)
+    
+    # Add rank_order (1 = top ranked put, 2 = second, etc.)
+    for rank, put in enumerate(all_puts, start=1):
+        put["rank_order"] = rank
     
     # Save to result_all.json
     with open("result_all.json", 'w') as f:
@@ -654,14 +869,14 @@ def generate_result_all():
 
 # --- Concurrent processing helper ---
 
-TICKER_GROUP = 12  # Number of concurrent workers
+TICKER_GROUP = 16  # Number of concurrent workers
 DELAY_BETWEEN_WORKERS = 0.5  # Seconds delay between starting workers
 
 def run_get_puts(stock_ticker):
-    """Run get_puts.py for a single ticker and wait for completion"""
+    """Run get_puts_today.py for a single ticker and wait for completion"""
     try:
         result = subprocess.run(
-            ["python", "get_puts.py", stock_ticker],
+            ["python", "get_puts_today.py", stock_ticker],
             capture_output=True,
             text=True,
             timeout=120  # 2 minute timeout per ticker
@@ -691,8 +906,8 @@ if __name__ == "__main__":
     # Step 1: Generate rules_all.json with extreme values
     generate_rules_all()
 
-    # Step 2: Clear put_data/ folder to start fresh
-    put_data_dir = "put_data"
+    # Step 2: Clear put_data_today/ folder to start fresh
+    put_data_dir = "put_data_today"
     if os.path.exists(put_data_dir):
         import shutil
         shutil.rmtree(put_data_dir)
@@ -752,8 +967,8 @@ if __name__ == "__main__":
         print(f"   Failed tickers: {', '.join(failed_tickers)}")
     print(f"{'='*60}")
 
-    # Generate result1.json through result6.json from put_data/
-    print(f"\n[INFO] Generating result files from put_data/...")
+    # Generate result1.json through result6.json from put_data_today/
+    print(f"\n[INFO] Generating result files from put_data_today/...")
     generate_results_from_put_data()
 
     # Generate result_all.json with unique puts ranked by rev_annual_rr_ratio
