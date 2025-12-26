@@ -506,6 +506,16 @@ def get_puts_for_ticker(stock_ticker, rules_file="rules_all.json"):
             # Test put against rules
             passes, failed = test_put_against_rules(put, stock_data, rules)
             if passes:
+                # Calculate and add risk/reward ratios
+                bid = put.get("bid", 0)
+                strike = put.get("strike", 0)
+                if bid > 0 and strike > bid and days_to_exp > 0:
+                    risk_reward_ratio = -((strike - bid) / bid)
+                    annual_rr = risk_reward_ratio * (365.0 / days_to_exp)
+                    rev_annual_rr = risk_reward_ratio * (days_to_exp / 365.0)
+                    put["risk_reward_ratio"] = round(risk_reward_ratio, 6)
+                    put["annual_rr_ratio"] = round(annual_rr, 6)
+                    put["rev_annual_rr_ratio"] = round(rev_annual_rr, 6)
                 filtered_puts.append(put)
     
     print(f"[PUTS] {stock_ticker}: {len(filtered_puts)} puts pass filter")

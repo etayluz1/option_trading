@@ -511,9 +511,150 @@ def filter_puts(result_file, rules_file):
     return results
 
 
+def convert_timestamp_to_local(ts_ms, tz_offset=-6):
+    """Convert Unix timestamp (milliseconds) to local time string 'yyyy-mm-dd hh:mm'"""
+    if ts_ms is None:
+        return None
+    try:
+        from datetime import datetime, timedelta, timezone
+        # Convert milliseconds to seconds
+        ts_sec = ts_ms / 1000
+        # Convert to UTC datetime (timezone-aware)
+        utc_dt = datetime.fromtimestamp(ts_sec, tz=timezone.utc)
+        # Apply timezone offset
+        local_dt = utc_dt + timedelta(hours=tz_offset)
+        return local_dt.strftime("%Y-%m-%d %H:%M")
+    except:
+        return None
+
+
+def generate_results_from_put_data():
+    """Generate result1.json through result6.json by filtering put_data/ against each rules file"""
+    import os
+    
+    # Load all put_data files
+    put_data_dir = "put_data"
+    if not os.path.exists(put_data_dir):
+        print(f"[WARN] {put_data_dir} directory not found")
+        return
+    
+    all_put_data = {}
+    for filename in os.listdir(put_data_dir):
+        if filename.endswith('.json'):
+            ticker = filename.replace('.json', '')
+            filepath = os.path.join(put_data_dir, filename)
+            try:
+                with open(filepath, 'r') as f:
+                    data = json.load(f)
+                    if data.get("status") == "success":
+                        all_put_data[ticker] = data
+            except Exception as e:
+                print(f"[WARN] Error loading {filepath}: {e}")
+    
+    print(f"[INFO] Loaded {len(all_put_data)} tickers from put_data/")
+    
+    # Process each rules file
+    for i in range(1, 7):
+        rules_file = f"rules{i}.json"
+        result_file = f"result{i}.json"
+        
+        if not os.path.exists(rules_file):
+            print(f"[SKIP] {rules_file} not found")
+            continue
+        
+        with open(rules_file, 'r') as f:
+            rules = json.load(f)
+        
+        results = {}
+        total_puts = 0
+        
+        for ticker, data in all_put_data.items():
+            stock_data = data.get("stock_data", {})
+            puts = data.get("puts", [])
+            
+            # Test stock against this rules file
+            passes_stock, _ = test_stock_against_rules(stock_data, rules)
+            if not passes_stock:
+                continue
+            
+            # Filter puts against this rules file's entry_put_position
+            # (puts are already filtered by rules_all, so they should pass most rules)
+            filtered_puts = []
+            tz_offset = -time.timezone // 3600  # Calculate local timezone offset
+            for put in puts:
+                # Convert bid_date and ask_date to local time format
+                if put.get("bid_date"):
+                    put["bid_date"] = convert_timestamp_to_local(put["bid_date"], tz_offset)
+                if put.get("ask_date"):
+                    put["ask_date"] = convert_timestamp_to_local(put["ask_date"], tz_offset)
+                filtered_puts.append(put)
+            
+            if filtered_puts:
+                results[ticker] = {
+                    "date": stock_data.get("date"),
+                    "adj_close": stock_data.get("adj_close"),
+                    "close": stock_data.get("close"),
+                    "5_day_rise": stock_data.get("5_day_rise"),
+                    "10_day_avg_slope": stock_data.get("10_day_avg_slope"),
+                    "adj_price_above_avg_pct": stock_data.get("adj_price_above_avg_pct"),
+                    "sma150_adj_close": stock_data.get("sma150_adj_close"),
+                    "puts": filtered_puts
+                }
+                total_puts += len(filtered_puts)
+        
+        with open(result_file, 'w') as f:
+            json.dump(results, f, indent=4)
+        
+        print(f"[OK] {result_file}: {len(results)} stocks, {total_puts} puts")
+
+
+def generate_result_all():
+    """Generate result_all.json with unique puts ranked by rev_annual_rr_ratio (highest first)"""
+    
+    # Collect all puts from result1.json through result6.json
+    all_puts = []
+    seen_symbols = set()
+    
+    for i in range(1, 7):
+        result_file = f"result{i}.json"
+        rules_file = f"rules{i}.json"
+        if not os.path.exists(result_file):
+            continue
+        
+        with open(result_file, 'r') as f:
+            results = json.load(f)
+        
+        for stock_ticker, stock_data in results.items():
+            puts = stock_data.get("puts", [])
+            for put in puts:
+                symbol = put.get("symbol")
+                if symbol and symbol not in seen_symbols:
+                    seen_symbols.add(symbol)
+                    # Add stock info to put, with source_rules at the end
+                    put_entry = {
+                        "stock_ticker": stock_ticker,
+                        "stock_close": stock_data.get("close"),
+                        "stock_adj_close": stock_data.get("adj_close"),
+                        **put,
+                        "source_rules": rules_file
+                    }
+                    all_puts.append(put_entry)
+    
+    # Sort by rev_annual_rr_ratio descending (highest first = best)
+    # Puts without the ratio go to the end
+    all_puts.sort(key=lambda x: x.get("rev_annual_rr_ratio") or float('-inf'), reverse=True)
+    
+    # Save to result_all.json
+    with open("result_all.json", 'w') as f:
+        json.dump(all_puts, f, indent=4)
+    
+    print(f"[OK] result_all.json: {len(all_puts)} unique puts (sorted by rev_annual_rr_ratio)")
+    return all_puts
+
+
 # --- Concurrent processing helper ---
 
-TICKER_GROUP = 6  # Number of concurrent workers
+TICKER_GROUP = 12  # Number of concurrent workers
 DELAY_BETWEEN_WORKERS = 0.5  # Seconds delay between starting workers
 
 def run_get_puts(stock_ticker):
@@ -546,63 +687,83 @@ def run_get_puts(stock_ticker):
 # MAIN EXECUTION
 # =============================================================================
 
-# Step 1: Generate rules_all.json with extreme values
-generate_rules_all()
+if __name__ == "__main__":
+    # Step 1: Generate rules_all.json with extreme values
+    generate_rules_all()
 
-# Load tickers
-with open('tickers.json', 'rb') as f:
-    tickers = orjson.loads(f.read())
+    # Step 2: Clear put_data/ folder to start fresh
+    put_data_dir = "put_data"
+    if os.path.exists(put_data_dir):
+        import shutil
+        shutil.rmtree(put_data_dir)
+        print(f"[OK] Cleared {put_data_dir}/ folder")
+    os.makedirs(put_data_dir, exist_ok=True)
 
-print(f"\n{'='*60}")
-print(f"[INFO] Processing {len(tickers)} tickers with {TICKER_GROUP} parallel workers")
-print(f"{'='*60}")
+    # Load tickers
+    with open('tickers.json', 'rb') as f:
+        tickers = orjson.loads(f.read())
 
-successful_tickers = []
-failed_tickers = []
-skipped_tickers = []
-total_puts = 0
+    # Timezone info (calculated UTC offset in hours)
+    time_zone = -time.timezone // 3600  # -6 for CST
 
-# Process tickers in groups
-for i in range(0, len(tickers), TICKER_GROUP):
-    group = tickers[i:i + TICKER_GROUP]
-    print(f"\n[GROUP] Processing group {i//TICKER_GROUP + 1}/{(len(tickers) + TICKER_GROUP - 1)//TICKER_GROUP}: {', '.join(group)}")
-    
-    with ThreadPoolExecutor(max_workers=TICKER_GROUP) as executor:
-        futures = {}
-        for idx, ticker in enumerate(group):
-            if idx > 0:
-                time.sleep(DELAY_BETWEEN_WORKERS)
-            futures[executor.submit(run_get_puts, ticker)] = ticker
+    print(f"\n{'='*60}")
+    print(f"[INFO] Processing {len(tickers)} tickers with {TICKER_GROUP} parallel workers")
+    print(f"{'='*60}")
+
+    successful_tickers = []
+    failed_tickers = []
+    skipped_tickers = []
+    total_puts = 0
+
+    # Process tickers in groups
+    for i in range(0, len(tickers), TICKER_GROUP):
+        group = tickers[i:i + TICKER_GROUP]
+        print(f"\n[GROUP] Processing group {i//TICKER_GROUP + 1}/{(len(tickers) + TICKER_GROUP - 1)//TICKER_GROUP}: {', '.join(group)}")
         
-        for future in as_completed(futures):
-            ticker, success, result_info = future.result()
-            if success:
-                successful_tickers.append(ticker)
-                total_puts += result_info
-                print(f"  [OK] {ticker}: {result_info} puts")
-            elif isinstance(result_info, str) and ("insufficient data" in result_info or "failed stock rules" in result_info or "No expiration dates" in result_info):
-                skipped_tickers.append(ticker)
-                print(f"  [SKIP] {ticker}")
-            else:
-                failed_tickers.append(ticker)
-                print(f"  [FAIL] {ticker}: {result_info}")
-    
-    print(f"  [TOTAL] {total_puts} puts so far")
+        with ThreadPoolExecutor(max_workers=TICKER_GROUP) as executor:
+            futures = {}
+            for idx, ticker in enumerate(group):
+                if idx > 0:
+                    time.sleep(DELAY_BETWEEN_WORKERS)
+                futures[executor.submit(run_get_puts, ticker)] = ticker
+            
+            for future in as_completed(futures):
+                ticker, success, result_info = future.result()
+                if success:
+                    successful_tickers.append(ticker)
+                    total_puts += result_info
+                    print(f"  [OK] {ticker}: {result_info} puts")
+                elif isinstance(result_info, str) and ("insufficient data" in result_info or "failed stock rules" in result_info or "No expiration dates" in result_info):
+                    skipped_tickers.append(ticker)
+                    print(f"  [SKIP] {ticker}")
+                else:
+                    failed_tickers.append(ticker)
+                    print(f"  [FAIL] {ticker}: {result_info}")
+        
+        print(f"  [TOTAL] {total_puts} puts so far")
 
-print(f"\n{'='*60}")
-print(f"[SUMMARY] Processing complete:")
-print(f"   Successful: {len(successful_tickers)} tickers")
-print(f"   Skipped (filtered out): {len(skipped_tickers)} tickers")
-print(f"   Failed: {len(failed_tickers)} tickers")
-print(f"   Total puts: {total_puts}")
-if failed_tickers:
-    print(f"   Failed tickers: {', '.join(failed_tickers)}")
-print(f"{'='*60}")
+    print(f"\n{'='*60}")
+    print(f"[SUMMARY] Processing complete:")
+    print(f"   Successful: {len(successful_tickers)} tickers")
+    print(f"   Skipped (filtered out): {len(skipped_tickers)} tickers")
+    print(f"   Failed: {len(failed_tickers)} tickers")
+    print(f"   Total puts: {total_puts}")
+    if failed_tickers:
+        print(f"   Failed tickers: {', '.join(failed_tickers)}")
+    print(f"{'='*60}")
 
-# Calculate and print runtime
-end_time = time.time()
-elapsed_time = end_time - start_time
-hours = int(elapsed_time // 3600)
-minutes = int((elapsed_time % 3600) // 60)
-seconds = int(elapsed_time % 60)
-print(f"Total runtime: {hours:02d}:{minutes:02d}:{seconds:02d}")
+    # Generate result1.json through result6.json from put_data/
+    print(f"\n[INFO] Generating result files from put_data/...")
+    generate_results_from_put_data()
+
+    # Generate result_all.json with unique puts ranked by rev_annual_rr_ratio
+    print(f"\n[INFO] Generating result_all.json...")
+    generate_result_all()
+
+    # Calculate and print runtime
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    hours = int(elapsed_time // 3600)
+    minutes = int((elapsed_time % 3600) // 60)
+    seconds = int(elapsed_time % 60)
+    print(f"Total runtime: {hours:02d}:{minutes:02d}:{seconds:02d}")
