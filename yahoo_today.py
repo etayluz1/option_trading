@@ -817,13 +817,23 @@ def generate_result_all():
                     continue
                 
                 if symbol not in put_rules_map:
+                    # Rename "symbol" to "put_symbol" in put_data
+                    put_data = {k: v for k, v in put.items() if k not in ["passed_high_put_mode", "passed_low_put_mode"]}
+                    if "symbol" in put_data:
+                        put_data["put_symbol"] = put_data.pop("symbol")
+                    
                     put_rules_map[symbol] = {
                         "low": [],
                         "high": [],
                         "stock_ticker": stock_ticker,
+                        "stock_date": stock_data.get("date"),
                         "stock_close": stock_data.get("close"),
                         "stock_adj_close": stock_data.get("adj_close"),
-                        "put_data": {k: v for k, v in put.items() if k not in ["passed_high_put_mode", "passed_low_put_mode"]}
+                        "stock_5_day_rise": stock_data.get("5_day_rise"),
+                        "stock_10_day_avg_slope": stock_data.get("10_day_avg_slope"),
+                        "stock_adj_price_above_avg_pct": stock_data.get("adj_price_above_avg_pct"),
+                        "stock_sma150_adj_close": stock_data.get("sma150_adj_close"),
+                        "put_data": put_data
                     }
                 
                 # Track which rules files this put passed for each mode
@@ -841,11 +851,21 @@ def generate_result_all():
         if not data["low"] and not data["high"]:
             continue
         
+        # Extract put_symbol from put_data to place it after stock fields
+        put_data = data["put_data"]
+        put_symbol = put_data.pop("put_symbol", None)
+        
         put_entry = {
             "stock_ticker": data["stock_ticker"],
+            "stock_date": data["stock_date"],
             "stock_close": data["stock_close"],
             "stock_adj_close": data["stock_adj_close"],
-            **data["put_data"],
+            "stock_5_day_rise": data["stock_5_day_rise"],
+            "stock_10_day_avg_slope": data["stock_10_day_avg_slope"],
+            "stock_adj_price_above_avg_pct": data["stock_adj_price_above_avg_pct"],
+            "stock_sma150_adj_close": data["stock_sma150_adj_close"],
+            "put_symbol": put_symbol,
+            **put_data,
             "source_low_rules": ", ".join(data["low"]) if data["low"] else "",
             "source_high_rules": ", ".join(data["high"]) if data["high"] else ""
         }
