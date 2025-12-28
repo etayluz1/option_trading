@@ -187,7 +187,7 @@ def refresh_put(put_entry):
     # Calculate timezone offset
     tz_offset = -time.timezone // 3600
     
-    # Update put entry with fresh data
+    # Update put entry with fresh data (only specified fields)
     put_entry["bid"] = fresh_data.get("bid")
     put_entry["ask"] = fresh_data.get("ask")
     
@@ -205,19 +205,25 @@ def refresh_put(put_entry):
         put_entry["ask_date"] = ask_date
     
     put_entry["last_price"] = fresh_data.get("last_price")
-    put_entry["volume"] = fresh_data.get("volume")
-    put_entry["open_interest"] = fresh_data.get("open_interest")
-    put_entry["delta"] = fresh_data.get("delta")
-    put_entry["gamma"] = fresh_data.get("gamma")
-    put_entry["theta"] = fresh_data.get("theta")
-    put_entry["vega"] = fresh_data.get("vega")
-    put_entry["rho"] = fresh_data.get("rho")
-    put_entry["mid_iv"] = fresh_data.get("mid_iv")
+    
+    # Format delta as percentage string
+    delta_val = fresh_data.get("delta")
+    put_entry["delta"] = f"{delta_val * 100:.1f}%" if delta_val is not None else None
     
     # Recalculate risk/reward ratios
     bid = put_entry.get("bid") or 0
     strike = put_entry.get("strike") or 0
-    days_to_exp = put_entry.get("days_to_expiration") or 0
+    expiration_date = put_entry.get("expiration_date")
+    
+    # Calculate days to expiration
+    days_to_exp = 0
+    if expiration_date:
+        try:
+            exp_date = datetime.strptime(expiration_date, "%Y-%m-%d")
+            today = datetime.now()
+            days_to_exp = (exp_date - today).days
+        except:
+            pass
     
     if bid > 0 and strike > bid and days_to_exp > 0:
         risk_reward_ratio = -((strike - bid) / bid)
@@ -278,7 +284,6 @@ def main():
         ticker = put.get("stock_ticker")
         if ticker in stock_prices:
             put["stock_close"] = stock_prices[ticker]
-            put["stock_adj_close"] = stock_prices[ticker]
     
     # Step 2: Refresh put option data
     print(f"\n[INFO] Refreshing top {len(top_puts)} puts with {WORKERS} workers...")

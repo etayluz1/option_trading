@@ -817,10 +817,10 @@ def generate_result_all():
                     continue
                 
                 if symbol not in put_rules_map:
-                    # Rename "symbol" to "put_symbol" in put_data
-                    put_data = {k: v for k, v in put.items() if k not in ["passed_high_put_mode", "passed_low_put_mode"]}
-                    if "symbol" in put_data:
-                        put_data["put_symbol"] = put_data.pop("symbol")
+                    # Extract only the required put fields
+                    # Format delta as percentage string
+                    delta_val = put.get("delta")
+                    delta_pct = f"{delta_val * 100:.1f}%" if delta_val is not None else None
                     
                     put_rules_map[symbol] = {
                         "low": [],
@@ -828,12 +828,18 @@ def generate_result_all():
                         "stock_ticker": stock_ticker,
                         "stock_date": stock_data.get("date"),
                         "stock_close": stock_data.get("close"),
-                        "stock_adj_close": stock_data.get("adj_close"),
-                        "stock_5_day_rise": stock_data.get("5_day_rise"),
-                        "stock_10_day_avg_slope": stock_data.get("10_day_avg_slope"),
-                        "stock_adj_price_above_avg_pct": stock_data.get("adj_price_above_avg_pct"),
-                        "stock_sma150_adj_close": stock_data.get("sma150_adj_close"),
-                        "put_data": put_data
+                        "put_symbol": symbol,
+                        "expiration_date": put.get("expiration_date"),
+                        "strike": put.get("strike"),
+                        "bid": put.get("bid"),
+                        "ask": put.get("ask"),
+                        "bid_date": put.get("bid_date"),
+                        "ask_date": put.get("ask_date"),
+                        "last_price": put.get("last_price"),
+                        "delta": delta_pct,
+                        "risk_reward_ratio": put.get("risk_reward_ratio"),
+                        "annual_rr_ratio": put.get("annual_rr_ratio"),
+                        "rev_annual_rr_ratio": put.get("rev_annual_rr_ratio")
                     }
                 
                 # Track which rules files this put passed for each mode
@@ -851,21 +857,24 @@ def generate_result_all():
         if not data["low"] and not data["high"]:
             continue
         
-        # Extract put_symbol from put_data to place it after stock fields
-        put_data = data["put_data"]
-        put_symbol = put_data.pop("put_symbol", None)
-        
+        # Build put_entry with exact key order
         put_entry = {
+            "rank_order": 0,  # Will be set after sorting
             "stock_ticker": data["stock_ticker"],
             "stock_date": data["stock_date"],
             "stock_close": data["stock_close"],
-            "stock_adj_close": data["stock_adj_close"],
-            "stock_5_day_rise": data["stock_5_day_rise"],
-            "stock_10_day_avg_slope": data["stock_10_day_avg_slope"],
-            "stock_adj_price_above_avg_pct": data["stock_adj_price_above_avg_pct"],
-            "stock_sma150_adj_close": data["stock_sma150_adj_close"],
-            "put_symbol": put_symbol,
-            **put_data,
+            "put_symbol": data["put_symbol"],
+            "expiration_date": data["expiration_date"],
+            "strike": data["strike"],
+            "bid": data["bid"],
+            "ask": data["ask"],
+            "bid_date": data["bid_date"],
+            "ask_date": data["ask_date"],
+            "last_price": data["last_price"],
+            "delta": data["delta"],
+            "risk_reward_ratio": data["risk_reward_ratio"],
+            "annual_rr_ratio": data["annual_rr_ratio"],
+            "rev_annual_rr_ratio": data["rev_annual_rr_ratio"],
             "source_low_rules": ", ".join(data["low"]) if data["low"] else "",
             "source_high_rules": ", ".join(data["high"]) if data["high"] else ""
         }
@@ -879,13 +888,37 @@ def generate_result_all():
     for rank, put in enumerate(all_puts, start=1):
         put["rank_order"] = rank
     
-    # Save to result_all.json
+    # Save to result_all.json with custom formatting (rank_order elevated above indented keys)
+    def format_put_entry(put):
+        lines = ['    {']
+        lines.append(f'        "rank_order": {put["rank_order"]},')
+        # Add remaining keys with 4 extra spaces of indentation
+        keys = [k for k in put.keys() if k != "rank_order"]
+        for i, key in enumerate(keys):
+            val = put[key]
+            if isinstance(val, str):
+                val_str = f'"{val}"'
+            elif val is None:
+                val_str = 'null'
+            else:
+                val_str = json.dumps(val)
+            comma = ',' if i < len(keys) - 1 else ''
+            lines.append(f'            "{key}": {val_str}{comma}')
+        lines.append('    }')
+        return '\n'.join(lines)
+    
     with open("result_all.json", 'w') as f:
-        json.dump(all_puts, f, indent=4)
+        f.write('[\n')
+        for i, put in enumerate(all_puts):
+            f.write(format_put_entry(put))
+            if i < len(all_puts) - 1:
+                f.write(',')
+            f.write('\n')
+        f.write(']\n')
     
     print(f"[OK] result_all.json: {len(all_puts)} unique puts (sorted by rev_annual_rr_ratio)")
     return all_puts
-
+ 
 
 # --- Concurrent processing helper ---
 
