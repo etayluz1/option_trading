@@ -1,8 +1,10 @@
-# Version 12/26/2025 11:21 PM
+# Version 12/27/2025 5:48 PM
+# Add random selctrion of wrapper_sweep_pct_set
 # x.y.z is now doing y = 1, 2 to 15
 import orjson
 import math
 import os
+import random
 import re
 import subprocess
 import sys
@@ -30,7 +32,9 @@ wrapper_sweep_pct_set = [0.3, 2, 3, 5, 8, 12, 16, 20, 24, 28, 32, 36, 40, 45, 50
 wrapper_sweep_pct_set = [24, 5, 28, 16, 8, 20]  # Percentages
 wrapper_sweep_pct_set = [40, 24, 45, 36, 16, 12, 20, 0.3, 2, 5, 3, 8, 32, 28, 50]  # Percentages
 wrapper_sweep_pct_set = [0.5, 41, 51, 25, 17, 13, 4, 29, 21, 6, 37, 46, 9, 1, 33]  # Percentages
+wrapper_sweep_pct_set = [28, 20, 5, 36, 45, 8, 2, 32, 0.3, 40, 50, 24, 16, 12, 3]  # Percentages
 wrap_group_size = 3  # Group size for optimization sweeps (3 or 4)
+warp_set_size = 15
 
 score_improvements_count = 0
 baseline_result = None  # Store baseline simulation result for reuse
@@ -55,6 +59,34 @@ TOTAL_GAIN_RE = re.compile(r"TOTAL NET PROFIT \(Start to Finish\):\s*\$\s*([\d,]
 CUM_REALIZED_RE = re.compile(r"TOTAL NET REALIZED P&L \(Cumulative\):\s*\$\s*([\d,]+(?:\.\d+)?)")
 # Capture annualized gain percentages from the final performance table.
 ANNUALIZED_GAIN_RE = re.compile(r"Annualized Gain[^%]*?([0-9]+(?:\.[0-9]+)?)%")
+
+
+def get_random_set(set_size: int) -> list[float]:
+    """
+    Generate a random set of sweep percentages.
+    90% are integers from 1-50, 10% are fractions from [0.2, 0.4, 0.6, 0.8].
+    Both selection and order are randomized.
+    """
+    fraction_count = max(1, round(set_size * 0.1))  # 10% fractions, at least 1
+    integer_count = set_size - fraction_count       # 90% integers
+    
+    # Available pools
+    integer_pool = list(range(1, 51))  # [1, 2, 3, ..., 50]
+    fraction_pool = [0.2, 0.4, 0.6, 0.8]
+    
+    # Randomly select from each pool (without replacement for integers, with replacement for fractions if needed)
+    selected_integers = random.sample(integer_pool, min(integer_count, len(integer_pool)))
+    selected_fractions = random.choices(fraction_pool, k=fraction_count)
+    
+    # Combine and shuffle
+    result = selected_integers + selected_fractions
+    random.shuffle(result)
+    
+    return result
+
+# Generate random sweep percentages (must be after function definition)
+wrapper_sweep_pct_set = get_random_set(warp_set_size)
+
 
 def _current_log_names() -> set[str]:
     if not LOGS_DIR.exists():

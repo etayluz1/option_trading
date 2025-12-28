@@ -1,3 +1,8 @@
+# Version 12/27/2025 5:47 pm
+# Add Delta In to the table of trades
+# New report of avg gain of a winning trade and of a losing trade [%]
+# New Score7 to increase trades
+
 # Utility: Find first dividend and split event between two dates for a ticker
 def get_first_dividend_and_split(stock_history_dict, ticker, entry_date, exit_date):
     """
@@ -1446,12 +1451,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     # Final P&L calculation
                     daily_pnl += net_profit  # Add exit gain to daily P&L only; cumulative is updated at end of day
                     
-                    # Calculate percentage gain relative to max risk (Premium / Max Loss)
-                    premium_collected_per_contract = trade['premium_received'] * 100.0
-                    max_risk_per_contract = (trade['strike'] * 100.0) - premium_collected_per_contract
-                    
-                    if max_risk_per_contract > 0:
-                        position_gain_percent = (net_profit / (max_risk_per_contract * qty)) * 100.0
+                    # Calculate percentage gain as (amount_in - amount_out) / amount_in
+                    amount_in = trade.get('orig_amount_in', premium_collected_gross)
+                    amount_out = exit_details['AmountOut']
+                    if amount_in > 0:
+                        position_gain_percent = ((amount_in - amount_out) / amount_in) * 100.0
                     else:
                         position_gain_percent = 0.0
 
@@ -1474,6 +1478,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     # Consolidate entry details (using separate keys for clarity in the final table)
                     trade_to_log = {
                         'Ticker': trade['ticker'],
+                        'Delta': trade.get('entry_delta', ''),
                         'Strike': trade['strike'],
                         'ExpDate': trade['expiration_date'],
                         'DayIn': trade['entry_date'],
@@ -1546,6 +1551,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                     # Log the recovered trade
                     trade_to_log = {
                         'Ticker': trade['ticker'],
+                        'Delta': trade.get('entry_delta', ''),
                         'Strike': trade['strike'],
                         'ExpDate': trade['expiration_date'],
                         'DayIn': trade['entry_date'],
@@ -2005,7 +2011,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                             'last_ask_date': date_str,  # Store date of last known ask price                            
                             'orig_amount_in': bid_at_entry * trade_quantity * 100.0 - entry_commission,                            
                             'orig_strike': best_contract['strike'],
-                            'orig_quantity': trade_quantity
+                            'orig_quantity': trade_quantity,
+                            'entry_delta': best_contract.get('putDelta', '')  # Store delta at entry
                         }
                         open_trades_log.append(trade_entry)
 
@@ -2423,10 +2430,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             cash_balance -= total_debit_outflow 
             # Yuda: I don;t like this cash_balance += premium_collected_gross
             
-            # Calculate percentage gain relative to max risk
-            max_risk_per_contract = (trade['strike'] * 100.0) - premium_collected_per_contract
-            if max_risk_per_contract > 0:
-                position_gain_percent = (position_net_gain / (max_risk_per_contract * qty)) * 100.0
+            # Calculate percentage gain as (amount_in - amount_out) / amount_in
+            amount_in = trade.get('orig_amount_in', premium_collected_gross)
+            amount_out = cost_to_close_gross
+            if amount_in > 0:
+                position_gain_percent = ((amount_in - amount_out) / amount_in) * 100.0
             else:
                 position_gain_percent = 0.0
 
@@ -2437,6 +2445,7 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             reason_str = "Last day liquidation" + (fallback_note if fallback_note else "")
             trade_to_log = {
                 'Ticker': trade['ticker'],
+                'Delta': trade.get('entry_delta', ''),
                 'Strike': trade['strike'],
                 'ExpDate': trade['expiration_date'],
                 'DayIn': trade['entry_date'],
@@ -2786,8 +2795,8 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
         # Adjusted separator for new Exit # column
         print("\n\n--- DETAILED CLOSED TRADE LOG (Full History) ---")
-        print("| Exit #  | Ticker | QtyIn |   Day In   | Price In   |   Amount In    |  Day Out   |Qty Out| Price Out |   Amount Out   | Reason Why Closed          |    Gain $   |   Gain %  |    Split   |")
-        print("|---------|--------|-------|------------|------------|----------------|------------|-------|-----------|----------------|----------------------------|------------|-----------|------------|")
+        print("| Exit #  | Ticker |   Delta  | QtyIn |   Day In   | Price In   |   Amount In    |  Day Out   |Qty Out| Price Out |   Amount Out   | Reason Why Closed          |    Gain $   |   Gain %  |    Split   |")
+        print("|---------|--------|----------|-------|------------|------------|----------------|------------|-------|-----------|----------------|----------------------------|------------|-----------|------------|")
         
         for index, trade in enumerate(closed_trades_log):
             
@@ -2826,8 +2835,18 @@ def _run_simulation_logic(rules_file_path, json_file_path):
 
             # Always use orig_quantity for QtyIn; if missing, show as blank or 0 for legacy records
             qty_in = trade['orig_quantity'] if 'orig_quantity' in trade else ''
+            # Format delta as percentage (e.g., -0.832 -> "-83.2%")
+            delta_raw = trade.get('Delta', '')
+            if delta_raw != '' and delta_raw is not None:
+                try:
+                    delta_val = float(str(delta_raw).replace('%', ''))
+                    delta_str = f"{delta_val * 100:.1f}%"
+                except (ValueError, TypeError):
+                    delta_str = str(delta_raw)[:8]
+            else:
+                delta_str = ''
             row = (
-                f"| {exit_number:>{COL_EXIT_NUM}} | {trade['Ticker']:<{COL_TICKER}} | {qty_in:>{COL_QTY}} | {trade['DayIn']:^{10}} | "
+                f"| {exit_number:>{COL_EXIT_NUM}} | {trade['Ticker']:<{COL_TICKER}} | {delta_str:>8} | {qty_in:>{COL_QTY}} | {trade['DayIn']:^{10}} | "
                 f"{price_in_str} | {amount_in_str} | {trade['DayOut']:^{10}} | {trade.get('QtyOut', ''):>{COL_QTY}} | "
                 f"{price_out_str} | {amount_out_str} | "
                 f" {reason_str:<{25}} | {gain_abs_str} | {gain_pct_str}  | {split_date_str:^6} |"
@@ -2989,41 +3008,49 @@ def _run_simulation_logic(rules_file_path, json_file_path):
     # Calculate Win Ratio (using incremental counters)
     win_ratio_pct = (winning_trades_count / closed_trades_count * 100.0) if closed_trades_count > 0 else 0.0
     
+    # Calculate average Gain% for winning and losing closed trades
+    winning_gain_pcts = [t.get('Gain%', 0.0) for t in closed_trades_log if t.get('Gain$', 0.0) > 0]
+    losing_gain_pcts = [t.get('Gain%', 0.0) for t in closed_trades_log if t.get('Gain$', 0.0) <= 0]
+    avg_winning_gain_pct = sum(winning_gain_pcts) / len(winning_gain_pcts) if winning_gain_pcts else 0.0
+    avg_losing_gain_pct = sum(losing_gain_pcts) / len(losing_gain_pcts) if losing_gain_pcts else 0.0
+    
     # Performance Summary
     print("📊 Final Performance")
-    print(f"|--------------------------------|-----------------------------------|") 
-    print(f"| Parameter                      |  Value                            |")
-    print(f"|--------------------------------|-----------------------------------|")
-    print(f"| Current Date/Time              | {datetime.now().strftime('%Y-%m-%d %H:%M'):>35} |")
-    print(f"| Annualized Gain                | {annualized_gain:>34.3f}% |")
-    print(f"| Total Gain                     | ${TOTAL_GAIN:>34,.2f} |")
-    print(f"| Run Time                       | {runtime_str:>35} |")
+    print(f"|--------------------------------|------------------------------------|") 
+    print(f"| Parameter                      |  Value                             |")
+    print(f"|--------------------------------|------------------------------------|")
+    print(f"| Current Date/Time              | {datetime.now().strftime('%Y-%m-%d %H:%M'):>34} |")
+    print(f"| Annualized Gain                | {annualized_gain:>33.3f}% |")
+    print(f"| Total Gain                     | ${TOTAL_GAIN:>33,.2f} |")
+    print(f"| Run Time                       | {runtime_str:>34} |")
     # Print the worst year and its percentage gain
     # Print current log file name (row ~2418 request)
     if worst_year is not None and worst_year_pct is not None:
-        print(f"| Worst Year (Gain %)            | {str(worst_year) + ':  ' + format(worst_year_pct, '.2f') + '%':>35} |")
-    print(f"| Peak Open Positions (low)      | {peak_open_positions_low:>33} |")
-    print(f"| Peak Open Positions (high)     | {peak_open_positions_high:>33} |")
-    print(f"| Min DTE (Open Positions)       | {min_DTE_result:>33} |")
-    print(f"| Max DTE (Open Positions)       | {max_DTE_result:>33} |")
-    print(f"| Total Entry Events             | {total_entry_events:>33} |")
-    print(f"| Win Ratio                      | {win_ratio_pct:>32.2f}% |")
+        print(f"| Worst Year (Gain %)            | {str(worst_year) + ':  ' + format(worst_year_pct, '.2f') + '%':>34} |")
+    print(f"| Peak Open Positions (low)      | {peak_open_positions_low:>34} |")
+    print(f"| Peak Open Positions (high)     | {peak_open_positions_high:>34} |")
+    print(f"| Min DTE (Open Positions)       | {min_DTE_result:>34} |")
+    print(f"| Max DTE (Open Positions)       | {max_DTE_result:>34} |")
+    print(f"| Total Entry Events             | {total_entry_events:>34} |")
+    print(f"| Win Ratio                      | {win_ratio_pct:>33.2f}% |")
+    print(f"| Avg Winning Trade Gain %       | {avg_winning_gain_pct:>33.2f}% |")
+    print(f"| Avg Losing Trade Gain %        | {avg_losing_gain_pct:>33.2f}% |")
     
     # Print current log file name (row ~2418 request)
     try:
         current_log_path = getattr(sys.stdout, 'logfile', None)
         if current_log_path and hasattr(current_log_path, 'name'):
             log_filename_only = os.path.basename(current_log_path.name)
-            print(f"| Log File                       | {log_filename_only:>33} |")
+            print(f"| Log File                       | {log_filename_only:>34} |")
         else:
             # Fallback if stdout has been restored or structure changed
-            print(f"| Log File                       | {'N/A':>33} |")
+            print(f"| Log File                       | {'N/A':>34} |")
     except Exception:
-        print(f"| Log File                       | {'ERR':>33} |")
+        print(f"| Log File                       | {'ERR':>34} |")
     
     # Worst drawdown across all simulated dates
     try:
-        print(f"| Worst Drawdown                 | {worst_drawdown_pct:>32.3f}% |")
+        print(f"| Worst Drawdown                 | {worst_drawdown_pct:>33.3f}% |")
     except Exception:
         # If for any reason the metric isn't available, skip gracefully
         pass
@@ -3043,11 +3070,11 @@ def _run_simulation_logic(rules_file_path, json_file_path):
         Score6 =  Score6 * (abs(worst_year_pct)) ** 2 / abs(drawdown_goal_pct - worst_drawdown_pct) ** 2    
         if annualized_gain < 0 and worst_year_pct < 0:
             Score6= -abs(Score6)
-            
+
     Score7 = Score6 / 1e7 * ((peak_open_positions_low + 1) * (peak_open_positions_high + 1) * total_entry_events) ** 5
 
-    print(f"| Score Result                   | {Score7:>35.4f} |")
-    print(f"|--------------------------------|-----------------------------------|")
+    print(f"| Score Result                   | {Score7:>34.4f} |")
+    print(f"|--------------------------------|------------------------------------|")
     print()    
 # Execute the main function 
 if __name__ == "__main__":
