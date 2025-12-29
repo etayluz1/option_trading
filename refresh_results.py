@@ -237,7 +237,7 @@ def refresh_put(put_entry):
     # Recalculate intrinsic_value and time_val
     stock_close = put_entry.get("stock_close") or 0
     put_entry["intrinsic_value"] = round(max(0, strike - stock_close), 2)
-    put_entry["time_val"] = round(bid + stock_close - strike, 2)
+    put_entry["time_val"] = round(bid - put_entry["intrinsic_value"], 2)
     
     print(f"  [OK] {put_symbol} - bid: {bid}")
     return put_entry

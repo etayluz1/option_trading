@@ -722,14 +722,16 @@ def generate_results_from_put_data():
     
     print(f"[INFO] Loaded {len(all_put_data)} tickers from put_data_today/")
     
-    # Process each rules file
-    for i in range(1, 7):
-        rules_file = f"rules{i}.json"
-        result_file = f"result{i}.json"
-        
-        if not os.path.exists(rules_file):
-            print(f"[SKIP] {rules_file} not found")
+    # Process each rules file dynamically (rules1.json, rules2.json, etc.)
+    import re
+    rules_files = sorted(glob.glob("rules[0-9]*.json"))
+    
+    for rules_file in rules_files:
+        # Extract number from rules file name (e.g., rules1.json -> 1)
+        match = re.search(r'rules(\d+)\.json', rules_file)
+        if not match:
             continue
+        result_file = f"result{match.group(1)}.json"
         
         with open(rules_file, 'r') as f:
             rules = json.load(f)
@@ -800,11 +802,16 @@ def generate_result_all():
     # First pass: collect which rules files each put passes for low and high modes
     put_rules_map = {}  # symbol -> {"low": [rules files], "high": [rules files], "put_data": {...}}
     
-    for i in range(1, 7):
-        result_file = f"result{i}.json"
-        rules_file = f"rules{i}.json"
-        if not os.path.exists(result_file):
+    # Dynamically find all result*.json files (result1.json, result2.json, etc.)
+    import re
+    result_files = sorted(glob.glob("result[0-9]*.json"))
+    
+    for result_file in result_files:
+        # Extract number from result file name (e.g., result1.json -> 1)
+        match = re.search(r'result(\d+)\.json', result_file)
+        if not match:
             continue
+        rules_file = f"rules{match.group(1)}.json"
         
         with open(result_file, 'r') as f:
             results = json.load(f)
@@ -828,7 +835,7 @@ def generate_result_all():
                     bid = put.get("bid") or 0
                     # For puts: ITM when strike > stock_close
                     intrinsic_value = max(0, strike - stock_close) if strike and stock_close else 0
-                    time_val = (bid + stock_close - strike) if bid and stock_close and strike else 0
+                    time_val = bid - intrinsic_value
                     
                     put_rules_map[symbol] = {
                         "low": [],
