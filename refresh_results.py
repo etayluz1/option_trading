@@ -20,7 +20,7 @@ TRADIER_API_KEY = "6IyR6wDsuQ2tzm9mGxzLDQY1GrTF"
 TRADIER_BASE_URL = "https://api.tradier.com/v1"
 
 # Configuration
-TOP_N = 100  # Number of top puts to refresh
+TOP_N = 20  # Number of top puts to refresh
 WORKERS = 8  # Number of concurrent API requests
 DELAY_BETWEEN_WORKERS = 0.3  # Seconds delay between starting workers
 
@@ -234,6 +234,11 @@ def refresh_put(put_entry):
         put_entry["annual_rr_ratio"] = round(annual_rr_ratio, 6)
         put_entry["rev_annual_rr_ratio"] = round(rev_annual_rr_ratio, 6)
     
+    # Recalculate intrinsic_value and time_val
+    stock_close = put_entry.get("stock_close") or 0
+    put_entry["intrinsic_value"] = round(max(0, strike - stock_close), 2)
+    put_entry["time_val"] = round(bid + stock_close - strike, 2)
+    
     print(f"  [OK] {put_symbol} - bid: {bid}")
     return put_entry
 
@@ -302,6 +307,9 @@ def main():
             result = future.result()
             refreshed_puts.append(result)
     
+    # Filter out puts with negative time value
+    refreshed_puts = [p for p in refreshed_puts if p.get("time_val", 0) >= 0]
+    
     # Re-sort refreshed puts by rev_annual_rr_ratio
     refreshed_puts.sort(key=lambda x: x.get("rev_annual_rr_ratio") or float('-inf'), reverse=True)
     
@@ -312,10 +320,34 @@ def main():
     for rank, put in enumerate(all_puts, start=1):
         put["rank_order"] = rank
     
-    # Save updated result_all.json
+    # Save updated result_all.json with custom formatting (rank_order elevated above indented keys)
+    def format_put_entry(put):
+        lines = ['    {']
+        lines.append(f'        "rank_order": {put["rank_order"]},')
+        # Add remaining keys with 4 extra spaces of indentation
+        keys = [k for k in put.keys() if k != "rank_order"]
+        for i, key in enumerate(keys):
+            val = put[key]
+            if isinstance(val, str):
+                val_str = f'"{val}"'
+            elif val is None:
+                val_str = 'null'
+            else:
+                val_str = json.dumps(val)
+            comma = ',' if i < len(keys) - 1 else ''
+            lines.append(f'            "{key}": {val_str}{comma}')
+        lines.append('    }')
+        return '\n'.join(lines)
+    
     print(f"\n[INFO] Saving updated result_all.json...")
     with open("result_all.json", "w") as f:
-        json.dump(all_puts, f, indent=4)
+        f.write('[\n')
+        for i, put in enumerate(all_puts):
+            f.write(format_put_entry(put))
+            if i < len(all_puts) - 1:
+                f.write(',')
+            f.write('\n')
+        f.write(']\n')
     
     # Calculate runtime
     elapsed = time.time() - start_time

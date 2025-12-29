@@ -4,7 +4,7 @@ get_puts.py - Get filtered puts for a single stock ticker
 Usage:
     python get_puts.py ABNB
     python get_puts.py AAPL
-
+  
 This script:
 1. Downloads Yahoo data for the ticker
 2. Filters stock against rules_all.json (underlying_stock rules)

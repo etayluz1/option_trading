@@ -822,21 +822,31 @@ def generate_result_all():
                     delta_val = put.get("delta")
                     delta_pct = f"{delta_val * 100:.1f}%" if delta_val is not None else None
                     
+                    # Calculate intrinsic_value and time_val
+                    strike = put.get("strike") or 0
+                    stock_close = stock_data.get("close") or 0
+                    bid = put.get("bid") or 0
+                    # For puts: ITM when strike > stock_close
+                    intrinsic_value = max(0, strike - stock_close) if strike and stock_close else 0
+                    time_val = (bid + stock_close - strike) if bid and stock_close and strike else 0
+                    
                     put_rules_map[symbol] = {
                         "low": [],
                         "high": [],
                         "stock_ticker": stock_ticker,
                         "stock_date": stock_data.get("date"),
-                        "stock_close": stock_data.get("close"),
+                        "stock_close": stock_close,
                         "put_symbol": symbol,
                         "expiration_date": put.get("expiration_date"),
-                        "strike": put.get("strike"),
-                        "bid": put.get("bid"),
+                        "strike": strike,
+                        "bid": bid,
                         "ask": put.get("ask"),
                         "bid_date": put.get("bid_date"),
                         "ask_date": put.get("ask_date"),
                         "last_price": put.get("last_price"),
                         "delta": delta_pct,
+                        "intrinsic_value": round(intrinsic_value, 2),
+                        "time_val": round(time_val, 2),
                         "risk_reward_ratio": put.get("risk_reward_ratio"),
                         "annual_rr_ratio": put.get("annual_rr_ratio"),
                         "rev_annual_rr_ratio": put.get("rev_annual_rr_ratio")
@@ -857,6 +867,10 @@ def generate_result_all():
         if not data["low"] and not data["high"]:
             continue
         
+        # Filter out puts with negative time value
+        if data["time_val"] < 0:
+            continue
+        
         # Build put_entry with exact key order
         put_entry = {
             "rank_order": 0,  # Will be set after sorting
@@ -872,6 +886,8 @@ def generate_result_all():
             "ask_date": data["ask_date"],
             "last_price": data["last_price"],
             "delta": data["delta"],
+            "intrinsic_value": data["intrinsic_value"],
+            "time_val": data["time_val"],
             "risk_reward_ratio": data["risk_reward_ratio"],
             "annual_rr_ratio": data["annual_rr_ratio"],
             "rev_annual_rr_ratio": data["rev_annual_rr_ratio"],
@@ -919,7 +935,7 @@ def generate_result_all():
     print(f"[OK] result_all.json: {len(all_puts)} unique puts (sorted by rev_annual_rr_ratio)")
     return all_puts
  
-
+  
 # --- Concurrent processing helper ---
 
 TICKER_GROUP = 16  # Number of concurrent workers
