@@ -1,4 +1,6 @@
-# Version 12/27/2025 5:47 pm
+# Version 12/29/2025 3:52 pm    : time_value must be positive
+# Version 12/28/2025 8:33 am    : Score9 to add more digits
+# Version 12/28/2025 1:02 am    : Score8 to reduce trade events
 # Add Delta In to the table of trades
 # New report of avg gain of a winning trade and of a losing trade [%]
 # New Score7 to increase trades
@@ -255,6 +257,27 @@ def get_contract_bid_price(orats_data, ticker, expiration_date_str, strike):
             return pbidpx if pbidpx > 0 else None
 
     return None
+
+
+def calculate_put_option_values(strike, close_price, bid_price):
+    """
+    Calculates the intrinsic value and time value of a put option.
+    
+    For a PUT option:
+    - Intrinsic value = max(0, strike - close_price)  [ITM when strike > stock]
+    - Time value = bid - intrinsic_value
+    
+    Args:
+        strike: The option strike price
+        close_price: The current stock close price
+        bid_price: The current option bid price
+    
+    Returns:
+        tuple: (intrinsic_value, time_value)
+    """
+    intrinsic_val = max(0, strike - close_price)
+    time_val = bid_price - intrinsic_val
+    return intrinsic_val, time_val
 
 
 def load_and_run_simulation(rules_file_path, json_file_path):
@@ -1726,6 +1749,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
                                             passes_safety_margin = sma150_close is not None and strike_value > 0 and (sma150_close / strike_value) > REQUIRED_SMA_STRIKE_RATIO
                                             if not passes_safety_margin: continue # Fail fast
 
+                                            # --- Check 4b: Time Value Filter ---
+                                            intrinsic_val, time_val = calculate_put_option_values(strike_value, current_close_price, pbidpx_value)
+                                            if time_val <= 0: continue # Fail fast - no time value
+
                                             # --- Check 5: Risk/Reward Ratio ---
                                             risk_reward_ratio = None
                                             annual_risk = None
@@ -3072,8 +3099,10 @@ def _run_simulation_logic(rules_file_path, json_file_path):
             Score6= -abs(Score6)
 
     Score7 = Score6 / 1e7 * ((peak_open_positions_low + 1) * (peak_open_positions_high + 1) * total_entry_events) ** 5
+    Score8 = Score6 / 1e7 * ((peak_open_positions_low + 1) * (peak_open_positions_high + 1) * total_entry_events)    
+    Score9 = Score6 * 1e3 * ((peak_open_positions_low + 1) * (peak_open_positions_high + 1) * total_entry_events)    
 
-    print(f"| Score Result                   | {Score7:>34.4f} |")
+    print(f"| Score Result                   | {Score9:>34.4f} |")
     print(f"|--------------------------------|------------------------------------|")
     print()    
 # Execute the main function 

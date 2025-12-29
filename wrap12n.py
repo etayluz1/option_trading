@@ -1,4 +1,6 @@
-# Version 12/27/2025 5:48 PM
+# Version 12/28/2025 8:33 am    : 9999 and -9999 special flag handling for low_put_mode
+# Version 12/28/2025 1:17 am    : fixed bug in Force LowPutsMode
+# Version 12/28/2025 12:41 am   : Skip low_put_mode rules or Skip high_mode_rules
 # Add random selctrion of wrapper_sweep_pct_set
 # x.y.z is now doing y = 1, 2 to 15
 import orjson
@@ -21,19 +23,7 @@ from typing import Callable, Iterable, Optional
 _log_file_lock = threading.Lock()
 
 wrapper_sweep_pct_set = [0.3, 2, 3, 5, 8, 12, 16, 20, 24, 28, 32, 36, 40, 45, 50]  # Percentages
-#Version 1: $[40, 24, 45, 36, 16, 12, 20, 0.3, 2, 5, 3, 8, 32, 28, 50]$
-#Version 2: $[36, 32, 20, 12, 40, 3, 28, 8, 50, 0.3, 24, 16, 5, 45, 2]$
-#Version 3: $[24, 5, 28, 16, 8, 20, 3, 36, 12, 0.3, 50, 40, 2, 45, 32]$
-#Version 4: $[8, 40, 3, 45, 0.3, 50, 2, 36, 5, 20, 32, 16, 28, 24, 12]$
-#Version 5: $[28, 20, 5, 36, 45, 8, 2, 32, 0.3, 40, 50, 24, 16, 12, 3]$
-#Version 6: $[40, 28, 36, 32, 45, 2, 12, 8, 50, 3, 16, 5, 24, 20, 0.3]$
-#Version 7: $[40, 12, 8, 0.3, 16, 50, 45, 3, 20, 24, 32, 36, 5, 28, 2]$
-#ersion 8: $[12, 20, 50, 40, 28, 45, 8, 16, 36, 5, 32, 3, 0.3, 24, 2]$
-wrapper_sweep_pct_set = [24, 5, 28, 16, 8, 20]  # Percentages
-wrapper_sweep_pct_set = [40, 24, 45, 36, 16, 12, 20, 0.3, 2, 5, 3, 8, 32, 28, 50]  # Percentages
-wrapper_sweep_pct_set = [0.5, 41, 51, 25, 17, 13, 4, 29, 21, 6, 37, 46, 9, 1, 33]  # Percentages
-wrapper_sweep_pct_set = [28, 20, 5, 36, 45, 8, 2, 32, 0.3, 40, 50, 24, 16, 12, 3]  # Percentages
-wrap_group_size = 3  # Group size for optimization sweeps (3 or 4)
+wrap_group_size = 3  # Group size for optimization sweeps (1,2,3 or 4)
 warp_set_size = 15
 
 score_improvements_count = 0
@@ -358,7 +348,7 @@ def _print_summary(rows: list[dict], param_name: str, emit: Callable[[str], None
             _format_pct(row.get("worst_year_pct")),
             _format_pct(row.get("drawdown")),
             _format_score(row.get("score")),            
-            f"{row['log_name']}  (reused)" if row.get("is_reused") else row["log_name"],
+            f"{row.get('log_name', 'N/A')}  (reused)" if row.get("is_reused") else row.get("log_name", "N/A"),
         ]
         for row in rows
     ]
@@ -551,6 +541,26 @@ def main(wrapper_sweep_pct_group: list[float], global_wrap_idx_start: int = 1) -
             {"section": "low_put_mode", "key": "low_min_gain_to_take_profit", "label": "low_min_gain_to_take_profit", "type": "percent"}
         ]
 
+        # --- Determine skip modes based on rules.json values ---
+        # skip_low_mode: if low_min_puts_to_set_low_mode == "9999", low mode is disabled, skip all low_put_mode rules
+        # skip_high_mode: if low_max_puts_to_set_high_mode == "9999", always in low mode, skip regular rules with low equivalents
+        low_min_puts_val = str(current_rules.get("low_put_mode", {}).get("low_min_puts_to_set_low_mode", "")).strip()
+        low_max_puts_val = str(current_rules.get("low_put_mode", {}).get("low_max_puts_to_set_high_mode", "")).strip()
+        skip_low_mode = (low_min_puts_val == "9999")
+        skip_high_mode = (low_max_puts_val == "9999")
+        
+        # Build set of low_put_mode keys (without "low_" prefix) for skip_high_mode matching
+        low_mode_keys_without_prefix = set()
+        for spec in param_specs:
+            if spec["section"] == "low_put_mode" and spec["key"].startswith("low_"):
+                # Remove "low_" prefix to get the equivalent regular key name
+                low_mode_keys_without_prefix.add(spec["key"][4:])  # e.g., "low_max_puts_per_account" -> "max_puts_per_account"
+        
+        if skip_low_mode:
+            log(f"⚡ skip_low_mode=True (low_min_puts_to_set_low_mode=9999): Will skip all low_put_mode rules")
+        if skip_high_mode:
+            log(f"⚡ skip_high_mode=True (low_max_puts_to_set_high_mode=9999): Will skip regular rules with low equivalents")
+
         global score_improvements_count, baseline_result
         prev_best_result = baseline_result.copy() if baseline_result else None
         baseline_score = baseline_result.get("new_score_pct") if baseline_result else None
@@ -610,7 +620,7 @@ def main(wrapper_sweep_pct_group: list[float], global_wrap_idx_start: int = 1) -
                     # Skip try_id=1 (-->0%) for Rule 2+
                     # Only include the FIRST try_id=1 as a reused fake run
                     if rule_id > 1 and try_id == 1:
-                        if local_idx == 1:
+                        if local_idx == 1 and prev_best_result:
                             # First wrap: will inject as reused result
                             serialized_value = serialize_value(value, param_type)
                             print(f"{rule_id}.{sweep_y}.{try_id} --> {label}={serialized_value} (reused from Rule {prev_best_result['rule_id']})", flush=True)
@@ -621,6 +631,19 @@ def main(wrapper_sweep_pct_group: list[float], global_wrap_idx_start: int = 1) -
                     if value_key in assigned_values:
                         continue  # Skip if this value was already assigned in this trial set
                     assigned_values.add(value_key)
+                    # Determine if this rule should be skipped
+                    is_skipped = False
+                    if skip_low_mode and section == "low_put_mode":
+                        is_skipped = True  # Skip all low_put_mode rules when low mode is disabled
+                    elif skip_high_mode and section != "low_put_mode" and key in low_mode_keys_without_prefix:
+                        is_skipped = True  # Skip regular rules that have low equivalents when always in low mode
+                    
+                    # Skip the two mode flag rules if they have special flag values (9999 or -9999)
+                    if key in ["low_min_puts_to_set_low_mode", "low_max_puts_to_set_high_mode"]:
+                        flag_val = str(current_rules.get("low_put_mode", {}).get(key, "")).strip()
+                        if flag_val in ["9999", "-9999"]:
+                            is_skipped = True  # These are special flags, not values to optimize
+                    
                     trial_tasks.append({
                         "rule_id": rule_id,  # x: 1 to 46
                         "wrap_id": sweep_y,  # y: 1 to 15 (index in wrapper_sweep_pct_set)
@@ -631,8 +654,18 @@ def main(wrapper_sweep_pct_group: list[float], global_wrap_idx_start: int = 1) -
                         "section": section,
                         "key": key,
                         "param_type": param_type,
-                        "is_reused": False
+                        "is_reused": False,
+                        "is_skipped": is_skipped
                     })
+            
+            # Special case: If rule_id=1 and all trials are skipped, we must run one baseline with wrap=0
+            # to establish a baseline for future rules
+            if rule_id == 1:
+                all_skipped = all(task.get("is_skipped", False) for task in trial_tasks)
+                if all_skipped and len(trial_tasks) > 0:
+                    # Force run the first trial (1.1.1) with wrap=0 as baseline
+                    log("⚠️  All Rule 1 trials are skipped, but we need a baseline. Forcing 1.1.1 with wrap=0.")
+                    trial_tasks[0]["is_skipped"] = False
             
             # Execute 9 trials concurrently
             results = []
@@ -641,6 +674,7 @@ def main(wrapper_sweep_pct_group: list[float], global_wrap_idx_start: int = 1) -
                 rule_id = task["rule_id"]  # x
                 wrap_id = task["wrap_id"]  # y (should be 1-15, index in wrapper_sweep_pct_set)
                 try_id = task["try_id"]    # z
+
                 value = task["value"]
                 sweep_pct = task["sweep_pct"]
                 label = task["label"]
@@ -648,10 +682,28 @@ def main(wrapper_sweep_pct_group: list[float], global_wrap_idx_start: int = 1) -
                 key = task["key"]
                 param_type = task["param_type"]
                 is_reused = task["is_reused"]
+                is_skipped = task.get("is_skipped", False)
 
                 serialized_value = serialize_value(value, param_type)
                 # y is always the 1-based index in wrapper_sweep_pct_set
                 trial_id = f"{rule_id}.{wrap_id}.{try_id}"
+
+                # If this rule is skipped (disabled), return early with dummy result
+                if is_skipped:
+                    skip_reason = "low mode disabled" if section == "low_put_mode" else "has low equivalent"
+                    print(f"{trial_id} --> {label}={serialized_value} (SKIPPED: {skip_reason})", flush=True)
+                    return {
+                        "rule_id": rule_id,
+                        "wrap_id": wrap_id,
+                        "try_id": try_id,
+                        "trial_id": trial_id,
+                        "param_value": value,
+                        "param_display": serialized_value,
+                        "is_skipped": True,
+                        "score": None,
+                        "gain": None,
+                        "runtime": "SKIPPED"
+                    }
 
                 # If this is a reused trial, skip simulation and use previous rule's result
                 if is_reused and prev_best_result:
